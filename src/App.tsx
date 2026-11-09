@@ -27,6 +27,9 @@ import {
   BookOpen,
   ArrowRight
 } from 'lucide-react';
+import { buildCheckin, parseCheckin, currentSlot, SLOT_MS } from './checkin';
+import { QRCodeImage, QRScanner, FaceCapture } from './CameraParts';
+import { getEnrollment, saveEnrollment, deleteEnrollment, listEnrolledIds } from './face';
 
 /* ==========================================================================
    LOGO COMPONENT (Matching Forest Green & Academic Gold Emblem)
@@ -136,33 +139,74 @@ export default function App() {
   });
 
   // Rotating Token Management (Changes every 30s)
-  const [qrToken, setQrToken] = useState('TOK-987123');
+  const [qrToken, setQrToken] = useState('');
+  const [qrPayload, setQrPayload] = useState('');
   const [secondsToRotate, setSecondsToRotate] = useState(30);
-  const [activeScannedToken, setActiveScannedToken] = useState('');
+
+  // Result of the last QR scan on this device (signed, time-limited check-in session)
+  const [checkin, setCheckin] = useState(null);
+  const [checkinError, setCheckinError] = useState('');
 
   // Attendance Records Log
   const [attendanceLogs, setAttendanceLogs] = useState([]);
   // Lockouts State
   const [lockedOutStudents, setLockedOutStudents] = useState([]);
 
-  // Auto Rotation Timer for Dynamic QR Token
+  // Real signed QR code: a fresh one every 30 seconds
   useEffect(() => {
-    const timer = setInterval(() => {
-      setSecondsToRotate((prev) => {
-        if (prev <= 1) {
-          const newToken = 'TOK-' + Math.floor(100000 + Math.random() * 900000);
-          setQrToken(newToken);
-          return 30;
+    let cancelled = false;
+    let lastSlot = -1;
+    const tick = async () => {
+      const slot = currentSlot();
+      setSecondsToRotate(Math.ceil((SLOT_MS - (Date.now() % SLOT_MS)) / 1000));
+      if (slot !== lastSlot) {
+        lastSlot = slot;
+        try {
+          const { url, token } = await buildCheckin(
+            { id: activeSession.id, course: activeSession.course, teacher: activeSession.teacher },
+            slot
+          );
+          if (!cancelled) {
+            setQrPayload(url);
+            setQrToken(token);
+          }
+        } catch (e) {
+          console.error('Could not build QR code', e);
         }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
+      }
+    };
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [activeSession.id, activeSession.course, activeSession.teacher]);
+
+  // Validate a scanned QR (from the in-app scanner or a phone's camera app)
+  const handleQrScanned = async (raw) => {
+    const result = await parseCheckin(raw);
+    if (result.ok) {
+      setCheckin({ session: result.session, validatedAt: Date.now() });
+      setCheckinError('');
+    } else {
+      setCheckinError(result.message);
+    }
+    return result;
+  };
+
+  // If the site was opened by scanning the QR with a phone's normal camera app
+  useEffect(() => {
+    if (!new URLSearchParams(window.location.search).has('checkin')) return;
+    const link = window.location.href;
+    window.history.replaceState({}, '', window.location.pathname);
+    setActiveTab('student');
+    handleQrScanned(link);
   }, []);
 
-  // Handler when student scans or tests the QR code
-  const handleSimulateScan = (scannedToken) => {
-    setActiveScannedToken(scannedToken);
+  // Admin shortcut: run this QR through the student check-in on the same device
+  const handleSimulateScan = async () => {
+    await handleQrScanned(qrPayload);
     setActiveTab('student');
   };
 
@@ -249,6 +293,7 @@ export default function App() {
             activeSession={activeSession}
             setActiveSession={setActiveSession}
             qrToken={qrToken}
+            qrPayload={qrPayload}
             secondsToRotate={secondsToRotate}
             attendanceLogs={attendanceLogs}
             setAttendanceLogs={setAttendanceLogs}
@@ -267,9 +312,9 @@ export default function App() {
         {activeTab === 'student' && (
           <StudentPortal 
             activeSession={activeSession}
-            qrToken={qrToken}
-            activeScannedToken={activeScannedToken}
-            setActiveScannedToken={setActiveScannedToken}
+            checkin={checkin}
+            checkinError={checkinError}
+            onQrScanned={handleQrScanned}
             attendanceLogs={attendanceLogs}
             setAttendanceLogs={setAttendanceLogs}
             lockedOutStudents={lockedOutStudents}
@@ -306,6 +351,7 @@ function AdminPortal({
   activeSession, 
   setActiveSession, 
   qrToken, 
+  qrPayload,
   secondsToRotate, 
   attendanceLogs, 
   setAttendanceLogs,
@@ -337,6 +383,11 @@ function AdminPortal({
     level: '300'
   });
   const [registrySearch, setRegistrySearch] = useState('');
+
+  // Face enrollment (stored on this device only)
+  const [enrolledIds, setEnrolledIds] = useState(() => listEnrolledIds());
+  const [enrollTarget, setEnrollTarget] = useState(null);
+  const [enrollSaved, setEnrollSaved] = useState(false);
 
   const [isAddStaffOpen, setIsAddStaffOpen] = useState(false);
   const [newStaffForm, setNewStaffForm] = useState({
@@ -501,7 +552,14 @@ function AdminPortal({
 
   const handleDeleteStudent = (studentId, studentName) => {
     if (window.confirm(`Are you sure you want to delete ${studentName} (${studentId}) from this course roster?`)) {
+      const stillEnrolledElsewhere = studentRegistry.some(
+        s => s.id === studentId && !(activeStaff ? s.course === activeStaff.course : true)
+      );
       setStudentRegistry(prev => prev.filter(s => !(s.id === studentId && s.course === (activeStaff ? activeStaff.course : s.course))));
+      if (!stillEnrolledElsewhere) {
+        deleteEnrollment(studentId);
+        setEnrolledIds(listEnrolledIds());
+      }
     }
   };
 
@@ -888,52 +946,16 @@ function AdminPortal({
                 <div className="relative group">
                   {/* Real Dynamic QR Link payload */}
                   <div className="p-5 bg-white rounded-3xl shadow-2xl border-4 border-amber-500 inline-block relative">
-                    <div className="w-56 h-56 sm:w-64 sm:h-64 bg-slate-950 rounded-2xl p-4 flex flex-col justify-between border-2 border-emerald-800 relative overflow-hidden">
-                      {/* Animated Scanner Beam */}
-                      <div className="absolute inset-x-0 h-1 bg-amber-400 shadow-[0_0_15px_#f59e0b] animate-bounce top-2"></div>
-                      
-                      {/* Grid representation */}
-                      <div className="grid grid-cols-5 gap-2 h-full w-full opacity-90">
-                        <div className="bg-amber-400 rounded border-2 border-white"></div>
-                        <div className="bg-emerald-800 rounded"></div>
-                        <div className="bg-slate-800 rounded"></div>
-                        <div className="bg-emerald-800 rounded"></div>
-                        <div className="bg-amber-400 rounded border-2 border-white"></div>
-                        
-                        <div className="bg-slate-800 rounded"></div>
-                        <div className="bg-amber-400 rounded"></div>
-                        <div className="bg-emerald-800 rounded"></div>
-                        <div className="bg-amber-400 rounded"></div>
-                        <div className="bg-slate-800 rounded"></div>
-                        
-                        <div className="bg-emerald-800 rounded"></div>
-                        <div className="bg-emerald-800 rounded"></div>
-                        <div className="bg-amber-400 rounded"></div>
-                        <div className="bg-emerald-800 rounded"></div>
-                        <div className="bg-emerald-800 rounded"></div>
-                        
-                        <div className="bg-amber-400 rounded"></div>
-                        <div className="bg-slate-800 rounded"></div>
-                        <div className="bg-emerald-800 rounded"></div>
-                        <div className="bg-amber-400 rounded"></div>
-                        <div className="bg-amber-400 rounded"></div>
-                        
-                        <div className="bg-amber-400 rounded border-2 border-white"></div>
-                        <div className="bg-emerald-800 rounded"></div>
-                        <div className="bg-amber-400 rounded"></div>
-                        <div className="bg-slate-800 rounded"></div>
-                        <div className="bg-amber-400 rounded border-2 border-white"></div>
-                      </div>
-                    </div>
+                    <QRCodeImage value={qrPayload} size={isFullscreenQR ? 420 : 256} />
                   </div>
 
                   {/* Test Scan Button */}
                   <div className="mt-4 flex flex-col items-center gap-2">
                     <button
-                      onClick={() => onSimulateScan(qrToken)}
+                      onClick={() => onSimulateScan()}
                       className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-emerald-950 rounded-xl font-extrabold text-xs shadow-lg transition-transform transform active:scale-95 flex items-center gap-2 border border-amber-300"
                     >
-                      <ExternalLink className="w-4 h-4" /> Scan / Test This Lecturer's QR Now
+                      <ExternalLink className="w-4 h-4" /> Test Check-In On This Device
                     </button>
 
                     <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-900/80 border border-emerald-700 text-xs text-amber-300">
@@ -953,7 +975,7 @@ function AdminPortal({
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                <span>Session Expires in 10:00</span>
+                <span>Each QR stays valid about 90s</span>
               </div>
             </div>
           </div>
@@ -1124,6 +1146,7 @@ function AdminPortal({
                       <th className="p-3">Course Assigned</th>
                       <th className="p-3">Department</th>
                       <th className="p-3">Academic Level</th>
+                      <th className="p-3">Face</th>
                       <th className="p-3 text-right rounded-r-xl">Manage</th>
                     </tr>
                   </thead>
@@ -1135,7 +1158,21 @@ function AdminPortal({
                         <td className="p-3"><span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 rounded font-mono text-[10px]">{student.course}</span></td>
                         <td className="p-3 text-slate-600 dark:text-slate-300">{student.dept}</td>
                         <td className="p-3 text-slate-500">{student.level} Level</td>
-                        <td className="p-3 text-right">
+                        <td className="p-3">
+                          {enrolledIds.includes(student.id.toUpperCase()) ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">Enrolled</span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800">Not enrolled</span>
+                          )}
+                        </td>
+                        <td className="p-3 text-right whitespace-nowrap">
+                          <button
+                            onClick={() => { setEnrollSaved(false); setEnrollTarget(student); }}
+                            className="px-2.5 py-1.5 mr-1 text-[11px] font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950 hover:bg-emerald-100 dark:hover:bg-emerald-900 border border-emerald-200 dark:border-emerald-800 rounded-lg inline-flex items-center gap-1"
+                            title="Enroll this student's face"
+                          >
+                            <Camera className="w-3.5 h-3.5" /> {enrolledIds.includes(student.id.toUpperCase()) ? 'Re-enroll' : 'Enroll Face'}
+                          </button>
                           <button
                             onClick={() => handleDeleteStudent(student.id, student.name)}
                             className="p-1.5 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950 rounded-lg transition-colors"
@@ -1154,6 +1191,57 @@ function AdminPortal({
         )}
 
       </div>
+
+      {/* FACE ENROLLMENT MODAL */}
+      {enrollTarget && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-full space-y-4 max-h-[95vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                <Camera className="w-5 h-5 text-emerald-700" /> Enroll Face: {enrollTarget.name} ({enrollTarget.id})
+              </h3>
+              <button
+                onClick={() => setEnrollTarget(null)}
+                className="text-slate-400 hover:text-slate-600 text-sm font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            {enrollSaved ? (
+              <div className="text-center space-y-4 py-4">
+                <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto" />
+                <p className="text-sm font-bold text-slate-900 dark:text-white">Face enrolled for {enrollTarget.id}.</p>
+                <p className="text-xs text-slate-500">A numeric face template was saved on this device. No photo is stored.</p>
+                <button
+                  onClick={() => setEnrollTarget(null)}
+                  className="px-5 py-2.5 bg-emerald-900 hover:bg-emerald-800 text-amber-400 font-extrabold rounded-xl text-xs border border-emerald-700"
+                >
+                  Done
+                </button>
+              </div>
+            ) : (
+              <>
+                <p className="text-xs text-slate-500">
+                  The student must be present. They look straight at the camera while 3 samples are captured. Only a numeric template is saved, on this device.
+                </p>
+                <FaceCapture
+                  mode="enroll"
+                  onEnrolled={({ descriptors }) => {
+                    if (saveEnrollment(enrollTarget.id, descriptors)) {
+                      setEnrolledIds(listEnrolledIds());
+                      setEnrollSaved(true);
+                    } else {
+                      alert('Could not save the face template. Browser storage may be blocked.');
+                      setEnrollTarget(null);
+                    }
+                  }}
+                />
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* REGISTER NEW LECTURER / STAFF MODAL OVERLAY */}
       {isAddStaffOpen && (
@@ -1372,10 +1460,10 @@ function AdminPortal({
    STUDENT PORTAL COMPONENT
    ========================================================================== */
 function StudentPortal({ 
-  activeSession, 
-  qrToken, 
-  activeScannedToken, 
-  setActiveScannedToken, 
+  activeSession,
+  checkin,
+  checkinError,
+  onQrScanned,
   attendanceLogs, 
   setAttendanceLogs,
   lockedOutStudents,
@@ -1383,7 +1471,7 @@ function StudentPortal({
   studentRegistry,
   isDarkMode 
 }) {
-  const [step, setStep] = useState(1); // 1: Validate/Scan Token -> 2: Lookup ID -> 3: Consent -> 4: Face Capture -> 5: Receipt
+  const [step, setStep] = useState(1); // 1: Scan QR -> 2: Lookup ID -> 3: Consent -> 4: Face Scan -> 5: Receipt
   
   // Student Lookup Form Data
   const [studentIdInput, setStudentIdInput] = useState('');
@@ -1391,23 +1479,40 @@ function StudentPortal({
   const [lookupError, setLookupError] = useState('');
   const [matchedStudent, setMatchedStudent] = useState(null);
 
-  // Camera QR Code Reader Simulation
+  // Real camera QR scanner
   const [isScanningQR, setIsScanningQR] = useState(false);
 
-  // Biometric Liveness Check State
-  const [livenessProgress, setLivenessProgress] = useState(0);
-  const [livenessPrompt, setLivenessPrompt] = useState('Position face inside oval guide');
-  const [isCameraActive, setIsCameraActive] = useState(false);
-  const [capturedPhoto, setCapturedPhoto] = useState(null);
+  // Real face scan state
+  const [faceAttempt, setFaceAttempt] = useState(0);
+  const [faceError, setFaceError] = useState('');
+  const [faceRetries, setFaceRetries] = useState(0);
   const [receiptData, setReceiptData] = useState(null);
 
-  // Check Token Validity
-  const isTokenValid = (activeScannedToken || qrToken) === qrToken && !activeSession.isRevoked;
+  // The session comes from the QR the student actually scanned (signed + time-limited)
+  const session = checkin ? checkin.session : null;
+  const CHECKIN_WINDOW_MS = 10 * 60 * 1000;
+  const isTokenValid =
+    !!checkin &&
+    Date.now() - checkin.validatedAt < CHECKIN_WINDOW_MS &&
+    !(activeSession.isRevoked && activeSession.id === session.id);
 
-  // Handle Student Lookup bound to current active session course
+  // Face template enrolled on this device for the matched student
+  const enrollment = matchedStudent ? getEnrollment(matchedStudent.id) : null;
+
+  const handleQrCode = async (raw) => {
+    const result = await onQrScanned(raw);
+    if (result.ok) setIsScanningQR(false);
+  };
+
+  // Handle Student Lookup bound to the scanned session's course
   const handleVerifyStudentId = (e) => {
     e.preventDefault();
     const cleanId = studentIdInput.trim().toUpperCase();
+
+    if (!isTokenValid) {
+      setStep(1);
+      return;
+    }
 
     if (lockedOutStudents.includes(cleanId)) {
       setLookupError('This Student ID has been locked out due to multiple failed verification retries.');
@@ -1415,66 +1520,43 @@ function StudentPortal({
     }
 
     // Prevent Double Attendance Submission
-    const existingLog = attendanceLogs.find(l => l.studentId === cleanId && l.sessionId === activeSession.id);
+    const existingLog = attendanceLogs.find(l => l.studentId === cleanId && l.sessionId === session.id);
     if (existingLog) {
       setLookupError('Attendance already submitted for this Student ID in the current session.');
       return;
     }
 
-    // Lookup student in the active session's specific course roster
-    const found = studentRegistry.find(s => s.id === cleanId && s.course === activeSession.course);
+    // Lookup student in the session's specific course roster
+    const found = studentRegistry.find(s => s.id === cleanId && s.course === session.course);
     if (found) {
       setMatchedStudent(found);
       setLookupError('');
+      setFaceError('');
+      setFaceRetries(0);
       setStep(3); // Proceed to consent
     } else {
       const nextRetries = retryCount + 1;
       setRetryCount(nextRetries);
       if (nextRetries >= 3) {
         setLockedOutStudents(prev => [...prev, cleanId]);
-        setLookupError(`Maximum retries exceeded (3/3). Student ID is not enrolled in ${activeSession.course} or was entered incorrectly. Invigilator alerted.`);
+        setLookupError(`Maximum retries exceeded (3/3). Student ID is not enrolled in ${session.course} or was entered incorrectly. Invigilator alerted.`);
       } else {
-        setLookupError(`Student ID not found in roster for ${activeSession.course}. Retry ${nextRetries}/3.`);
+        setLookupError(`Student ID not found in roster for ${session.course}. Retry ${nextRetries}/3.`);
       }
     }
   };
 
-  // Simulate Face Scan & Liveness Check
-  const startCameraScan = () => {
-    setIsCameraActive(true);
-    setLivenessProgress(0);
-    setLivenessPrompt('Position face in oval guide');
-
-    setTimeout(() => {
-      setLivenessPrompt('Slowly blink your eyes...');
-      setLivenessProgress(35);
-    }, 1500);
-
-    setTimeout(() => {
-      setLivenessPrompt('Turn head slightly right...');
-      setLivenessProgress(70);
-    }, 3000);
-
-    setTimeout(() => {
-      setLivenessPrompt('Verification complete! Hold still...');
-      setLivenessProgress(100);
-      
-      // Generate Simulated Face Photo Blob
-      const mockCanvas = document.createElement('canvas');
-      mockCanvas.width = 150;
-      mockCanvas.height = 150;
-      const ctx = mockCanvas.getContext('2d');
-      ctx.fillStyle = '#064e3b';
-      ctx.fillRect(0, 0, 150, 150);
-      ctx.fillStyle = '#f59e0b';
-      ctx.beginPath();
-      ctx.arc(75, 75, 45, 0, Math.PI * 2);
-      ctx.fill();
-      const faceDataUrl = mockCanvas.toDataURL();
-
-      setCapturedPhoto(faceDataUrl);
-      finishVerification(faceDataUrl);
-    }, 4500);
+  const handleFaceMismatch = () => {
+    const next = faceRetries + 1;
+    setFaceRetries(next);
+    if (next >= 3) {
+      setLockedOutStudents(prev => [...prev, matchedStudent.id]);
+      setMatchedStudent(null);
+      setStep(2);
+      setLookupError('Your face did not match the enrolled record 3 times. This Student ID is locked out and the invigilator has been alerted.');
+    } else {
+      setFaceError(`Your face did not match the enrolled record (attempt ${next}/3).`);
+    }
   };
 
   const finishVerification = (photoUrl) => {
@@ -1482,8 +1564,8 @@ function StudentPortal({
     const receiptRef = 'REC-' + Math.random().toString(36).substring(2, 9).toUpperCase();
 
     const newLog = {
-      sessionId: activeSession.id,
-      course: activeSession.course,
+      sessionId: session.id,
+      course: session.course,
       studentId: matchedStudent.id,
       registeredName: matchedStudent.name,
       dept: matchedStudent.dept,
@@ -1518,45 +1600,49 @@ function StudentPortal({
         </div>
       </div>
 
-      {/* STEP 1: TOKEN VALIDATION / CAMERA QR SCANNER */}
+      {/* STEP 1: REAL QR SCAN */}
       {step === 1 && (
         <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-lg text-center space-y-6">
           <CampusSignLogo className="w-16 h-16 mx-auto" />
           
           <div>
             <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">Student Verification Check-In</h2>
-            <p className="text-xs text-slate-500 mt-1">Course: <strong className="text-emerald-800 dark:text-emerald-400">{activeSession.course}</strong> • Invigilator: <strong>{activeSession.teacher}</strong></p>
+            <p className="text-xs text-slate-500 mt-1">
+              {session ? (
+                <>Course: <strong className="text-emerald-800 dark:text-emerald-400">{session.course}</strong> • Invigilator: <strong>{session.teacher}</strong></>
+              ) : (
+                <>Scan the QR code on the lecturer's screen to begin.</>
+              )}
+            </p>
           </div>
 
-          {/* Token Status Badge */}
+          {/* QR Status Badge */}
           {isTokenValid ? (
             <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-900 text-emerald-800 dark:text-emerald-300 text-xs flex items-center justify-center gap-2">
               <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-              <span>Session Dynamic QR Token Active & Authenticated.</span>
+              <span>QR code verified for {session.course}.</span>
             </div>
-          ) : (
+          ) : checkinError ? (
             <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex items-center justify-center gap-2">
               <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
-              <span>Token Expired or Session Revoked by Invigilator. Please scan a fresh QR.</span>
+              <span>{checkinError}</span>
+            </div>
+          ) : (
+            <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-amber-800 dark:text-amber-300 text-xs flex items-center justify-center gap-2">
+              <Scan className="w-5 h-5 shrink-0" />
+              <span>{checkin ? 'Your check-in window expired. Scan the QR code again.' : 'No QR code scanned yet.'}</span>
             </div>
           )}
 
-          {/* CAMERA QR SCANNER SIMULATION MODAL */}
+          {/* REAL CAMERA QR SCANNER */}
           {isScanningQR && (
             <div className="p-4 rounded-2xl bg-slate-950 border border-emerald-800 text-white space-y-3 relative">
-              <div className="w-full h-48 bg-slate-900 rounded-xl border-2 border-dashed border-amber-400 flex flex-col items-center justify-center relative overflow-hidden">
-                <Scan className="w-12 h-12 text-amber-400 animate-pulse" />
-                <span className="text-xs text-amber-300 font-bold mt-2">Point Camera at Lecturer's QR Code</span>
-                <div className="absolute inset-x-0 h-0.5 bg-emerald-400 animate-bounce top-4"></div>
-              </div>
+              <QRScanner onCode={handleQrCode} />
               <button 
-                onClick={() => {
-                  setActiveScannedToken(qrToken);
-                  setIsScanningQR(false);
-                }}
-                className="w-full py-2 bg-emerald-700 text-white rounded-xl text-xs font-bold hover:bg-emerald-600"
+                onClick={() => setIsScanningQR(false)}
+                className="w-full py-2 bg-slate-800 text-white rounded-xl text-xs font-bold hover:bg-slate-700"
               >
-                Simulate QR Code Recognized
+                Close Camera
               </button>
             </div>
           )}
@@ -1651,54 +1737,78 @@ function StudentPortal({
 
           <div className="p-4 rounded-2xl bg-emerald-950 text-white border border-emerald-800 text-xs space-y-2">
             <div className="font-bold text-amber-400 flex items-center gap-1.5">
-              <Lock className="w-4 h-4" /> Institutional Data & Biometric Protection
+              <Lock className="w-4 h-4" /> Biometric Privacy Notice
             </div>
             <p className="text-[11px] text-emerald-200 leading-relaxed">
-              Your facial signature capture is encrypted end-to-end and stored strictly for exam verification. Facial signatures automatically purge after 30 days.
+              Your face is analysed on this device and compared with the template enrolled for your ID. A small photo of your face is attached to your attendance record for this session.
             </p>
           </div>
 
-          <button
-            onClick={() => {
-              setStep(4);
-              startCameraScan();
-            }}
-            className="w-full py-3.5 bg-amber-500 hover:bg-amber-400 text-emerald-950 font-extrabold rounded-2xl text-sm transition-colors shadow-lg border border-amber-300"
-          >
-            I Confirm - Grant Camera Access
-          </button>
+          {enrollment ? (
+            <button
+              onClick={() => {
+                setFaceError('');
+                setFaceAttempt(a => a + 1);
+                setStep(4);
+              }}
+              className="w-full py-3.5 bg-amber-500 hover:bg-amber-400 text-emerald-950 font-extrabold rounded-2xl text-sm transition-colors shadow-lg border border-amber-300"
+            >
+              I Consent - Start Face Scan
+            </button>
+          ) : (
+            <div className="space-y-3">
+              <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-amber-800 dark:text-amber-300 text-xs flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>No face is enrolled for <strong>{matchedStudent.id}</strong> on this device. Ask the invigilator to enroll you first (Lecturer Portal &rarr; Student Roster &rarr; Enroll Face).</span>
+              </div>
+              <button
+                onClick={() => { setMatchedStudent(null); setStep(2); }}
+                className="w-full py-3 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold rounded-2xl text-xs border border-slate-300 dark:border-slate-700"
+              >
+                Back
+              </button>
+            </div>
+          )}
         </div>
       )}
 
-      {/* STEP 4: FACE SCANNER & LIVENESS CHECK */}
-      {step === 4 && (
+      {/* STEP 4: REAL FACE SCAN + LIVENESS */}
+      {step === 4 && matchedStudent && enrollment && (
         <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-lg text-center space-y-6">
           <div>
-            <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">AI Face Liveness Scan</h2>
-            <p className="text-xs text-slate-500 mt-1">Keep your face framed within the guide oval.</p>
+            <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">Face Liveness Scan</h2>
+            <p className="text-xs text-slate-500 mt-1">Follow the prompts: look straight, blink once, then turn your head and come back.</p>
           </div>
 
-          {/* Camera Viewport Simulation Frame */}
-          <div className="relative w-64 h-64 mx-auto rounded-full border-4 border-amber-500 bg-slate-950 flex items-center justify-center overflow-hidden shadow-2xl">
-            {/* Pulsing Liveness Ring */}
-            <div 
-              className="absolute inset-2 rounded-full border-2 border-emerald-400 animate-pulse"
-              style={{ opacity: livenessProgress / 100 }}
-            ></div>
-
-            {/* Simulated Live Feed Head Outline */}
-            <div className="w-36 h-48 border-2 border-dashed border-white/60 rounded-full flex flex-col items-center justify-center relative z-10">
-              <Camera className="w-8 h-8 text-amber-400 mb-1" />
-              <span className="text-[10px] text-emerald-200 font-mono">{livenessProgress}%</span>
+          {faceError ? (
+            <div className="space-y-3">
+              <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2 text-left">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>{faceError}</span>
+              </div>
+              <button
+                onClick={() => { setFaceError(''); setFaceAttempt(a => a + 1); }}
+                className="px-5 py-2.5 bg-emerald-900 hover:bg-emerald-800 text-amber-400 font-extrabold rounded-xl text-xs border border-emerald-700"
+              >
+                Try Again
+              </button>
             </div>
+          ) : (
+            <FaceCapture
+              key={faceAttempt}
+              mode="verify"
+              enrolled={enrollment}
+              onVerified={({ photo }) => finishVerification(photo)}
+              onMismatch={handleFaceMismatch}
+            />
+          )}
 
-            {/* Scanning Line Animation */}
-            <div className="absolute inset-x-0 h-1 bg-amber-400 shadow-[0_0_15px_#f59e0b] animate-bounce top-10"></div>
-          </div>
-
-          <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold">
-            <span>{livenessPrompt}</span>
-          </div>
+          <button
+            onClick={() => setStep(3)}
+            className="text-xs font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+          >
+            Cancel
+          </button>
         </div>
       )}
 
@@ -1710,7 +1820,7 @@ function StudentPortal({
               <Award className="w-8 h-8 text-emerald-600" />
             </div>
             <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">Attendance Receipt Issued</h2>
-            <p className="text-xs text-slate-500">Digital Biometric Signature Confirmed</p>
+            <p className="text-xs text-slate-500">Face match and liveness check passed</p>
           </div>
 
           <div className="p-5 rounded-2xl bg-gradient-to-br from-emerald-950 to-slate-950 text-white border border-emerald-900 shadow-md space-y-3 text-xs">
@@ -1733,7 +1843,7 @@ function StudentPortal({
               </div>
               <div>
                 <span className="text-emerald-300 block">Course Code:</span>
-                <strong className="text-white text-xs">{activeSession.course}</strong>
+                <strong className="text-white text-xs">{receiptData.course}</strong>
               </div>
               <div>
                 <span className="text-emerald-300 block">Verification Time:</span>
@@ -1747,6 +1857,8 @@ function StudentPortal({
               setStep(1);
               setStudentIdInput('');
               setMatchedStudent(null);
+              setRetryCount(0);
+              setFaceRetries(0);
             }}
             className="w-full py-3 bg-emerald-900 hover:bg-emerald-800 text-amber-400 font-extrabold rounded-2xl text-xs transition-colors shadow border border-emerald-700"
           >
