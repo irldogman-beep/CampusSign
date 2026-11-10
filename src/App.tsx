@@ -43,6 +43,7 @@ import { QRCodeImage, QRScanner, FaceCapture } from './CameraParts';
 import * as db from './db';
 import { getBestFix } from './geo';
 import { QR_DISPLAY_CHANNEL } from './QRDisplayWindow';
+import AdminWorkspace, { NotificationBell } from './AdminWorkspace';
 
 /* ==========================================================================
    LOGO COMPONENT (Matching Forest Green & Academic Gold Emblem)
@@ -294,7 +295,7 @@ export default function App() {
               <div className="flex items-center gap-2">
                 <span className="font-black text-white text-lg tracking-tight">CampusSign</span>
                 <span className="hidden sm:inline-block bg-amber-500 text-emerald-950 font-extrabold text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider">
-                  v2.0 Enterprise
+                  SECURE ATTENDANCE
                 </span>
               </div>
               <p className="hidden sm:block text-[10px] text-emerald-200 font-medium">QR Biometric Student Verification System</p>
@@ -457,6 +458,7 @@ function AdminPortal({
   const [searchQuery, setSearchQuery] = useState('');
   const [retentionDays, setRetentionDays] = useState(30);
   const [enrollmentRequests, setEnrollmentRequests] = useState([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
   const [reviewingRequestId, setReviewingRequestId] = useState('');
   const [editingLog, setEditingLog] = useState(null);
   const [editAttendanceForm, setEditAttendanceForm] = useState({ studentName: '', dept: '', status: 'Verified' });
@@ -549,6 +551,17 @@ function AdminPortal({
   const refreshEnrollmentRequests = async () => {
     try { setEnrollmentRequests(await db.loadEnrollmentRequests()); } catch (e) { console.error(e); }
   };
+  const refreshNotifications = async () => {
+    try { setNotifications(await db.loadNotifications(20)); } catch (e) { console.error('Could not load notifications', e); }
+  };
+  const handleReadNotification = async (id: string) => {
+    try { await db.markNotificationRead(id); await refreshNotifications(); }
+    catch (e) { console.error('Could not update notification', e); }
+  };
+  const handleReadAllNotifications = async () => {
+    try { await db.markAllNotificationsRead(); await refreshNotifications(); }
+    catch (e) { console.error('Could not update notifications', e); }
+  };
 
   // Load the roster + attendance once signed in, then refresh attendance every 5 seconds
   useEffect(() => {
@@ -557,8 +570,10 @@ function AdminPortal({
     refreshLogs();
     refreshSessions();
     refreshEnrollmentRequests();
+    refreshNotifications();
     const t = setInterval(() => { refreshLogs(); refreshSessions(); refreshEnrollmentRequests(); }, 7000);
-    return () => clearInterval(t);
+    const n = setInterval(refreshNotifications, 20000);
+    return () => { clearInterval(t); clearInterval(n); };
     // eslint-disable-next-line
   }, [isAuthenticated, activeStaff?.isVerified]);
 
@@ -570,7 +585,8 @@ function AdminPortal({
       email: profile.email,
       dept: profile.dept,
       course: profile.course,
-      isVerified: profile.is_verified
+      isVerified: profile.is_verified,
+      role: profile.role || 'lecturer'
     };
     setStaffAccounts(prev => prev.some(x => x.id === admin.id) ? prev : [...prev, admin]);
     setActiveStaff(admin);
@@ -1046,6 +1062,10 @@ The request has NOT been rejected or approved. Check the student's official univ
     );
   }
 
+  if (isAuthenticated && activeStaff?.role === 'admin') {
+    return <AdminWorkspace activeStaff={activeStaff} onLogout={handleLogout} />;
+  }
+
   if (!isAuthenticated) {
     return (
       <div className="max-w-md mx-auto my-12 bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-200 dark:border-slate-800 shadow-xl">
@@ -1231,6 +1251,7 @@ The request has NOT been rejected or approved. Check the student's official univ
             </div>
           </div>
         </div>
+        <NotificationBell notifications={notifications} onRead={handleReadNotification} onReadAll={handleReadAllNotifications} />
         <button
           onClick={handleLogout}
           className="p-2.5 sm:px-4 sm:py-2 bg-rose-950 hover:bg-rose-900 border border-rose-800 text-rose-200 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 shrink-0"

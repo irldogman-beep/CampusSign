@@ -188,3 +188,40 @@ export async function updateAttendance(id: string, patch: {
     status: patch.status,
   }).eq('id', id).select('id'));
 }
+
+
+// ---- administrator workspace, notifications and audit history ----
+export async function loadNotifications(limit = 20) {
+  return unwrap<any[]>(await supabase
+    .from('app_notifications')
+    .select('id, notification_type, title, message, entity_type, entity_id, read_at, created_at')
+    .order('created_at', { ascending: false })
+    .limit(Math.max(1, Math.min(50, limit))));
+}
+
+export async function markNotificationRead(id: string) {
+  unwrap(await supabase.rpc('mark_notification_read', { p_notification: id }));
+}
+
+export async function markAllNotificationsRead() {
+  return unwrap<number>(await supabase.rpc('mark_all_notifications_read'));
+}
+
+export async function loadAdminOverview() {
+  return unwrap<any>(await supabase.rpc('admin_overview'));
+}
+
+export async function loadAdminLecturers() {
+  return unwrap<any[]>(await supabase.rpc('admin_list_lecturers'));
+}
+
+export async function setLecturerVerification(lecturerId: string, verified: boolean) {
+  return unwrap<any>(await supabase.rpc('admin_set_lecturer_verification', {
+    p_lecturer: lecturerId,
+    p_verified: verified,
+  }));
+}
+
+export async function loadAdminAudit(limit = 50) {
+  return unwrap<any[]>(await supabase.rpc('admin_recent_audit', { p_limit: limit }));
+}
