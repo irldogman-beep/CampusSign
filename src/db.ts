@@ -42,7 +42,7 @@ function unwrap<T>(r: { data: T | null; error: any }): T {
 // ---- lecturer side ----
 export interface SessionOptions {
   course: string; title: string; venue: string; locationMode: string; radius: number;
-  faceRequired: boolean; threshold: number; endsAt: number | null;
+  faceRequired: boolean; threshold: number; endsAt: number | null; qrIntervalSeconds: number;
 }
 
 export async function createSession(o: SessionOptions) {
@@ -50,6 +50,7 @@ export async function createSession(o: SessionOptions) {
     course: o.course, title: o.title, venue: o.venue,
     location_mode: o.locationMode, radius_m: o.radius, face_required: o.faceRequired,
     face_threshold: o.threshold, ends_at: o.endsAt ? new Date(o.endsAt).toISOString() : null,
+    qr_interval_seconds: o.qrIntervalSeconds,
   }).select('id, secret').single());
 }
 

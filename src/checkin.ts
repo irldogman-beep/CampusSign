@@ -1,13 +1,21 @@
 // ---------------------------------------------------------------------------
 // CampusSign check-in codes (server-verified)
 //
-// The lecturer's browser signs "<session id>:<30-second slot>" with that
-// session's private secret (HMAC-SHA256, first 12 hex chars). The QR carries
-// only {session id, slot, signature}. The student's device cannot verify it:
-// the server does, using the secret that never leaves the database.
+// The lecturer's browser signs "<session id>:<slot>" with that session's
+// private secret (HMAC-SHA256, first 12 hex chars). The QR carries only the
+// session id, slot and signature. The server enforces the selected interval.
+// An interval of 0 means a static QR (valid until the session is closed).
 // ---------------------------------------------------------------------------
-export const SLOT_MS = 30_000; // QR changes every 30 seconds
-export const currentSlot = (now: number = Date.now()) => Math.floor(now / SLOT_MS);
+export const DEFAULT_QR_INTERVAL_SECONDS = 30;
+export const QR_GRACE_SECONDS = 10;
+export const currentSlot = (now: number = Date.now(), intervalSeconds: number = DEFAULT_QR_INTERVAL_SECONDS) =>
+  intervalSeconds <= 0 ? 0 : Math.floor(now / (intervalSeconds * 1000));
+
+export function secondsUntilNextSlot(now: number = Date.now(), intervalSeconds: number = DEFAULT_QR_INTERVAL_SECONDS): number {
+  if (intervalSeconds <= 0) return 0;
+  const intervalMs = intervalSeconds * 1000;
+  return Math.max(1, Math.ceil((intervalMs - (now % intervalMs)) / 1000));
+}
 
 const enc = new TextEncoder();
 const dec = new TextDecoder();
@@ -36,8 +44,10 @@ export interface CheckinCode { i: string; s: number; k: string }
 /** Build the link that goes inside the lecturer's QR code. */
 export async function buildCheckin(
   session: { id: string; secret: string },
-  slot: number = currentSlot()
+  intervalSeconds: number = DEFAULT_QR_INTERVAL_SECONDS,
+  now: number = Date.now()
 ): Promise<{ url: string; token: string }> {
+  const slot = currentSlot(now, intervalSeconds);
   const k = await sign(session.id, session.secret, slot);
   const base = `${window.location.origin}${window.location.pathname}`;
   return { url: `${base}?checkin=${toB64Url(JSON.stringify({ i: session.id, s: slot, k }))}`, token: 'TOK-' + k.slice(0, 6).toUpperCase() };

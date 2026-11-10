@@ -31,14 +31,16 @@ import {
   Check,
   X,
   Sparkles,
-  Clock3
+  Clock3,
+  MonitorUp
 } from 'lucide-react';
-import { buildCheckin, parseCheckin, currentSlot, SLOT_MS } from './checkin';
+import { buildCheckin, parseCheckin, currentSlot, secondsUntilNextSlot, DEFAULT_QR_INTERVAL_SECONDS, QR_GRACE_SECONDS } from './checkin';
 import { downloadCsv } from './auth';
 import { supabase } from './supabase';
 import { QRCodeImage, QRScanner, FaceCapture } from './CameraParts';
 import * as db from './db';
 import { getBestFix } from './geo';
+import { QR_DISPLAY_CHANNEL } from './QRDisplayWindow';
 
 /* ==========================================================================
    LOGO COMPONENT (Matching Forest Green & Academic Gold Emblem)
@@ -136,6 +138,12 @@ const LOC_LABEL = {
   unavailable: 'Location unavailable'
 };
 
+function formatQrInterval(seconds) {
+  if (seconds < 60) return `${seconds} seconds`;
+  const minutes = seconds / 60;
+  return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('admin'); // 'admin' | 'student' | 'docs'
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -156,10 +164,11 @@ export default function App() {
     teacherEmail: 'admin@university.edu',
     secret: '',
     isRevoked: false,
+    qrIntervalSeconds: DEFAULT_QR_INTERVAL_SECONDS,
     tokenCreatedAt: Date.now()
   });
 
-  // Rotating Token Management (Changes every 30s)
+  // Per-session QR lifetime: 30s by default, or static until the lecturer closes the session.
   const [qrToken, setQrToken] = useState('');
   const [qrPayload, setQrPayload] = useState('');
   const [secondsToRotate, setSecondsToRotate] = useState(30);
@@ -173,13 +182,17 @@ export default function App() {
   // Lockouts State
   const [lockedOutStudents, setLockedOutStudents] = useState([]);
 
-  // Real signed QR code: a fresh one every 30 seconds
+  // Build the signed QR according to this session's selected lifetime.
+  // A 0-second interval means one static QR, invalidated only when the session closes.
   useEffect(() => {
     let cancelled = false;
     let lastSlot = -1;
+    setQrPayload('');
+    setQrToken('');
+    const intervalSeconds = Number(activeSession.qrIntervalSeconds ?? DEFAULT_QR_INTERVAL_SECONDS);
     const tick = async () => {
-      const slot = currentSlot();
-      setSecondsToRotate(Math.ceil((SLOT_MS - (Date.now() % SLOT_MS)) / 1000));
+      const slot = currentSlot(Date.now(), intervalSeconds);
+      setSecondsToRotate(secondsUntilNextSlot(Date.now(), intervalSeconds));
       if (slot !== lastSlot) {
         lastSlot = slot;
         if (!activeSession.secret) {
@@ -190,7 +203,7 @@ export default function App() {
         try {
           const { url, token } = await buildCheckin(
             { id: activeSession.id, secret: activeSession.secret },
-            slot
+            intervalSeconds
           );
           if (!cancelled) {
             setQrPayload(url);
@@ -207,7 +220,7 @@ export default function App() {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [activeSession.id, activeSession.secret]);
+  }, [activeSession.id, activeSession.secret, activeSession.qrIntervalSeconds]);
 
   // Validate a scanned QR (from the in-app scanner or a phone's camera app)
   const handleQrScanned = async (raw) => {
@@ -413,6 +426,9 @@ function AdminPortal({
   const [lockedUntil, setLockedUntil] = useState(0);
   const [loginError, setLoginError] = useState('');
   const [isFullscreenQR, setIsFullscreenQR] = useState(false);
+  const [displayWindowOpen, setDisplayWindowOpen] = useState(false);
+  const displayChannelRef = useRef<BroadcastChannel | null>(null);
+  const displaySnapshotRef = useRef<any>(null);
   const [locBusy, setLocBusy] = useState(false);
   const [sessionList, setSessionList] = useState([]);
   const [viewSessionId, setViewSessionId] = useState('');
@@ -459,6 +475,7 @@ function AdminPortal({
     locationMode: 'flag',
     radius: 15,
     duration: 0,
+    qrIntervalSeconds: String(DEFAULT_QR_INTERVAL_SECONDS),
   });
 
   useEffect(() => {
@@ -479,6 +496,7 @@ function AdminPortal({
       teacher: admin.name, teacherId: admin.id, teacherEmail: admin.email,
       isRevoked: false, tokenCreatedAt: Date.now(), anchorAcc: null, anchorSetAt: null,
       locationMode: f.locationMode, radius: f.radius, faceRequired: f.faceRequired,
+      qrIntervalSeconds: f.qrIntervalSeconds,
       endsAt: f.durationMin ? Date.now() + f.durationMin * 60000 : null
     };
     try {
@@ -488,7 +506,8 @@ function AdminPortal({
       }
       const row = await db.createSession({
         course: admin.course, title: f.title, venue: f.venue, locationMode: f.locationMode,
-        radius: f.radius, faceRequired: f.faceRequired, threshold: f.threshold, endsAt: base.endsAt
+        radius: f.radius, faceRequired: f.faceRequired, threshold: f.threshold, endsAt: base.endsAt,
+        qrIntervalSeconds: f.qrIntervalSeconds
       });
       setActiveSession(prev => ({ ...prev, ...base, id: row.id, secret: row.secret }));
       setViewSessionId('');
@@ -562,6 +581,7 @@ function AdminPortal({
           locationMode: last.location_mode,
           radius: last.radius_m,
           faceRequired: last.face_required,
+          qrIntervalSeconds: Number(last.qr_interval_seconds ?? DEFAULT_QR_INTERVAL_SECONDS),
           endsAt: last.ends_at ? new Date(last.ends_at).getTime() : null,
           tokenCreatedAt: Date.now()
         }));
@@ -695,7 +715,8 @@ function AdminPortal({
       radius: Math.min(1000, Math.max(5, Number(sessionForm.radius) || 15)),
       faceRequired: sessionForm.faceRequired,
       threshold: STRICTNESS[sessionForm.strictness] || 0.5,
-      durationMin: Number(sessionForm.duration) || 0
+      durationMin: Number(sessionForm.duration) || 0,
+      qrIntervalSeconds: Number(sessionForm.qrIntervalSeconds)
     });
     if (ok) {
       setShowSessionForm(false);
@@ -809,6 +830,58 @@ function AdminPortal({
   const shownSessionId = viewSessionId || activeSession.id;
   const lecturerAttendanceLogs = attendanceLogs.filter(log => log.sessionId === shownSessionId);
   const sessionLive = !!activeSession.id && !activeSession.isRevoked && !(activeSession.endsAt && Date.now() > activeSession.endsAt);
+  const displaySnapshot = {
+    sessionLive,
+    qrPayload,
+    qrToken,
+    title: activeSession.title || '',
+    course: activeSession.course || (activeStaff ? activeStaff.course : ''),
+    teacher: activeSession.teacher || (activeStaff ? activeStaff.name : ''),
+    venue: activeSession.venue || '',
+    qrIntervalSeconds: Number(activeSession.qrIntervalSeconds ?? DEFAULT_QR_INTERVAL_SECONDS),
+    secondsToRotate,
+  };
+  displaySnapshotRef.current = displaySnapshot;
+
+  // The projector tab receives only the rendered QR payload and display labels—never the session secret.
+  useEffect(() => {
+    if (!('BroadcastChannel' in window)) return;
+    const channel = new BroadcastChannel(QR_DISPLAY_CHANNEL);
+    displayChannelRef.current = channel;
+    channel.onmessage = (event: MessageEvent) => {
+      if (event.data?.type === 'ready' && displaySnapshotRef.current) {
+        channel.postMessage({ type: 'state', payload: displaySnapshotRef.current });
+      }
+      if (event.data?.type === 'closed') setDisplayWindowOpen(false);
+    };
+    return () => {
+      channel.close();
+      displayChannelRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    displayChannelRef.current?.postMessage({ type: 'state', payload: displaySnapshot });
+  }, [sessionLive, qrPayload, qrToken, activeSession.title, activeSession.course, activeSession.teacher,
+    activeSession.venue, activeSession.qrIntervalSeconds, activeStaff?.course, activeStaff?.name, secondsToRotate]);
+
+  const openQrDisplay = () => {
+    if (!('BroadcastChannel' in window)) {
+      alert('This browser does not support the separate projector display. Please use a recent version of Chrome, Edge, Firefox or Safari.');
+      return;
+    }
+    const displayUrl = new URL(window.location.href);
+    displayUrl.searchParams.delete('checkin');
+    displayUrl.searchParams.set('display', 'qr');
+    const popup = window.open(displayUrl.toString(), 'campussign-qr-display', 'popup=yes,width=1200,height=900');
+    if (!popup) {
+      alert('The projector window was blocked. Allow pop-ups for CampusSign, then click Open projector view again.');
+      return;
+    }
+    setDisplayWindowOpen(true);
+    popup.focus();
+  };
+
   const shownSession = sessionList.find(x => x.id === shownSessionId);
   const sessionOptions = sessionList.map(x => {
     const when = new Date(x.created_at);
@@ -1165,6 +1238,11 @@ function AdminPortal({
                       ? 'Location off'
                       : `${activeSession.locationMode === 'block' ? 'Blocks' : 'Flags'} outside ${activeSession.radius} m`}
                   </span>
+                  <span className={CHIP}>
+                    {Number(activeSession.qrIntervalSeconds ?? DEFAULT_QR_INTERVAL_SECONDS) === 0
+                      ? 'Static QR until session closes'
+                      : `QR changes every ${formatQrInterval(Number(activeSession.qrIntervalSeconds ?? DEFAULT_QR_INTERVAL_SECONDS))}`}
+                  </span>
                 </div>
 
                 {activeSession.locationMode !== 'off' && (
@@ -1305,6 +1383,25 @@ function AdminPortal({
                       )}
 
                       <div>
+                        <label className={LABEL}>QR code lifetime</label>
+                        <select
+                          value={sessionForm.qrIntervalSeconds}
+                          onChange={e => setSessionForm({ ...sessionForm, qrIntervalSeconds: e.target.value })}
+                          className={FIELD}
+                        >
+                          <option value="30">30 seconds (default)</option>
+                          <option value="60">1 minute</option>
+                          <option value="120">2 minutes</option>
+                          <option value="300">5 minutes</option>
+                          <option value="600">10 minutes</option>
+                          <option value="0">Never rotate — until session closes</option>
+                        </select>
+                        <p className="text-[11px] text-slate-500 mt-1.5 leading-relaxed">
+                          A recently expired QR gets a {QR_GRACE_SECONDS}-second grace period for slow scans. A static QR remains valid only while this attendance session is open, so avoid it if students may share screenshots outside the classroom.
+                        </p>
+                      </div>
+
+                      <div>
                         <label className={LABEL}>Auto-end after</label>
                         <select
                           value={sessionForm.duration}
@@ -1355,13 +1452,24 @@ function AdminPortal({
                 </p>
               </div>
               {sessionLive && (
-                <button
-                  onClick={() => setIsFullscreenQR(!isFullscreenQR)}
-                  className="p-2 bg-emerald-900/60 hover:bg-emerald-800 border border-emerald-700 rounded-xl text-amber-300 transition-colors shrink-0"
-                  title={isFullscreenQR ? 'Exit fullscreen' : 'Fullscreen projection'}
-                >
-                  {isFullscreenQR ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={openQrDisplay}
+                    className="inline-flex items-center gap-2 px-3 py-2 bg-amber-500 hover:bg-amber-400 text-emerald-950 rounded-xl text-xs font-extrabold transition-colors"
+                    title="Open a clean QR-only window for the classroom projector"
+                  >
+                    <MonitorUp className="w-4 h-4" />
+                    <span className="hidden sm:inline">{displayWindowOpen ? 'Open display again' : 'Projector view'}</span>
+                    <span className="sm:hidden">Display</span>
+                  </button>
+                  <button
+                    onClick={() => setIsFullscreenQR(!isFullscreenQR)}
+                    className="p-2 bg-emerald-900/60 hover:bg-emerald-800 border border-emerald-700 rounded-xl text-amber-300 transition-colors"
+                    title={isFullscreenQR ? 'Exit fullscreen' : 'Fullscreen QR card'}
+                  >
+                    {isFullscreenQR ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+                  </button>
+                </div>
               )}
             </div>
 
@@ -1383,11 +1491,15 @@ function AdminPortal({
               ) : (
                 <>
                   <div className="p-4 sm:p-5 bg-white rounded-3xl shadow-2xl border-4 border-amber-500 inline-block max-w-full">
-                    <QRCodeImage value={qrPayload} size={isFullscreenQR ? 420 : 240} />
+                    {qrPayload ? <QRCodeImage value={qrPayload} size={isFullscreenQR ? 420 : 240} /> : <div className="w-[240px] h-[240px] grid place-items-center text-slate-500 text-xs">Preparing secure QR…</div>}
                   </div>
                   <div className="mt-4 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-900/80 border border-emerald-700 text-xs text-amber-300">
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    <span>New code in <strong>{secondsToRotate}s</strong></span>
+                    {Number(activeSession.qrIntervalSeconds ?? DEFAULT_QR_INTERVAL_SECONDS) === 0
+                      ? <Lock className="w-3.5 h-3.5" />
+                      : <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                    <span>{Number(activeSession.qrIntervalSeconds ?? DEFAULT_QR_INTERVAL_SECONDS) === 0
+                      ? 'This QR stays valid until the session closes'
+                      : <>New code in <strong>{secondsToRotate}s</strong></>}</span>
                   </div>
                   <button
                     onClick={() => onSimulateScan()}
@@ -1404,7 +1516,7 @@ function AdminPortal({
                 <Key className="w-3.5 h-3.5 text-amber-400" />
                 <span>Token: <strong className="text-white">{qrToken}</strong></span>
               </div>
-              <span>Each QR stays valid about 90s</span>
+              <span>{Number(activeSession.qrIntervalSeconds ?? DEFAULT_QR_INTERVAL_SECONDS) === 0 ? 'Static until session closes' : `Rotates every ${formatQrInterval(Number(activeSession.qrIntervalSeconds ?? DEFAULT_QR_INTERVAL_SECONDS))} · ${QR_GRACE_SECONDS}s scan grace`}</span>
             </div>
           </div>
         </div>
