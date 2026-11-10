@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import type { Fix } from './geo';
 
 const MESSAGES: Record<string, string> = {
   invalid_code: "This QR code isn't valid. Scan the code on the lecturer's screen.",
@@ -33,9 +34,15 @@ export async function createSession(course: string, title: string, venue: string
 
 export async function latestSession(course: string) {
   return unwrap<any>(
-    await supabase.from('sessions').select('id, secret, title, venue, revoked, created_at')
+    await supabase.from('sessions').select('id, secret, title, venue, revoked, created_at, anchor_acc, anchor_set_at')
       .eq('course', course).order('created_at', { ascending: false }).limit(1).maybeSingle()
   );
+}
+
+export async function setAnchor(id: string, fix: Fix) {
+  unwrap(await supabase.from('sessions').update({
+    anchor_lat: fix.lat, anchor_lng: fix.lng, anchor_acc: fix.acc, anchor_set_at: new Date().toISOString(),
+  }).eq('id', id).select('id'));
 }
 
 export async function setRevoked(id: string, revoked: boolean) {
@@ -72,6 +79,7 @@ export async function loadAttendance() {
     sessionId: r.session_id, course: r.course, studentId: r.student_id, registeredName: r.student_name,
     dept: r.dept, facePhoto: r.face_photo, time: new Date(r.created_at).toLocaleTimeString(),
     isoTime: r.created_at, status: r.status, receiptNo: r.receipt_no,
+    locationStatus: r.location_status, distanceM: r.distance_m,
   }));
 }
 
@@ -86,9 +94,10 @@ export async function lookupStudent(sessionId: string, t: { exp: number; sig: st
   }));
 }
 
-export async function checkIn(sessionId: string, t: { exp: number; sig: string }, studentId: string, descriptors: number[][], photo: string) {
+export async function checkIn(sessionId: string, t: { exp: number; sig: string }, studentId: string, descriptors: number[][], photo: string, fix: Fix | null) {
   return unwrap<any>(await supabase.rpc('check_in', {
     p_session: sessionId, p_exp: t.exp, p_ticket: t.sig, p_student_id: studentId,
     p_descriptor: descriptors, p_photo: photo,
+    p_lat: fix ? fix.lat : null, p_lng: fix ? fix.lng : null, p_acc: fix ? fix.acc : null,
   }));
 }

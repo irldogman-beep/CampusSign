@@ -32,6 +32,7 @@ import { downloadCsv } from './auth';
 import { supabase } from './supabase';
 import { QRCodeImage, QRScanner, FaceCapture } from './CameraParts';
 import * as db from './db';
+import { getBestFix } from './geo';
 
 /* ==========================================================================
    LOGO COMPONENT (Matching Forest Green & Academic Gold Emblem)
@@ -118,6 +119,12 @@ const INITIAL_STUDENTS = [
 /* ==========================================================================
    MAIN APP COMPONENT
    ========================================================================== */
+const LOC_LABEL = {
+  outside: 'Not present in class',
+  uncertain: 'Location unconfirmed',
+  unavailable: 'Location unavailable'
+};
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('admin'); // 'admin' | 'student' | 'docs'
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -392,6 +399,7 @@ function AdminPortal({
   const [lockedUntil, setLockedUntil] = useState(0);
   const [loginError, setLoginError] = useState('');
   const [isFullscreenQR, setIsFullscreenQR] = useState(false);
+  const [locBusy, setLocBusy] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [retentionDays, setRetentionDays] = useState(30);
 
@@ -437,7 +445,7 @@ function AdminPortal({
     const base = {
       title, course, venue,
       teacher: admin.name, teacherId: admin.id, teacherEmail: admin.email,
-      isRevoked: false, tokenCreatedAt: Date.now()
+      isRevoked: false, tokenCreatedAt: Date.now(), anchorAcc: null, anchorSetAt: null
     };
     try {
       const row = await db.createSession(course, title, venue);
@@ -496,6 +504,8 @@ function AdminPortal({
           teacherId: admin.id,
           teacherEmail: admin.email,
           isRevoked: last.revoked,
+          anchorAcc: last.anchor_acc,
+          anchorSetAt: last.anchor_set_at ? new Date(last.anchor_set_at).getTime() : null,
           tokenCreatedAt: Date.now()
         }));
         return;
@@ -649,6 +659,24 @@ function AdminPortal({
     }
   };
 
+  const handleSetLocation = async () => {
+    if (!activeSession.id) return;
+    setLocBusy(true);
+    const fix = await getBestFix(12000, 10);
+    if (!fix) {
+      setLocBusy(false);
+      alert('Could not get your location. Allow location access for this site in your browser, then try again.');
+      return;
+    }
+    try {
+      await db.setAnchor(activeSession.id, fix);
+      setActiveSession(prev => ({ ...prev, anchorAcc: fix.acc, anchorSetAt: Date.now() }));
+    } catch (e) {
+      alert(db.friendly(e));
+    }
+    setLocBusy(false);
+  };
+
   const setSessionRevoked = async (revoked) => {
     try {
       if (activeSession.id) await db.setRevoked(activeSession.id, revoked);
@@ -692,8 +720,8 @@ function AdminPortal({
     const safeCourse = String(activeSession.course || 'course').replace(/[^a-z0-9]+/gi, '_');
     downloadCsv(
       `attendance_${safeCourse}_${new Date().toISOString().slice(0, 10)}.csv`,
-      ['Student ID', 'Name', 'Course', 'Department', 'Date & Time', 'Status', 'Receipt Ref', 'Session ID'],
-      filteredLogs.map(l => [l.studentId, l.registeredName, l.course, l.dept, l.isoTime || l.time, l.status, l.receiptNo, l.sessionId])
+      ['Student ID', 'Name', 'Course', 'Department', 'Date & Time', 'Status', 'Location', 'Distance (m)', 'Receipt Ref', 'Session ID'],
+      filteredLogs.map(l => [l.studentId, l.registeredName, l.course, l.dept, l.isoTime || l.time, l.status, l.locationStatus || '', l.distanceM ?? '', l.receiptNo, l.sessionId])
     );
   };
 
@@ -988,6 +1016,32 @@ function AdminPortal({
               </div>
             </form>
 
+            {/* Classroom location (15 m rule) */}
+            <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-slate-700 dark:text-slate-300">Classroom Location (15 m rule)</span>
+                <span className="font-mono text-emerald-800 dark:text-emerald-400 font-bold">
+                  {activeSession.anchorAcc != null ? `Set (±${Math.round(activeSession.anchorAcc)} m)` : 'Not set'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleSetLocation}
+                disabled={locBusy || !activeSession.id}
+                className="w-full py-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-emerald-950 font-extrabold rounded-xl text-xs border border-amber-300"
+              >
+                {locBusy ? 'Getting location…' : activeSession.anchorAcc != null ? 'Update classroom location' : 'Set classroom location here'}
+              </button>
+              <p className="text-[10px] text-slate-400 leading-relaxed">
+                Stand in the classroom and tap this. Students who check in more than 15 m away are flagged. Phone GPS is far more accurate than a laptop, so for best results sign in on your phone and tap this there.
+              </p>
+              {activeSession.anchorAcc != null && activeSession.anchorAcc > 50 && (
+                <p className="text-[10px] text-rose-600 font-bold">
+                  Accuracy is low (±{Math.round(activeSession.anchorAcc)} m), so most students will show as "unconfirmed". Try again on your phone, near a window.
+                </p>
+              )}
+            </div>
+
             {/* Privacy & Image Retention Config Slider */}
             <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
               <div className="flex items-center justify-between text-xs">
@@ -1197,9 +1251,15 @@ function AdminPortal({
                         <td className="p-3 text-slate-600 dark:text-slate-300">{log.dept}</td>
                         <td className="p-3 text-slate-500 font-mono">{log.time}</td>
                         <td className="p-3">
-                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 inline-flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Verified
-                          </span>
+                          {log.status === 'Flagged' ? (
+                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800 inline-flex items-center gap-1">
+                              <AlertTriangle className="w-3 h-3" /> {LOC_LABEL[log.locationStatus] || 'Flagged'}{log.distanceM != null ? ` (${log.distanceM} m)` : ''}
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 inline-flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Verified
+                            </span>
+                          )}
                         </td>
                         <td className="p-3 font-mono text-[10px] text-slate-400">{log.receiptNo}</td>
                       </tr>
@@ -1595,6 +1655,7 @@ function StudentPortal({
   const [faceError, setFaceError] = useState('');
   const [faceRetries, setFaceRetries] = useState(0);
   const [receiptData, setReceiptData] = useState(null);
+  const locRef = useRef(null); // location lookup started at the consent step
 
   // The session comes from the QR the student actually scanned (signed + time-limited)
   const session = checkin ? checkin.session : null;
@@ -1641,7 +1702,8 @@ function StudentPortal({
   // The face is compared on the server; this device never sees the enrolled template.
   const handleFaceCaptured = async ({ photo, descriptors }) => {
     try {
-      const r = await db.checkIn(session.id, checkin.ticket, matchedStudent.id, descriptors, photo);
+      const fix = await (locRef.current || getBestFix(8000, 15));
+      const r = await db.checkIn(session.id, checkin.ticket, matchedStudent.id, descriptors, photo, fix);
       if (r.status === 'ok') {
         finishVerification(r, photo);
       } else if (r.status === 'mismatch') {
@@ -1668,7 +1730,9 @@ function StudentPortal({
       facePhoto: photoUrl,
       time: new Date(r.created_at).toLocaleTimeString(),
       isoTime: r.created_at,
-      status: 'Verified',
+      status: r.flag || 'Verified',
+      locationStatus: r.location,
+      distanceM: r.distance_m,
       receiptNo: r.receipt_no
     });
     setStep(5); // Go to receipt screen
@@ -1834,20 +1898,21 @@ function StudentPortal({
               <Lock className="w-4 h-4" /> Biometric Privacy Notice
             </div>
             <p className="text-[11px] text-emerald-200 leading-relaxed">
-              Your face is analysed on this device and compared with the template enrolled for your ID. A small photo of your face is attached to your attendance record for this session.
+              Your face is captured on this device and compared with the template enrolled for your ID on the secure server. A small photo of your face is attached to your attendance record. Your phone's location is also checked once, to confirm you are in the classroom (within about 15 m of the lecturer). Only the distance and a pass/flag are saved, never your coordinates.
             </p>
           </div>
 
           {enrollment ? (
             <button
               onClick={() => {
+                locRef.current = getBestFix(10000, 10); // asks for location permission now, finishes while the face scan runs
                 setFaceError('');
                 setFaceAttempt(a => a + 1);
                 setStep(4);
               }}
               className="w-full py-3.5 bg-amber-500 hover:bg-amber-400 text-emerald-950 font-extrabold rounded-2xl text-sm transition-colors shadow-lg border border-amber-300"
             >
-              I Consent - Start Face Scan
+              I Consent - Share Location &amp; Start Face Scan
             </button>
           ) : (
             <div className="space-y-3">
@@ -1912,7 +1977,13 @@ function StudentPortal({
               <Award className="w-8 h-8 text-emerald-600" />
             </div>
             <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">Attendance Receipt Issued</h2>
-            <p className="text-xs text-slate-500">Face match and liveness check passed</p>
+            {receiptData.status === 'Flagged' ? (
+              <p className="text-xs text-rose-600 font-bold">
+                Face matched, but your location could not be confirmed in the classroom. Your attendance is flagged for the lecturer to review.
+              </p>
+            ) : (
+              <p className="text-xs text-slate-500">Face match and liveness check passed</p>
+            )}
           </div>
 
           <div className="p-5 rounded-2xl bg-gradient-to-br from-emerald-950 to-slate-950 text-white border border-emerald-900 shadow-md space-y-3 text-xs">
