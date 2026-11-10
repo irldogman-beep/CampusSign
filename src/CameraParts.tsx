@@ -175,11 +175,11 @@ interface FaceCaptureProps {
   onMismatch?: (r: { photo: string; distance: number }) => void;
   onEnrolled?: (r: { photo: string; descriptors: number[][] }) => void;
   /** Verify mode, server-side matching: hand back the raw capture instead of comparing here. */
-  onCaptured?: (r: { photo: string; descriptor: number[] }) => void;
+  onCaptured?: (r: { photo: string; descriptor: number[]; descriptors: number[][] }) => void;
 }
 
 const TIMEOUT_MS = 40_000;
-const ENROLL_SAMPLES = 3;
+const ENROLL_SAMPLES = 5;
 
 export function FaceCapture(props: FaceCaptureProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -277,14 +277,25 @@ export function FaceCapture(props: FaceCaptureProps) {
       const doCapture = async () => {
         try {
           if (verify) {
-            let shot: Awaited<ReturnType<typeof grab>> = null;
-            for (let i = 0; i < 5 && !shot && !cancelled; i++) shot = await grab();
+            const shots: NonNullable<Awaited<ReturnType<typeof grab>>>[] = [];
+            for (let i = 0; i < 10 && shots.length < 3 && !cancelled; i++) {
+              const g = await grab();
+              if (g && Math.abs(g.turn) < 0.12) {
+                shots.push(g);
+                await new Promise((r) => setTimeout(r, 250));
+              }
+            }
             if (cancelled) return;
-            if (!shot) return fail('Could not read your face clearly. Try again with better lighting.');
+            if (!shots.length) return fail('Could not read your face clearly. Look straight at the camera in good light and try again.');
+            const shot = shots[0];
             if (propsRef.current.onCaptured) {
               say('Done', 100);
               stopStream();
-              propsRef.current.onCaptured({ photo: shot.photo, descriptor: Array.from(shot.descriptor) });
+              propsRef.current.onCaptured({
+                photo: shot.photo,
+                descriptor: shot.descriptor,
+                descriptors: shots.map((x) => x.descriptor),
+              });
               return;
             }
             const enrolled = propsRef.current.enrolled || [];
@@ -303,7 +314,7 @@ export function FaceCapture(props: FaceCaptureProps) {
                 samples.push(shot.descriptor);
                 if (!photo) photo = shot.photo;
                 say(`Captured ${samples.length} of ${ENROLL_SAMPLES}. Hold still…`, 40 + (samples.length / ENROLL_SAMPLES) * 60);
-                await new Promise((r) => setTimeout(r, 350));
+                await new Promise((r) => setTimeout(r, 500));
               } else {
                 say('Look straight at the camera');
                 await new Promise((r) => setTimeout(r, 150));

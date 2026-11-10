@@ -1617,13 +1617,13 @@ function StudentPortal({
   };
 
   // The face is compared on the server; this device never sees the enrolled template.
-  const handleFaceCaptured = async ({ photo, descriptor }) => {
+  const handleFaceCaptured = async ({ photo, descriptors }) => {
     try {
-      const r = await db.checkIn(session.id, checkin.ticket, matchedStudent.id, descriptor, photo);
+      const r = await db.checkIn(session.id, checkin.ticket, matchedStudent.id, descriptors, photo);
       if (r.status === 'ok') {
         finishVerification(r, photo);
       } else if (r.status === 'mismatch') {
-        setFaceError(`Your face did not match the enrolled record (${r.remaining} attempt${r.remaining === 1 ? '' : 's'} left).`);
+        setFaceError(`Your face did not match the enrolled record (score ${r.distance}, needs 0.60 or lower). ${r.remaining} attempt${r.remaining === 1 ? '' : 's'} left.`);
       } else if (r.status === 'locked' || r.status === 'already') {
         setMatchedStudent(null);
         setStep(2);

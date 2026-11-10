@@ -79,9 +79,9 @@ export async function lookupStudent(sessionId: string, t: { exp: number; sig: st
   }));
 }
 
-export async function checkIn(sessionId: string, t: { exp: number; sig: string }, studentId: string, descriptor: number[], photo: string) {
+export async function checkIn(sessionId: string, t: { exp: number; sig: string }, studentId: string, descriptors: number[][], photo: string) {
   return unwrap<any>(await supabase.rpc('check_in', {
     p_session: sessionId, p_exp: t.exp, p_ticket: t.sig, p_student_id: studentId,
-    p_descriptor: descriptor, p_photo: photo,
+    p_descriptor: descriptors, p_photo: photo,
   }));
 }
