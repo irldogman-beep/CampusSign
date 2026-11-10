@@ -1,27 +1,95 @@
 @import "tailwindcss";
 
-/* Your app toggles a "dark" class for dark mode, so tell Tailwind to follow that class */
+/* Dark mode follows the .dark class set by the app. */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Polished page transitions and restrained interaction feedback. */
-@keyframes campus-fade-up {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
+:root {
+  color-scheme: light;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+.dark { color-scheme: dark; }
+html { scroll-behavior: smooth; }
+body { min-width: 320px; margin: 0; }
+button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+
+/* A quiet campus-inspired background that doesn't compete with content. */
+.campus-app-shell {
+  background-image: radial-gradient(ellipse at 12% 0%, rgb(16 185 129 / 5%), transparent 36%),
+                    radial-gradient(ellipse at 88% 12%, rgb(245 158 11 / 5%), transparent 30%);
+  background-attachment: fixed;
+}
+.campus-app-shell.dark {
+  background-image: radial-gradient(ellipse at 12% 0%, rgb(16 185 129 / 9%), transparent 36%),
+                    radial-gradient(ellipse at 88% 12%, rgb(245 158 11 / 5%), transparent 30%);
+}
+
+@keyframes campus-page-enter {
+  from { opacity: 0; transform: translateY(10px); filter: blur(2px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+@keyframes campus-dialog-backdrop {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes campus-dialog-enter {
+  from { opacity: 0; transform: translateY(12px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 @keyframes campus-soft-pulse {
   0%, 100% { box-shadow: 0 0 0 0 rgb(245 158 11 / 0%); }
   50% { box-shadow: 0 0 0 6px rgb(245 158 11 / 9%); }
 }
-.page-enter, .animate-fade-up { animation: campus-fade-up 420ms cubic-bezier(.2,.75,.25,1) both; }
-button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
-button { transition-property: color, background-color, border-color, box-shadow, transform, opacity; transition-duration: 180ms; }
-button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
-  outline: 3px solid rgb(245 158 11 / 55%);
+.page-enter, .animate-fade-up { animation: campus-page-enter 360ms cubic-bezier(.2,.75,.25,1) both; }
+
+/* Consistent, restrained interaction feedback. */
+button {
+  transition: color 180ms ease, background-color 180ms ease, border-color 180ms ease,
+             box-shadow 180ms ease, transform 180ms cubic-bezier(.2,.75,.25,1), opacity 180ms ease;
+}
+button:not(:disabled):active { transform: translateY(1px) scale(.99); }
+button:disabled { cursor: not-allowed; }
+input, select, textarea { transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 3px solid rgb(245 158 11 / 58%);
   outline-offset: 2px;
 }
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  border-color: rgb(16 185 129 / 80%);
+  box-shadow: 0 0 0 4px rgb(16 185 129 / 12%);
+}
 .interactive-card { transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease; }
-.interactive-card:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgb(2 44 34 / 9%); }
+@media (hover: hover) and (pointer: fine) {
+  .interactive-card:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgb(2 44 34 / 9%); }
+  main [class*="rounded-3xl"][class*="bg-white"][class*="border-slate-200"]:hover {
+    border-color: rgb(148 163 184 / 65%);
+  }
+}
+.theme-toggle { display: inline-flex; align-items: center; justify-content: center; }
+
+/* Animate existing modal backdrops and their first content panel. */
+main div.fixed.inset-0 { animation: campus-dialog-backdrop 160ms ease-out both; }
+main div.fixed.inset-0 > div, main div.fixed.inset-0 > form {
+  animation: campus-dialog-enter 220ms cubic-bezier(.2,.75,.25,1) both;
+}
+
+/* Cleaner scrollbars in long attendance tables and modal panels. */
+* { scrollbar-width: thin; scrollbar-color: rgb(148 163 184 / 55%) transparent; }
+*::-webkit-scrollbar { width: 9px; height: 9px; }
+*::-webkit-scrollbar-thumb { background: rgb(148 163 184 / 45%); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
+*::-webkit-scrollbar-thumb:hover { background: rgb(100 116 139 / 65%); border: 2px solid transparent; background-clip: padding-box; }
 ::selection { background: rgb(245 158 11 / 28%); }
+
+@media (max-width: 640px) {
+  .page-enter, .animate-fade-up { animation-duration: 260ms; }
+}
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
 }

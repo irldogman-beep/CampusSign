@@ -32,7 +32,9 @@ import {
   X,
   Sparkles,
   Clock3,
-  MonitorUp
+  MonitorUp,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { buildCheckin, parseCheckin, currentSlot, secondsUntilNextSlot, DEFAULT_QR_INTERVAL_SECONDS, QR_GRACE_SECONDS } from './checkin';
 import { downloadCsv } from './auth';
@@ -146,7 +148,21 @@ function formatQrInterval(seconds) {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('admin'); // 'admin' | 'student' | 'docs'
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    try {
+      const saved = localStorage.getItem('campussign-theme');
+      if (saved === 'dark') return true;
+      if (saved === 'light') return false;
+      return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
+    } catch {
+      return false;
+    }
+  });
+
+  // Remember the user's theme preference between visits.
+  useEffect(() => {
+    try { localStorage.setItem('campussign-theme', isDarkMode ? 'dark' : 'light'); } catch { /* storage may be unavailable */ }
+  }, [isDarkMode]);
 
   // System Core State
   const [staffAccounts, setStaffAccounts] = useState(INITIAL_STAFF);
@@ -265,7 +281,7 @@ export default function App() {
   };
 
   return (
-    <div className={`min-h-screen ${isDarkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'} transition-colors duration-200 font-sans`}>
+    <div className={`campus-app-shell min-h-screen ${isDarkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'} transition-colors duration-200 font-sans`}>
       
       {/* HEADER / NAVIGATION BAR */}
       <header className="sticky top-0 z-40 bg-emerald-950/90 backdrop-blur-md border-b border-emerald-900 shadow-md">
@@ -292,6 +308,7 @@ export default function App() {
             <div className="bg-emerald-900/80 p-1 rounded-xl border border-emerald-800 flex items-center">
               <button
                 onClick={() => setActiveTab('admin')}
+                aria-pressed={activeTab === 'admin'}
                 className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
                   activeTab === 'admin'
                     ? 'bg-amber-500 text-emerald-950 shadow-md'
@@ -304,6 +321,7 @@ export default function App() {
 
               <button
                 onClick={() => setActiveTab('student')}
+                aria-pressed={activeTab === 'student'}
                 className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
                   activeTab === 'student'
                     ? 'bg-amber-500 text-emerald-950 shadow-md'
@@ -316,6 +334,7 @@ export default function App() {
 
               <button
                 onClick={() => setActiveTab('docs')}
+                aria-pressed={activeTab === 'docs'}
                 className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
                   activeTab === 'docs'
                     ? 'bg-amber-500 text-emerald-950 shadow-md'
@@ -330,10 +349,12 @@ export default function App() {
             {/* Dark / Light Toggle */}
             <button
               onClick={() => setIsDarkMode(!isDarkMode)}
-              className="p-2 text-emerald-200 hover:text-amber-400 bg-emerald-900/50 hover:bg-emerald-900 border border-emerald-800 rounded-xl transition-colors"
-              title="Toggle Theme"
+              className="theme-toggle p-2 text-emerald-200 hover:text-amber-400 bg-emerald-900/50 hover:bg-emerald-900 border border-emerald-800 rounded-xl transition-colors"
+              title={isDarkMode ? 'Switch to light theme' : 'Switch to dark theme'}
+              aria-label={isDarkMode ? 'Switch to light theme' : 'Switch to dark theme'}
+              aria-pressed={isDarkMode}
             >
-              {isDarkMode ? '☀️' : '🌙'}
+              {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
 
           </div>
@@ -341,7 +362,7 @@ export default function App() {
       </header>
 
       {/* MAIN CONTENT CONTAINER */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 page-enter">
+      <main key={activeTab} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 page-enter" aria-live="polite">
         {activeTab === 'admin' && (
           <AdminPortal 
             activeSession={activeSession}
@@ -390,7 +411,7 @@ export default function App() {
             <CampusSignLogo className="w-5 h-5" />
             <span className="font-bold text-slate-700 dark:text-slate-300">CampusSign Verification Hub</span>
           </div>
-          <p>© 2026 Academic QR Biometrics & Privacy Retention System. Encrypted ISO-27001 Standard.</p>
+          <p>© 2026 CampusSign · QR attendance and biometric verification</p>
         </div>
       </footer>
 
