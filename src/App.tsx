@@ -28,6 +28,8 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { buildCheckin, parseCheckin, currentSlot, SLOT_MS } from './checkin';
+import { downloadCsv } from './auth';
+import { supabase } from './supabase';
 import { QRCodeImage, QRScanner, FaceCapture } from './CameraParts';
 import { getEnrollment, saveEnrollment, deleteEnrollment, listEnrolledIds } from './face';
 
@@ -70,7 +72,7 @@ const INITIAL_STAFF = [
     id: 'LEC001',
     name: 'Dr. Robert Vance',
     email: 'admin@university.edu',
-    password: 'password123',
+    passwordHash: 'e1756a9fc05bc2b263b7b2a383bec14600498ca814b9eb83a6670d89a79265fe',
     dept: 'Computer Science',
     course: 'CSC401 - Advanced Algorithms',
     isVerified: true
@@ -79,7 +81,7 @@ const INITIAL_STAFF = [
     id: 'LEC002',
     name: 'Prof. Sarah Jenkins',
     email: 'jenkins@university.edu',
-    password: 'password123',
+    passwordHash: '519a21b75f53120434130100db0fe86921a10309d605efd6d944546f915222c8',
     dept: 'Software Engineering',
     course: 'ENG301 - Software Architecture',
     isVerified: true
@@ -366,8 +368,10 @@ function AdminPortal({
   isDarkMode 
 }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [staffIdInput, setStaffIdInput] = useState('LEC001');
-  const [passwordInput, setPasswordInput] = useState('password123');
+  const [staffIdInput, setStaffIdInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
+  const [failedLogins, setFailedLogins] = useState(0);
+  const [lockedUntil, setLockedUntil] = useState(0);
   const [loginError, setLoginError] = useState('');
   const [isFullscreenQR, setIsFullscreenQR] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -393,7 +397,7 @@ function AdminPortal({
   const [newStaffForm, setNewStaffForm] = useState({
     name: '',
     email: '',
-    password: 'password123',
+    password: '',
     dept: 'Computer Science',
     course: 'CSC302 - Data Structures'
   });
@@ -410,82 +414,117 @@ function AdminPortal({
     }
   }, [activeStaff]);
 
-  const handleLogin = (e) => {
+  // Turn a Supabase profile row into the staff object the dashboard uses
+  const startStaffSession = (profile) => {
+    const admin = {
+      id: profile.id,
+      name: profile.name,
+      email: profile.email,
+      dept: profile.dept,
+      course: profile.course,
+      isVerified: profile.is_verified
+    };
+    setStaffAccounts(prev => prev.some(s => s.id === admin.id) ? prev : [...prev, admin]);
+    setActiveStaff(admin);
+    setIsAuthenticated(true);
+    setLoginError('');
+    setActiveSession(prev => ({
+      ...prev,
+      id: 'SESS-' + Math.floor(1000 + Math.random() * 9000),
+      title: `${admin.course} Attendance`,
+      course: admin.course,
+      teacher: admin.name,
+      teacherId: admin.id,
+      teacherEmail: admin.email,
+      isRevoked: false,
+      tokenCreatedAt: Date.now()
+    }));
+  };
+
+  const loadProfile = async (userId) => {
+    const { data, error } = await supabase.from('lecturers').select('*').eq('id', userId).single();
+    if (error || !data) throw new Error('Could not load your lecturer profile.');
+    return data;
+  };
+
+  // Stay signed in after a page refresh
+  useEffect(() => {
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (data.session) {
+        try { startStaffSession(await loadProfile(data.session.user.id)); } catch { /* ignore */ }
+      }
+    });
+    // eslint-disable-next-line
+  }, []);
+
+  const handleLogin = async (e) => {
     e.preventDefault();
-    const cleanStaffId = staffIdInput.trim().toUpperCase();
-    const admin = staffAccounts.find(
-      a => (a.id.toUpperCase() === cleanStaffId || a.email.toLowerCase() === staffIdInput.trim().toLowerCase()) && a.password === passwordInput
-    );
-
-    if (admin) {
-      setActiveStaff(admin);
-      setIsAuthenticated(true);
-      setLoginError('');
-
-      // Auto-bind active session to this logged-in lecturer
-      const newSessId = 'SESS-' + Math.floor(1000 + Math.random() * 9000);
-      setActiveSession(prev => ({
-        ...prev,
-        id: newSessId,
-        title: `${admin.course} Attendance`,
-        course: admin.course,
-        teacher: admin.name,
-        teacherId: admin.id,
-        teacherEmail: admin.email,
-        isRevoked: false,
-        tokenCreatedAt: Date.now()
-      }));
-    } else {
-      setLoginError('Invalid Staff ID / Email or Password. Try registered credentials.');
+    if (Date.now() < lockedUntil) {
+      setLoginError(`Too many failed attempts. Try again in ${Math.ceil((lockedUntil - Date.now()) / 1000)} seconds.`);
+      return;
+    }
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: staffIdInput.trim().toLowerCase(),
+      password: passwordInput
+    });
+    if (error || !data.user) {
+      const attempts = failedLogins + 1;
+      setFailedLogins(attempts);
+      if (attempts >= 5) {
+        setLockedUntil(Date.now() + 60000);
+        setFailedLogins(0);
+        setLoginError('Too many failed attempts. Login is locked for 60 seconds.');
+      } else {
+        setLoginError(error?.message?.includes('not confirmed') ? 'Please confirm your email first (check your inbox).' : 'Invalid email or password.');
+      }
+      return;
+    }
+    setFailedLogins(0);
+    setPasswordInput('');
+    try {
+      startStaffSession(await loadProfile(data.user.id));
+    } catch (err) {
+      setLoginError(err.message);
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     setIsAuthenticated(false);
     setStaffIdInput('');
     setPasswordInput('');
   };
 
-  const handleRegisterStaff = (e) => {
+  const handleRegisterStaff = async (e) => {
     e.preventDefault();
     if (!newStaffForm.email.trim() || !newStaffForm.name.trim()) return;
-
-    if (staffAccounts.some(s => s.email.toLowerCase() === newStaffForm.email.trim().toLowerCase())) {
-      alert(`Staff email "${newStaffForm.email}" is already registered!`);
+    if (newStaffForm.password.length < 8) {
+      alert('Password must be at least 8 characters.');
       return;
     }
-
-    const createdStaff = {
-      id: 'LEC-' + Math.floor(100 + Math.random() * 900),
-      name: newStaffForm.name.trim(),
+    const { data, error } = await supabase.auth.signUp({
       email: newStaffForm.email.trim().toLowerCase(),
       password: newStaffForm.password,
-      dept: newStaffForm.dept.trim(),
-      course: newStaffForm.course.trim(),
-      isVerified: false // Pending central admin verification
-    };
-
-    setStaffAccounts(prev => [...prev, createdStaff]);
-    setActiveStaff(createdStaff);
-    
-    const newSessId = 'SESS-' + Math.floor(1000 + Math.random() * 9000);
-    setActiveSession({
-      ...activeSession,
-      id: newSessId,
-      title: `${createdStaff.course} Class Session`,
-      course: createdStaff.course,
-      venue: 'Lecture Room 1',
-      teacher: createdStaff.name,
-      teacherId: createdStaff.id,
-      teacherEmail: createdStaff.email,
-      isRevoked: false,
-      tokenCreatedAt: Date.now()
+      options: {
+        data: {
+          name: newStaffForm.name.trim(),
+          dept: newStaffForm.dept.trim(),
+          course: newStaffForm.course.trim()
+        }
+      }
     });
-
-    setNewStaffForm({ name: '', email: '', password: 'password123', dept: 'Computer Science', course: '' });
+    if (error) {
+      alert(error.message);
+      return;
+    }
+    setNewStaffForm({ name: '', email: '', password: '', dept: 'Computer Science', course: '' });
     setIsAddStaffOpen(false);
-    setIsAuthenticated(true);
-    alert(`Registration submitted! Staff ID: ${createdStaff.id}. Account status set to PENDING CENTRAL ADMIN VERIFICATION.`);
+    if (data.session) {
+      try { startStaffSession(await loadProfile(data.user.id)); } catch (err) { alert(err.message); }
+      alert('Account created. It is PENDING VERIFICATION by the administrator.');
+    } else {
+      alert('Account created. Check your email to confirm it, then sign in.');
+    }
   };
 
   const handleSelectLecturer = (staffId) => {
@@ -596,6 +635,15 @@ function AdminPortal({
     document.body.removeChild(link);
   };
 
+  const exportLogsCsv = () => {
+    const safeCourse = String(activeSession.course || 'course').replace(/[^a-z0-9]+/gi, '_');
+    downloadCsv(
+      `attendance_${safeCourse}_${new Date().toISOString().slice(0, 10)}.csv`,
+      ['Student ID', 'Name', 'Course', 'Department', 'Date & Time', 'Status', 'Receipt Ref', 'Session ID'],
+      filteredLogs.map(l => [l.studentId, l.registeredName, l.course, l.dept, l.isoTime || l.time, l.status, l.receiptNo, l.sessionId])
+    );
+  };
+
   const filteredLogs = lecturerAttendanceLogs.filter(log => 
     log.registeredName.toLowerCase().includes(searchQuery.toLowerCase()) ||
     log.studentId.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -616,7 +664,7 @@ function AdminPortal({
         <div className="text-center mb-6">
           <CampusSignLogo className="w-16 h-16 mx-auto mb-3" />
           <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white">Staff & Lecturer Login</h2>
-          <p className="text-xs text-slate-500 mt-1">Authenticate with Staff ID or Academic Email</p>
+          <p className="text-xs text-slate-500 mt-1">Sign in with your academic email</p>
         </div>
 
         {loginError && (
@@ -628,11 +676,11 @@ function AdminPortal({
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Staff ID or Academic Email</label>
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Academic Email</label>
             <input 
-              type="text" 
+              type="email" 
               required
-              placeholder="e.g. LEC001 or admin@university.edu"
+              placeholder="you@university.edu"
               value={staffIdInput}
               onChange={e => setStaffIdInput(e.target.value)}
               className="w-full px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-semibold focus:ring-2 focus:ring-emerald-600 outline-none"
@@ -665,11 +713,6 @@ function AdminPortal({
             <UserPlus className="w-4 h-4" /> Register New Lecturer Account
           </button>
 
-          <div className="text-[11px] text-slate-400 text-center space-y-1">
-            <p className="font-bold text-slate-600 dark:text-slate-300">Registered Test Accounts:</p>
-            <p>• <strong>LEC001</strong> (Dr. Vance - CSC401) / Password: <code>password123</code></p>
-            <p>• <strong>LEC002</strong> (Prof. Jenkins - ENG301) / Password: <code>password123</code></p>
-          </div>
         </div>
 
         {/* REGISTER NEW LECTURER MODAL */}
@@ -750,6 +793,8 @@ function AdminPortal({
                   <input 
                     type="password" 
                     required
+                    minLength={8}
+                    placeholder="At least 8 characters"
                     value={newStaffForm.password}
                     onChange={e => setNewStaffForm({ ...newStaffForm, password: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono focus:ring-2 focus:ring-emerald-600 outline-none"
@@ -1049,6 +1094,13 @@ function AdminPortal({
               <div className="text-xs text-emerald-800 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950 px-3 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-800">
                 Course Log: <span>{activeSession.course}</span>
               </div>
+              <button
+                onClick={exportLogsCsv}
+                disabled={filteredLogs.length === 0}
+                className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-emerald-950 text-xs font-extrabold border border-amber-300"
+              >
+                Export CSV
+              </button>
             </div>
 
             {filteredLogs.length === 0 ? (
@@ -1317,7 +1369,9 @@ function AdminPortal({
                 <input 
                   type="text" 
                   required
-                  value={newStaffForm.password}
+                  minLength={8}
+                    placeholder="At least 8 characters"
+                    value={newStaffForm.password}
                   onChange={e => setNewStaffForm({ ...newStaffForm, password: e.target.value })}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-mono focus:ring-2 focus:ring-emerald-600 outline-none"
                 />
@@ -1571,6 +1625,7 @@ function StudentPortal({
       dept: matchedStudent.dept,
       facePhoto: photoUrl,
       time: timestamp,
+      isoTime: new Date().toISOString(),
       status: 'Verified',
       receiptNo: receiptRef
     };
