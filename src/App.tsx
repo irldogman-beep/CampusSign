@@ -31,7 +31,7 @@ import { buildCheckin, parseCheckin, currentSlot, SLOT_MS } from './checkin';
 import { downloadCsv } from './auth';
 import { supabase } from './supabase';
 import { QRCodeImage, QRScanner, FaceCapture } from './CameraParts';
-import { getEnrollment, saveEnrollment, deleteEnrollment, listEnrolledIds } from './face';
+import * as db from './db';
 
 /* ==========================================================================
    LOGO COMPONENT (Matching Forest Green & Academic Gold Emblem)
@@ -125,7 +125,7 @@ export default function App() {
   // System Core State
   const [staffAccounts, setStaffAccounts] = useState(INITIAL_STAFF);
   const [activeStaff, setActiveStaff] = useState(INITIAL_STAFF[0]); // Default Dr. Vance
-  const [studentRegistry, setStudentRegistry] = useState(INITIAL_STUDENTS);
+  const [studentRegistry, setStudentRegistry] = useState([]);
 
   // Active Verification Session State
   const [activeSession, setActiveSession] = useState({
@@ -136,6 +136,7 @@ export default function App() {
     teacher: 'Dr. Robert Vance',
     teacherId: 'LEC001',
     teacherEmail: 'admin@university.edu',
+    secret: '',
     isRevoked: false,
     tokenCreatedAt: Date.now()
   });
@@ -163,9 +164,14 @@ export default function App() {
       setSecondsToRotate(Math.ceil((SLOT_MS - (Date.now() % SLOT_MS)) / 1000));
       if (slot !== lastSlot) {
         lastSlot = slot;
+        if (!activeSession.secret) {
+          setQrPayload('');
+          setQrToken('');
+          return;
+        }
         try {
           const { url, token } = await buildCheckin(
-            { id: activeSession.id, course: activeSession.course, teacher: activeSession.teacher },
+            { id: activeSession.id, secret: activeSession.secret },
             slot
           );
           if (!cancelled) {
@@ -183,18 +189,30 @@ export default function App() {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [activeSession.id, activeSession.course, activeSession.teacher]);
+  }, [activeSession.id, activeSession.secret]);
 
   // Validate a scanned QR (from the in-app scanner or a phone's camera app)
   const handleQrScanned = async (raw) => {
-    const result = await parseCheckin(raw);
-    if (result.ok) {
-      setCheckin({ session: result.session, validatedAt: Date.now() });
-      setCheckinError('');
-    } else {
-      setCheckinError(result.message);
+    const parsed = await parseCheckin(raw);
+    if (!parsed.ok) {
+      setCheckinError(parsed.message);
+      return parsed;
     }
-    return result;
+    try {
+      // The server verifies the signature and freshness, then returns a 10-minute ticket
+      const info = await db.sessionInfo(parsed.code);
+      setCheckin({
+        session: { id: parsed.code.i, course: info.course, teacher: info.teacher },
+        ticket: { exp: info.exp, sig: info.ticket },
+        validatedAt: Date.now()
+      });
+      setCheckinError('');
+      return { ok: true };
+    } catch (e) {
+      const message = db.friendly(e);
+      setCheckinError(message);
+      return { ok: false, message };
+    }
   };
 
   // If the site was opened by scanning the QR with a phone's normal camera app
@@ -388,8 +406,8 @@ function AdminPortal({
   });
   const [registrySearch, setRegistrySearch] = useState('');
 
-  // Face enrollment (stored on this device only)
-  const [enrolledIds, setEnrolledIds] = useState(() => listEnrolledIds());
+  // Face enrollment (templates are stored on the server)
+  const enrolledIds = studentRegistry.filter(st => st.faceEnrolled).map(st => String(st.id).toUpperCase());
   const [enrollTarget, setEnrollTarget] = useState(null);
   const [enrollSaved, setEnrollSaved] = useState(false);
 
@@ -415,7 +433,42 @@ function AdminPortal({
   }, [activeStaff]);
 
   // Turn a Supabase profile row into the staff object the dashboard uses
-  const startStaffSession = (profile) => {
+  const beginSession = async (course, title, venue, admin) => {
+    const base = {
+      title, course, venue,
+      teacher: admin.name, teacherId: admin.id, teacherEmail: admin.email,
+      isRevoked: false, tokenCreatedAt: Date.now()
+    };
+    try {
+      const row = await db.createSession(course, title, venue);
+      setActiveSession(prev => ({ ...prev, ...base, id: row.id, secret: row.secret }));
+      return true;
+    } catch (e) {
+      setActiveSession(prev => ({ ...prev, ...base, id: '', secret: '' }));
+      alert('Could not start a session: ' + db.friendly(e));
+      return false;
+    }
+  };
+
+  const refreshRegistry = async () => {
+    try { setStudentRegistry(await db.loadStudents()); } catch (e) { console.error(e); }
+  };
+  const refreshLogs = async () => {
+    try { setAttendanceLogs(await db.loadAttendance()); } catch (e) { console.error(e); }
+  };
+
+  // Load the roster + attendance once signed in, then refresh attendance every 5 seconds
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    refreshRegistry();
+    refreshLogs();
+    const t = setInterval(refreshLogs, 5000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line
+  }, [isAuthenticated]);
+
+  // Turn a Supabase profile row into the staff object the dashboard uses
+  const startStaffSession = async (profile) => {
     const admin = {
       id: profile.id,
       name: profile.name,
@@ -424,26 +477,17 @@ function AdminPortal({
       course: profile.course,
       isVerified: profile.is_verified
     };
-    setStaffAccounts(prev => prev.some(s => s.id === admin.id) ? prev : [...prev, admin]);
+    setStaffAccounts(prev => prev.some(x => x.id === admin.id) ? prev : [...prev, admin]);
     setActiveStaff(admin);
     setIsAuthenticated(true);
     setLoginError('');
-    setActiveSession(prev => ({
-      ...prev,
-      id: 'SESS-' + Math.floor(1000 + Math.random() * 9000),
-      title: `${admin.course} Attendance`,
-      course: admin.course,
-      teacher: admin.name,
-      teacherId: admin.id,
-      teacherEmail: admin.email,
-      isRevoked: false,
-      tokenCreatedAt: Date.now()
-    }));
+    await beginSession(admin.course, `${admin.course} Attendance`, 'Lecture Room 1', admin);
   };
 
   const loadProfile = async (userId) => {
-    const { data, error } = await supabase.from('lecturers').select('*').eq('id', userId).single();
-    if (error || !data) throw new Error('Could not load your lecturer profile.');
+    const { data, error } = await supabase.from('lecturers').select('*').eq('id', userId).maybeSingle();
+    if (error) throw new Error('Profile error: ' + error.message);
+    if (!data) throw new Error('No lecturer profile found. Run the latest supabase-setup.sql in Supabase, then sign in again.');
     return data;
   };
 
@@ -546,65 +590,52 @@ function AdminPortal({
     }
   };
 
-  const handleCreateSession = (e) => {
+  const handleCreateSession = async (e) => {
     e.preventDefault();
-    const newSessId = 'SESS-' + Math.floor(1000 + Math.random() * 9000);
-    setActiveSession({
-      ...activeSession,
-      id: newSessId,
-      title: sessionForm.title,
-      course: sessionForm.course,
-      venue: sessionForm.venue,
-      teacher: activeStaff ? activeStaff.name : 'Dr. Robert Vance',
-      teacherId: activeStaff ? activeStaff.id : 'LEC001',
-      teacherEmail: activeStaff ? activeStaff.email : 'admin@university.edu',
-      isRevoked: false,
-      tokenCreatedAt: Date.now()
-    });
-    alert(`New Session created for course ${sessionForm.course} by ${activeStaff ? activeStaff.name : 'Lecturer'}! QR Code updated.`);
+    const ok = await beginSession(sessionForm.course, sessionForm.title, sessionForm.venue, activeStaff);
+    if (ok) alert(`New session created for ${sessionForm.course}. QR code updated.`);
   };
 
-  const handleAddStudent = (e) => {
+  const handleAddStudent = async (e) => {
     e.preventDefault();
     if (!newStudentForm.id.trim() || !newStudentForm.name.trim()) return;
-
-    const assignedCourse = newStudentForm.course || (activeStaff ? activeStaff.course : 'CSC401 - Advanced Algorithms');
-
-    // Check duplicate ID in the same course roster
-    if (studentRegistry.some(s => s.id.toUpperCase() === newStudentForm.id.trim().toUpperCase() && s.course === assignedCourse)) {
-      alert(`Student ID "${newStudentForm.id}" is already enrolled in ${assignedCourse}!`);
+    const assignedCourse = activeStaff ? activeStaff.course : '';
+    try {
+      await db.addStudent({
+        course: assignedCourse,
+        id: newStudentForm.id.trim().toUpperCase(),
+        name: newStudentForm.name.trim(),
+        dept: newStudentForm.dept,
+        level: newStudentForm.level
+      });
+    } catch (err) {
+      alert(db.friendly(err));
       return;
     }
-
-    const createdStudent = {
-      id: newStudentForm.id.trim().toUpperCase(),
-      name: newStudentForm.name.trim(),
-      dept: newStudentForm.dept,
-      level: newStudentForm.level,
-      course: assignedCourse
-    };
-
-    setStudentRegistry(prev => [createdStudent, ...prev]);
-    setNewStudentForm({ id: '', name: '', dept: 'Computer Science', level: '300', course: activeStaff ? activeStaff.course : '' });
+    await refreshRegistry();
+    setNewStudentForm({ id: '', name: '', dept: 'Computer Science', level: '300' });
     setIsAddStudentOpen(false);
   };
 
-  const handleDeleteStudent = (studentId, studentName) => {
-    if (window.confirm(`Are you sure you want to delete ${studentName} (${studentId}) from this course roster?`)) {
-      const stillEnrolledElsewhere = studentRegistry.some(
-        s => s.id === studentId && !(activeStaff ? s.course === activeStaff.course : true)
-      );
-      setStudentRegistry(prev => prev.filter(s => !(s.id === studentId && s.course === (activeStaff ? activeStaff.course : s.course))));
-      if (!stillEnrolledElsewhere) {
-        deleteEnrollment(studentId);
-        setEnrolledIds(listEnrolledIds());
-      }
+  const handleDeleteStudent = async (rowId, studentId, studentName) => {
+    if (!window.confirm(`Delete ${studentName} (${studentId}) from this roster? Their enrolled face is deleted too.`)) return;
+    try {
+      await db.deleteStudent(rowId);
+      await refreshRegistry();
+    } catch (err) {
+      alert(db.friendly(err));
     }
   };
 
-  const handleRevokeSession = () => {
-    setActiveSession(prev => ({ ...prev, isRevoked: true }));
+  const setSessionRevoked = async (revoked) => {
+    try {
+      if (activeSession.id) await db.setRevoked(activeSession.id, revoked);
+      setActiveSession(prev => ({ ...prev, isRevoked: revoked }));
+    } catch (e) {
+      alert(db.friendly(e));
+    }
   };
+  const handleRevokeSession = () => setSessionRevoked(true);
 
   // Filter attendance logs STRICTLY for the active lecturer's course/session
   const lecturerAttendanceLogs = attendanceLogs.filter(log => 
@@ -918,7 +949,7 @@ function AdminPortal({
                 {activeSession.isRevoked ? (
                   <button 
                     type="button"
-                    onClick={() => setActiveSession(prev => ({ ...prev, isRevoked: false }))}
+                    onClick={() => setSessionRevoked(false)}
                     className="px-3 py-2.5 bg-emerald-600 text-white font-bold rounded-xl text-xs hover:bg-emerald-700"
                   >
                     Unrevoke
@@ -1226,7 +1257,7 @@ function AdminPortal({
                             <Camera className="w-3.5 h-3.5" /> {enrolledIds.includes(student.id.toUpperCase()) ? 'Re-enroll' : 'Enroll Face'}
                           </button>
                           <button
-                            onClick={() => handleDeleteStudent(student.id, student.name)}
+                            onClick={() => handleDeleteStudent(student.rowId, student.id, student.name)}
                             className="p-1.5 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950 rounded-lg transition-colors"
                             title="Delete Student Record"
                           >
@@ -1264,7 +1295,7 @@ function AdminPortal({
               <div className="text-center space-y-4 py-4">
                 <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto" />
                 <p className="text-sm font-bold text-slate-900 dark:text-white">Face enrolled for {enrollTarget.id}.</p>
-                <p className="text-xs text-slate-500">A numeric face template was saved on this device. No photo is stored.</p>
+                <p className="text-xs text-slate-500">A numeric face template was saved securely on the server. No photo is stored.</p>
                 <button
                   onClick={() => setEnrollTarget(null)}
                   className="px-5 py-2.5 bg-emerald-900 hover:bg-emerald-800 text-amber-400 font-extrabold rounded-xl text-xs border border-emerald-700"
@@ -1275,16 +1306,17 @@ function AdminPortal({
             ) : (
               <>
                 <p className="text-xs text-slate-500">
-                  The student must be present. They look straight at the camera while 3 samples are captured. Only a numeric template is saved, on this device.
+                  The student must be present. They look straight at the camera while 3 samples are captured. Only a numeric template is saved, securely on the server.
                 </p>
                 <FaceCapture
                   mode="enroll"
-                  onEnrolled={({ descriptors }) => {
-                    if (saveEnrollment(enrollTarget.id, descriptors)) {
-                      setEnrolledIds(listEnrolledIds());
+                  onEnrolled={async ({ descriptors }) => {
+                    try {
+                      await db.enrollFace(enrollTarget.rowId, descriptors);
+                      await refreshRegistry();
                       setEnrollSaved(true);
-                    } else {
-                      alert('Could not save the face template. Browser storage may be blocked.');
+                    } catch (err) {
+                      alert('Could not save the face template: ' + db.friendly(err));
                       setEnrollTarget(null);
                     }
                   }}
@@ -1551,7 +1583,7 @@ function StudentPortal({
     !(activeSession.isRevoked && activeSession.id === session.id);
 
   // Face template enrolled on this device for the matched student
-  const enrollment = matchedStudent ? getEnrollment(matchedStudent.id) : null;
+  const enrollment = matchedStudent && matchedStudent.faceEnrolled ? true : null;
 
   const handleQrCode = async (raw) => {
     const result = await onQrScanned(raw);
@@ -1559,79 +1591,64 @@ function StudentPortal({
   };
 
   // Handle Student Lookup bound to the scanned session's course
-  const handleVerifyStudentId = (e) => {
+  const handleVerifyStudentId = async (e) => {
     e.preventDefault();
     const cleanId = studentIdInput.trim().toUpperCase();
-
     if (!isTokenValid) {
       setStep(1);
       return;
     }
-
-    if (lockedOutStudents.includes(cleanId)) {
-      setLookupError('This Student ID has been locked out due to multiple failed verification retries.');
-      return;
-    }
-
-    // Prevent Double Attendance Submission
-    const existingLog = attendanceLogs.find(l => l.studentId === cleanId && l.sessionId === session.id);
-    if (existingLog) {
-      setLookupError('Attendance already submitted for this Student ID in the current session.');
-      return;
-    }
-
-    // Lookup student in the session's specific course roster
-    const found = studentRegistry.find(s => s.id === cleanId && s.course === session.course);
-    if (found) {
-      setMatchedStudent(found);
+    try {
+      const st = await db.lookupStudent(session.id, checkin.ticket, cleanId);
+      setMatchedStudent({ id: st.student_id, name: st.name, dept: st.dept, level: st.level, faceEnrolled: st.face_enrolled });
       setLookupError('');
       setFaceError('');
       setFaceRetries(0);
       setStep(3); // Proceed to consent
-    } else {
-      const nextRetries = retryCount + 1;
-      setRetryCount(nextRetries);
-      if (nextRetries >= 3) {
-        setLockedOutStudents(prev => [...prev, cleanId]);
-        setLookupError(`Maximum retries exceeded (3/3). Student ID is not enrolled in ${session.course} or was entered incorrectly. Invigilator alerted.`);
+    } catch (err) {
+      if (err && err.message === 'not_found') {
+        const n = retryCount + 1;
+        setRetryCount(n);
+        setLookupError(`${db.friendly(err)} (try ${n})`);
       } else {
-        setLookupError(`Student ID not found in roster for ${session.course}. Retry ${nextRetries}/3.`);
+        setLookupError(db.friendly(err));
       }
     }
   };
 
-  const handleFaceMismatch = () => {
-    const next = faceRetries + 1;
-    setFaceRetries(next);
-    if (next >= 3) {
-      setLockedOutStudents(prev => [...prev, matchedStudent.id]);
-      setMatchedStudent(null);
-      setStep(2);
-      setLookupError('Your face did not match the enrolled record 3 times. This Student ID is locked out and the invigilator has been alerted.');
-    } else {
-      setFaceError(`Your face did not match the enrolled record (attempt ${next}/3).`);
+  // The face is compared on the server; this device never sees the enrolled template.
+  const handleFaceCaptured = async ({ photo, descriptor }) => {
+    try {
+      const r = await db.checkIn(session.id, checkin.ticket, matchedStudent.id, descriptor, photo);
+      if (r.status === 'ok') {
+        finishVerification(r, photo);
+      } else if (r.status === 'mismatch') {
+        setFaceError(`Your face did not match the enrolled record (${r.remaining} attempt${r.remaining === 1 ? '' : 's'} left).`);
+      } else if (r.status === 'locked' || r.status === 'already') {
+        setMatchedStudent(null);
+        setStep(2);
+        setLookupError(db.friendly({ message: r.status }));
+      } else {
+        setFaceError(db.friendly({ message: r.status }));
+      }
+    } catch (err) {
+      setFaceError(db.friendly(err));
     }
   };
 
-  const finishVerification = (photoUrl) => {
-    const timestamp = new Date().toLocaleTimeString();
-    const receiptRef = 'REC-' + Math.random().toString(36).substring(2, 9).toUpperCase();
-
-    const newLog = {
+  const finishVerification = (r, photoUrl) => {
+    setReceiptData({
       sessionId: session.id,
       course: session.course,
-      studentId: matchedStudent.id,
-      registeredName: matchedStudent.name,
-      dept: matchedStudent.dept,
+      studentId: r.student_id,
+      registeredName: r.name,
+      dept: r.dept,
       facePhoto: photoUrl,
-      time: timestamp,
-      isoTime: new Date().toISOString(),
+      time: new Date(r.created_at).toLocaleTimeString(),
+      isoTime: r.created_at,
       status: 'Verified',
-      receiptNo: receiptRef
-    };
-
-    setAttendanceLogs(prev => [newLog, ...prev]);
-    setReceiptData(newLog);
+      receiptNo: r.receipt_no
+    });
     setStep(5); // Go to receipt screen
   };
 
@@ -1814,7 +1831,7 @@ function StudentPortal({
             <div className="space-y-3">
               <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-amber-800 dark:text-amber-300 text-xs flex items-start gap-2">
                 <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>No face is enrolled for <strong>{matchedStudent.id}</strong> on this device. Ask the invigilator to enroll you first (Lecturer Portal &rarr; Student Roster &rarr; Enroll Face).</span>
+                <span>No face is enrolled for <strong>{matchedStudent.id}</strong> yet. Ask the invigilator to enroll you first (Lecturer Portal &rarr; Student Roster &rarr; Enroll Face).</span>
               </div>
               <button
                 onClick={() => { setMatchedStudent(null); setStep(2); }}
@@ -1852,9 +1869,7 @@ function StudentPortal({
             <FaceCapture
               key={faceAttempt}
               mode="verify"
-              enrolled={enrollment}
-              onVerified={({ photo }) => finishVerification(photo)}
-              onMismatch={handleFaceMismatch}
+              onCaptured={handleFaceCaptured}
             />
           )}
 

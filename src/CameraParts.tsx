@@ -174,6 +174,8 @@ interface FaceCaptureProps {
   onVerified?: (r: { photo: string; distance: number }) => void;
   onMismatch?: (r: { photo: string; distance: number }) => void;
   onEnrolled?: (r: { photo: string; descriptors: number[][] }) => void;
+  /** Verify mode, server-side matching: hand back the raw capture instead of comparing here. */
+  onCaptured?: (r: { photo: string; descriptor: number[] }) => void;
 }
 
 const TIMEOUT_MS = 40_000;
@@ -279,6 +281,12 @@ export function FaceCapture(props: FaceCaptureProps) {
             for (let i = 0; i < 5 && !shot && !cancelled; i++) shot = await grab();
             if (cancelled) return;
             if (!shot) return fail('Could not read your face clearly. Try again with better lighting.');
+            if (propsRef.current.onCaptured) {
+              say('Done', 100);
+              stopStream();
+              propsRef.current.onCaptured({ photo: shot.photo, descriptor: Array.from(shot.descriptor) });
+              return;
+            }
             const enrolled = propsRef.current.enrolled || [];
             const distance = bestDistance(shot.descriptor, enrolled);
             say('Done', 100);
