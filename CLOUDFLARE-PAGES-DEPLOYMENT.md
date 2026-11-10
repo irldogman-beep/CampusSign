@@ -1,28 +1,31 @@
-# Deploy CampusSign to Cloudflare Pages
+# CampusSign — Cloudflare deployment note
 
-CampusSign is a Vite/React static frontend. Its authentication, database, and attendance RPCs are handled by Supabase; it does not use Netlify Functions. That makes Cloudflare Pages a good low-cost hosting fit.
+## Current production target
 
-## Deploy
+The current live test deployment is a **Cloudflare Worker**, not a Cloudflare Pages project:
 
-1. Push the `campussign` folder to a GitHub repository (or use the folder as the project root if the repository contains other projects).
-2. In Cloudflare Dashboard, open **Workers & Pages → Create → Pages → Connect to Git**.
-3. Select the repository and set:
-   - **Production branch:** your deployment branch (usually `main`)
-   - **Framework preset:** Vite
-   - **Build command:** `npm run build`
-   - **Build output directory:** `dist`
-   - **Root directory:** `campussign` only if the repository contains the project inside that subfolder; otherwise `/`.
-4. Save and deploy. Cloudflare Pages will build the app and publish `dist`.
-5. Add your custom domain under the Pages project's **Custom domains** tab if needed.
-6. Test sign-in, student self-enrolment, camera permissions, QR scanning, Supabase requests, and a complete attendance check-in on the deployed URL.
+- `https://campussign.irldogman.workers.dev`
 
-## Static hosting and Supabase
+The earlier Pages instructions below are retained only as a reference for a future move to Pages. Do not create a second deployment just because the URL ends in `workers.dev`.
 
-- The `public/_headers` file is copied by Vite into `dist/_headers`; Cloudflare Pages uses it to apply the app's security headers.
-- The app connects directly to Supabase. Keep Supabase Row Level Security (RLS) and RPC checks enabled. The Supabase publishable/anon key is intended to be present in browser code; never place a Supabase `service_role` secret in the frontend.
-- Camera access requires HTTPS. The default `*.pages.dev` domain provides HTTPS.
-- There are no Netlify-specific functions to migrate in this project. `netlify.toml` is ignored by Cloudflare Pages and may be kept for rollback or removed once Cloudflare is working.
+## Updating the current Worker
 
-## Before switching DNS
+1. Commit the changed project files to the connected GitHub repository.
+2. In Cloudflare Dashboard, open **Workers & Pages → campussign → Settings → Builds**.
+3. Confirm the repository and production branch are the intended GitHub source and `main` (or the actual production branch in use).
+4. Confirm the build uses `npm run build` and the deployment configuration serves the Vite output from `dist` as Worker static assets.
+5. Watch the new deployment until it reports **Ready**.
+6. Test the live Worker URL before retiring or deleting the old Netlify project.
 
-Deploy first to the temporary `*.pages.dev` address. Test all lecturer and student workflows there. Then add the custom domain in Cloudflare Pages and follow the domain-assignment instructions before changing DNS. Keep the existing Netlify site available until the Cloudflare version has passed those tests.
+If Git-based builds are not connected, a Git push alone will not deploy the app; use the Worker deployment method currently configured in the dashboard or finish connecting the repository first.
+
+## Legacy Pages reference (not the current deployment)
+
+If CampusSign is deliberately moved to Cloudflare Pages in the future, the Vite settings are:
+
+- Framework preset: Vite
+- Build command: `npm run build`
+- Build output directory: `dist`
+- Root directory: `/` when the repository root contains `package.json`; otherwise set it to the folder containing the app.
+
+The application uses Supabase directly and does not require Netlify Functions. Keep Supabase RLS and RPC checks enabled. Never put a Supabase `service_role` secret in frontend code.
