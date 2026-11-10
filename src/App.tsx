@@ -819,6 +819,42 @@ function AdminPortal({
     };
   });
 
+  const selectedSession = sessionList.find(x => x.id === shownSessionId);
+  const selectedSessionIsLive = !!selectedSession && !selectedSession.revoked &&
+    (!selectedSession.ends_at || new Date(selectedSession.ends_at).getTime() > Date.now());
+
+  const handleDeleteSession = async () => {
+    if (!selectedSession) {
+      alert('Select an attendance list first.');
+      return;
+    }
+    if (selectedSessionIsLive) {
+      alert('End the live attendance session before deleting its list.');
+      return;
+    }
+
+    const recordCount = attendanceLogs.filter(log => log.sessionId === selectedSession.id).length;
+    const sessionDate = new Date(selectedSession.created_at).toLocaleString();
+    const sessionName = selectedSession.title || selectedSession.course || 'Untitled session';
+    const detail = recordCount === 1 ? '1 student attendance record' : `${recordCount} student attendance records`;
+    const confirmed = window.confirm(
+      `Permanently delete the entire attendance list?\n\n${sessionName}\n${sessionDate}\n${detail} will also be permanently deleted.\n\nThis cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    try {
+      await db.deleteSession(selectedSession.id);
+      setSessionList(prev => prev.filter(session => session.id !== selectedSession.id));
+      setAttendanceLogs(prev => prev.filter(log => log.sessionId !== selectedSession.id));
+      if (viewSessionId === selectedSession.id) setViewSessionId('');
+      if (activeSession.id === selectedSession.id) {
+        setActiveSession(prev => ({ ...prev, id: '', secret: '', title: '', isRevoked: false, endsAt: null }));
+      }
+    } catch (err) {
+      alert('Could not delete the attendance list: ' + db.friendly(err));
+    }
+  };
+
   const exportToCSV = () => {
     const headers = ["Student ID", "Registered Name", "Course", "Department", "Time", "Status", "Receipt Ref"];
     const rows = lecturerAttendanceLogs.map(log => [
@@ -1457,6 +1493,15 @@ function AdminPortal({
                 {sessionOptions.length === 0 && <option value="">No sessions yet</option>}
                 {sessionOptions.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
               </select>
+              <button
+                type="button"
+                onClick={handleDeleteSession}
+                disabled={!selectedSession || selectedSessionIsLive}
+                title={selectedSessionIsLive ? 'End the live session before deleting its list' : 'Permanently delete this entire attendance list'}
+                className="w-full sm:w-auto px-3.5 py-3 rounded-xl border border-rose-200 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 text-xs font-extrabold hover:bg-rose-100 dark:hover:bg-rose-950 disabled:opacity-40 disabled:cursor-not-allowed transition-colors inline-flex items-center justify-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" /> Delete entire list
+              </button>
               <div className="relative w-full sm:max-w-xs">
                 <Search className="w-4 h-4 absolute left-3.5 top-4 text-slate-400" />
                 <input
@@ -1468,6 +1513,9 @@ function AdminPortal({
                 />
               </div>
             </div>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              Delete entire list removes the selected session and all check-ins saved under it. Live sessions must be ended first.
+            </p>
 
             {filteredLogs.length === 0 ? (
               <div className="py-12 text-center text-slate-400 text-xs">

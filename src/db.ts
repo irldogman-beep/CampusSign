@@ -164,6 +164,12 @@ export async function deleteAttendance(id: string) {
   unwrap(await supabase.from('attendance').delete().eq('id', id).select('id'));
 }
 
+// Delete a complete attendance session. Its attendance rows and check-in attempts
+// are removed by the database's ON DELETE CASCADE constraints.
+export async function deleteSession(id: string) {
+  unwrap(await supabase.from('sessions').delete().eq('id', id).select('id').single());
+}
+
 export async function updateAttendance(id: string, patch: {
   studentName: string; dept: string; status: string;
 }) {
