@@ -5,12 +5,59 @@ import { Camera, RefreshCw, AlertTriangle } from 'lucide-react';
 import { loadFaceApi, eyeOpenness, headTurn, bestDistance, cropFace, FACE_MATCH_THRESHOLD } from './face';
 
 function cameraErrorMessage(e: any): string {
-  const name = e && e.name;
-  if (name === 'NotAllowedError' || name === 'SecurityError')
-    return 'Camera permission was denied. Allow camera access in your browser settings, then try again.';
-  if (name === 'NotFoundError' || name === 'OverconstrainedError') return 'No camera was found on this device.';
-  if (name === 'NotReadableError') return 'The camera is being used by another app. Close it and try again.';
-  return 'Could not open the camera. Make sure the site is opened over https and camera access is allowed.';
+  const name = e && typeof e === 'object' ? e.name : '';
+  if (name === 'NotAllowedError' || name === 'PermissionDeniedError')
+    return 'Camera access was blocked. In your browser, open the site permissions (the icon beside the address), set Camera to Allow, then reload this page. Also check that camera access is enabled for your browser in your phone or computer privacy settings.';
+  if (name === 'SecurityError')
+    return 'The browser blocked camera access because this page is not in an approved secure context. Open the official HTTPS CampusSign link directly in Chrome, Safari or Edge.';
+  if (name === 'NotFoundError' || name === 'DevicesNotFoundError')
+    return 'No camera was detected. Check that this device has a working camera, then try again.';
+  if (name === 'OverconstrainedError' || name === 'ConstraintNotSatisfiedError')
+    return 'The camera rejected the preferred video settings. Try again; CampusSign will use the device’s default camera settings.';
+  if (name === 'NotReadableError' || name === 'TrackStartError')
+    return 'The camera could not start. It may be in use by another app, blocked by your operating system, or unavailable to the browser. Close other camera apps and try again.';
+  if (name === 'AbortError')
+    return 'The camera startup was interrupted. Close other camera apps and try again.';
+  if (name === 'TypeError')
+    return 'This browser does not expose camera access on this page. Open CampusSign directly in an up-to-date Chrome, Safari or Edge browser over HTTPS—not inside another app.';
+  const detail = name ? ` (Browser error: ${name})` : '';
+  return `CampusSign could not start the camera. Check browser and device camera permissions, close other apps using the camera, then try again.${detail}`;
+}
+
+/** Open a camera using preferred settings first, then retry with browser defaults.
+ * Some mobile browsers and older webcams reject facingMode/resolution constraints.
+ */
+async function openCameraStream(preferredFacing: 'user' | 'environment' = 'user'): Promise<MediaStream> {
+  if (!window.isSecureContext) {
+    throw Object.assign(new Error('Camera access requires HTTPS.'), { name: 'SecurityError' });
+  }
+  if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== 'function') {
+    throw Object.assign(new Error('MediaDevices API is unavailable.'), { name: 'TypeError' });
+  }
+
+  try {
+    return await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { ideal: preferredFacing },
+        width: { ideal: 640 },
+        height: { ideal: 480 },
+      },
+      audio: false,
+    });
+  } catch (preferredError: any) {
+    // Do not retry permission/security failures: the browser needs the user to fix them.
+    const name = preferredError?.name;
+    if (name === 'NotAllowedError' || name === 'PermissionDeniedError' || name === 'SecurityError') {
+      throw preferredError;
+    }
+    // Generic video:true lets the browser choose a supported camera and resolution.
+    try {
+      return await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    } catch (fallbackError: any) {
+      // Keep the most actionable original failure if the fallback is less specific.
+      throw fallbackError?.name === 'NotFoundError' && name ? preferredError : fallbackError;
+    }
+  }
 }
 
 /* ==========================================================================
@@ -83,10 +130,7 @@ export function QRScanner({ onCode }: { onCode: (data: string) => void }) {
 
     (async () => {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' } },
-          audio: false,
-        });
+        stream = await openCameraStream('environment');
       } catch (e) {
         if (!cancelled) setError(cameraErrorMessage(e));
         return;
@@ -95,13 +139,18 @@ export function QRScanner({ onCode }: { onCode: (data: string) => void }) {
         stream.getTracks().forEach((t) => t.stop());
         return;
       }
-      const video = videoRef.current!;
+      const video = videoRef.current;
+      if (!video) { stream.getTracks().forEach((t) => t.stop()); return; }
+      video.muted = true;
+      video.playsInline = true;
       video.srcObject = stream;
       video.setAttribute('playsinline', 'true');
       try {
         await video.play();
-      } catch {
-        if (!cancelled) setError('Could not start the camera preview.');
+      } catch (e: any) {
+        stream.getTracks().forEach((t) => t.stop());
+        stream = null;
+        if (!cancelled) setError(cameraErrorMessage(e));
         return;
       }
       setReady(true);
@@ -188,7 +237,8 @@ export function FaceCapture(props: FaceCaptureProps) {
 
   const [attempt, setAttempt] = useState(0);
   const [status, setStatus] = useState<'loading' | 'running' | 'error'>('loading');
-  const [prompt, setPrompt] = useState('Loading face models…');
+  const [cameraReady, setCameraReady] = useState(false);
+  const [prompt, setPrompt] = useState('Opening camera…');
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState('');
 
@@ -196,12 +246,14 @@ export function FaceCapture(props: FaceCaptureProps) {
     let cancelled = false;
     let stream: MediaStream | null = null;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let modelTimeout: ReturnType<typeof setTimeout> | undefined;
     const startedAt = Date.now();
 
     setStatus('loading');
+    setCameraReady(false);
     setError('');
     setProgress(0);
-    setPrompt('Loading face models…');
+    setPrompt('Opening camera…');
 
     const stopStream = () => {
       if (stream) stream.getTracks().forEach((t) => t.stop());
@@ -210,6 +262,7 @@ export function FaceCapture(props: FaceCaptureProps) {
     const fail = (msg: string) => {
       stopStream();
       if (!cancelled) {
+        setCameraReady(false);
         setError(msg);
         setStatus('error');
       }
@@ -220,19 +273,16 @@ export function FaceCapture(props: FaceCaptureProps) {
     };
 
     (async () => {
-      let faceapi: any;
-      try {
-        faceapi = await loadFaceApi();
-      } catch {
-        return fail('Could not load the face models. Check your internet connection and try again.');
-      }
-      if (cancelled) return;
+      // Start camera permission/preview and model downloads together. Previously
+      // model downloads completed first, leaving students staring at a spinner
+      // even after granting camera permission on slower/mobile networks.
+      const modelsResult = loadFaceApi().then(
+        (value) => ({ value, error: null as any }),
+        (error) => ({ value: null as any, error })
+      );
 
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
-          audio: false,
-        });
+        stream = await openCameraStream('user');
       } catch (e) {
         return fail(cameraErrorMessage(e));
       }
@@ -241,14 +291,37 @@ export function FaceCapture(props: FaceCaptureProps) {
         return;
       }
 
-      const video = videoRef.current!;
+      const video = videoRef.current;
+      if (!video) return fail('The camera preview could not be attached. Refresh the page and try again.');
+      video.muted = true;
+      video.playsInline = true;
       video.srcObject = stream;
       video.setAttribute('playsinline', 'true');
       try {
         await video.play();
-      } catch {
-        return fail('Could not start the camera preview.');
+      } catch (e: any) {
+        const detail = e?.name === 'NotAllowedError'
+          ? 'The browser prevented video playback. Make sure CampusSign is open in a normal browser tab and try again.'
+          : 'The camera opened but its preview could not start. Close other camera apps and try again.';
+        return fail(detail);
       }
+      if (cancelled) {
+        stopStream();
+        return;
+      }
+      setCameraReady(true);
+      say('Camera ready. Loading face recognition…', 5);
+
+      const modelTimeoutResult = new Promise<{ value: null; error: Error }>((resolve) => {
+        modelTimeout = setTimeout(() => resolve({ value: null, error: new Error('Face model download timed out') }), 45_000);
+      });
+      const models = await Promise.race([modelsResult, modelTimeoutResult]);
+      if (modelTimeout) clearTimeout(modelTimeout);
+      if (cancelled) return;
+      if (models.error) {
+        return fail('The camera is working, but face recognition could not finish loading. Check your internet connection, try another network, and press Try Again.');
+      }
+      const faceapi: any = models.value;
       setStatus('running');
 
       const opts = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 });
@@ -426,6 +499,7 @@ export function FaceCapture(props: FaceCaptureProps) {
     return () => {
       cancelled = true;
       if (timer) clearTimeout(timer);
+      if (modelTimeout) clearTimeout(modelTimeout);
       stopStream();
     };
   }, [attempt]);
@@ -441,10 +515,10 @@ export function FaceCapture(props: FaceCaptureProps) {
           className="absolute inset-0 w-full h-full object-cover"
           style={{ transform: 'scaleX(-1)' }}
         />
-        {status !== 'running' && (
+        {!cameraReady && (
           <div className="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center gap-2 text-amber-300">
             {status === 'loading' ? <RefreshCw className="w-8 h-8 animate-spin" /> : <Camera className="w-8 h-8" />}
-            <span className="text-[11px] font-bold px-6">{status === 'loading' ? 'Getting ready…' : 'Camera stopped'}</span>
+            <span className="text-[11px] font-bold px-6">{status === 'error' ? 'Camera stopped' : 'Opening camera…'}</span>
           </div>
         )}
         <div
