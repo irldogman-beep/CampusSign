@@ -1,103 +1,174 @@
 import { supabase } from './supabase';
-import type { Fix } from './geo';
 
-const MESSAGES: Record<string, string> = {
-  invalid_code: "This QR code isn't valid. Scan the code on the lecturer's screen.",
-  expired_code: "This QR code has expired. Scan the fresh code on the lecturer's screen.",
-  revoked: 'The lecturer has closed this session.',
-  not_found: 'Student ID not found on the roster for this course.',
-  already: 'Attendance was already recorded for this Student ID in this session.',
-  locked: 'This Student ID is locked after 3 failed face checks. Please see the invigilator.',
-  not_enrolled: 'No face is enrolled for this student yet. Ask the lecturer to enroll you first.',
-  bad_descriptor: 'The face scan was unreadable. Please try again.',
-  not_verified: 'Your account is awaiting verification by the administrator.',
-};
+export async function createSession(
+  course: string, 
+  title: string, 
+  venue: string,
+  requireFace: boolean = true,
+  requireLocation: boolean = true,
+  radiusM: number = 15
+) {
+  const { data, error } = await supabase
+    .from('sessions')
+    .insert({
+      course,
+      title,
+      venue,
+      require_face: requireFace,
+      require_location: requireLocation,
+      radius_m: radiusM
+    })
+    .select()
+    .single();
 
-export function friendly(e: any): string {
-  const m = String(e?.message || '');
-  if (MESSAGES[m]) return MESSAGES[m];
-  if (m.includes('row-level security')) return 'Your account is awaiting verification by the administrator.';
-  if (m.includes('duplicate key')) return 'That Student ID is already on this roster.';
-  if (m.includes('Failed to fetch')) return 'No connection to the server. Check your internet and try again.';
-  return m || 'Something went wrong.';
-}
-
-function unwrap<T>(r: { data: T | null; error: any }): T {
-  if (r.error) throw r.error;
-  return r.data as T;
-}
-
-// ---- lecturer side ----
-export async function createSession(course: string, title: string, venue: string) {
-  return unwrap(await supabase.from('sessions').insert({ course, title, venue }).select('id, secret').single());
-}
-
-export async function latestSession(course: string) {
-  return unwrap<any>(
-    await supabase.from('sessions').select('id, secret, title, venue, revoked, created_at, anchor_acc, anchor_set_at')
-      .eq('course', course).order('created_at', { ascending: false }).limit(1).maybeSingle()
-  );
-}
-
-export async function setAnchor(id: string, fix: Fix) {
-  unwrap(await supabase.from('sessions').update({
-    anchor_lat: fix.lat, anchor_lng: fix.lng, anchor_acc: fix.acc, anchor_set_at: new Date().toISOString(),
-  }).eq('id', id).select('id'));
-}
-
-export async function setRevoked(id: string, revoked: boolean) {
-  unwrap(await supabase.from('sessions').update({ revoked }).eq('id', id).select('id'));
+  if (error) throw error;
+  return data;
 }
 
 export async function loadStudents() {
-  const rows: any[] = unwrap(await supabase.from('students').select('*').order('created_at', { ascending: false }));
-  return rows.map((r) => ({
-    rowId: r.id, id: r.student_id, name: r.name, dept: r.dept, level: r.level,
-    course: r.course, faceEnrolled: r.face_enrolled,
+  const { data, error } = await supabase.from('students').select('*').order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []).map((s: any) => ({
+    rowId: s.id,
+    id: s.student_id,
+    name: s.name,
+    dept: s.dept,
+    level: s.level,
+    course: s.course,
+    faceEnrolled: s.face_enrolled
   }));
 }
 
-export async function addStudent(s: { course: string; id: string; name: string; dept: string; level: string }) {
-  unwrap(await supabase.from('students').insert({
-    course: s.course, student_id: s.id, name: s.name, dept: s.dept, level: s.level,
-  }).select('id'));
+export async function addStudent(st: { course: string; id: string; name: string; dept: string; level: string }) {
+  const { error } = await supabase.from('students').insert({
+    course: st.course,
+    student_id: st.id,
+    name: st.name,
+    dept: st.dept,
+    level: st.level
+  });
+  if (error) throw error;
 }
 
 export async function deleteStudent(rowId: string) {
-  unwrap(await supabase.from('students').delete().eq('id', rowId).select('id'));
+  const { error } = await supabase.from('students').delete().eq('id', rowId);
+  if (error) throw error;
 }
 
-export async function enrollFace(rowId: string, descriptors: number[][]) {
-  unwrap(await supabase.rpc('enroll_face', { p_student: rowId, p_descriptors: descriptors }));
+export async function enrollFace(studentPk: string, descriptors: number[][]) {
+  const { error } = await supabase.rpc('enroll_face', {
+    p_student: studentPk,
+    p_descriptors: descriptors
+  });
+  if (error) throw error;
+}
+
+export async function latestSession(course: string) {
+  const { data, error } = await supabase
+    .from('sessions')
+    .select('*')
+    .eq('course', course)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+export async function setRevoked(sessionId: string, revoked: boolean) {
+  const { error } = await supabase
+    .from('sessions')
+    .update({ revoked })
+    .eq('id', sessionId);
+  if (error) throw error;
+}
+
+export async function setAnchor(sessionId: string, fix: { lat: number; lng: number; acc: number }) {
+  const { error } = await supabase
+    .from('sessions')
+    .update({
+      anchor_lat: fix.lat,
+      anchor_lng: fix.lng,
+      anchor_acc: fix.acc,
+      anchor_set_at: new Date().toISOString()
+    })
+    .eq('id', sessionId);
+  if (error) throw error;
+}
+
+export async function sessionInfo(codeObj: { i: string; s: number; k: string }) {
+  const { data, error } = await supabase.rpc('session_info', {
+    p_session: codeObj.i,
+    p_slot: codeObj.s,
+    p_k: codeObj.k
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function lookupStudent(sessionId: string, ticket: { exp: number; sig: string }, studentId: string) {
+  const { data, error } = await supabase.rpc('lookup_student', {
+    p_session: sessionId,
+    p_exp: ticket.exp,
+    p_ticket: ticket.sig,
+    p_student_id: studentId
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function checkIn(
+  sessionId: string,
+  ticket: { exp: number; sig: string },
+  studentId: string,
+  descriptor: number[] | null,
+  photo: string | null,
+  fix: { lat: number; lng: number; acc: number } | null
+) {
+  const { data, error } = await supabase.rpc('check_in', {
+    p_session: sessionId,
+    p_exp: ticket.exp,
+    p_ticket: ticket.sig,
+    p_student_id: studentId,
+    p_descriptor: descriptor,
+    p_photo: photo,
+    p_lat: fix ? fix.lat : null,
+    p_lng: fix ? fix.lng : null,
+    p_acc: fix ? fix.acc : null
+  });
+  if (error) throw error;
+  return data;
 }
 
 export async function loadAttendance() {
-  const rows: any[] = unwrap(
-    await supabase.from('attendance').select('*').order('created_at', { ascending: false }).limit(1000)
-  );
-  return rows.map((r) => ({
-    sessionId: r.session_id, course: r.course, studentId: r.student_id, registeredName: r.student_name,
-    dept: r.dept, facePhoto: r.face_photo, time: new Date(r.created_at).toLocaleTimeString(),
-    isoTime: r.created_at, status: r.status, receiptNo: r.receipt_no,
-    locationStatus: r.location_status, distanceM: r.distance_m,
+  const { data, error } = await supabase
+    .from('attendance')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []).map((a: any) => ({
+    sessionId: a.session_id,
+    course: a.course,
+    studentId: a.student_id,
+    registeredName: a.student_name,
+    dept: a.dept,
+    facePhoto: a.face_photo,
+    receiptNo: a.receipt_no,
+    status: a.status,
+    locationStatus: a.location_status,
+    distanceM: a.distance_m,
+    time: new Date(a.created_at).toLocaleTimeString(),
+    isoTime: a.created_at
   }));
 }
 
-// ---- student side (no login; every call is checked on the server) ----
-export async function sessionInfo(code: { i: string; s: number; k: string }) {
-  return unwrap<any>(await supabase.rpc('session_info', { p_session: code.i, p_slot: code.s, p_k: code.k }));
-}
-
-export async function lookupStudent(sessionId: string, t: { exp: number; sig: string }, studentId: string) {
-  return unwrap<any>(await supabase.rpc('lookup_student', {
-    p_session: sessionId, p_exp: t.exp, p_ticket: t.sig, p_student_id: studentId,
-  }));
-}
-
-export async function checkIn(sessionId: string, t: { exp: number; sig: string }, studentId: string, descriptors: number[][], photo: string, fix: Fix | null) {
-  return unwrap<any>(await supabase.rpc('check_in', {
-    p_session: sessionId, p_exp: t.exp, p_ticket: t.sig, p_student_id: studentId,
-    p_descriptor: descriptors, p_photo: photo,
-    p_lat: fix ? fix.lat : null, p_lng: fix ? fix.lng : null, p_acc: fix ? fix.acc : null,
-  }));
+export function friendly(err: any): string {
+  const m = err?.message || String(err);
+  if (m.includes('invalid_code') || m.includes('expired_code')) return 'This QR code has expired or is invalid. Scan the current one.';
+  if (m.includes('revoked')) return 'This check-in session has been revoked by the lecturer.';
+  if (m.includes('not_found')) return 'Student ID not found in this course roster.';
+  if (m.includes('already')) return 'Attendance has already been checked in for this session.';
+  if (m.includes('locked')) return 'Too many failed face matching attempts. Check-in is locked for this session.';
+  if (m.includes('not_enrolled')) return 'Your face is not enrolled yet. Please contact your lecturer.';
+  return m;
 }
