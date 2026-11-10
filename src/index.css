@@ -2,3 +2,26 @@
 
 /* Your app toggles a "dark" class for dark mode, so tell Tailwind to follow that class */
 @custom-variant dark (&:where(.dark, .dark *));
+
+/* Polished page transitions and restrained interaction feedback. */
+@keyframes campus-fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes campus-soft-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(245 158 11 / 0%); }
+  50% { box-shadow: 0 0 0 6px rgb(245 158 11 / 9%); }
+}
+.page-enter, .animate-fade-up { animation: campus-fade-up 420ms cubic-bezier(.2,.75,.25,1) both; }
+button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+button { transition-property: color, background-color, border-color, box-shadow, transform, opacity; transition-duration: 180ms; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 3px solid rgb(245 158 11 / 55%);
+  outline-offset: 2px;
+}
+.interactive-card { transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease; }
+.interactive-card:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgb(2 44 34 / 9%); }
+::selection { background: rgb(245 158 11 / 28%); }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}

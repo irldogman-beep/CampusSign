@@ -25,7 +25,13 @@ import {
   ShieldCheck, 
   LogOut,
   BookOpen,
-  ArrowRight
+  ArrowRight,
+  Pencil,
+  ClipboardList,
+  Check,
+  X,
+  Sparkles,
+  Clock3
 } from 'lucide-react';
 import { buildCheckin, parseCheckin, currentSlot, SLOT_MS } from './checkin';
 import { downloadCsv } from './auth';
@@ -206,7 +212,7 @@ export default function App() {
   // Validate a scanned QR (from the in-app scanner or a phone's camera app)
   const handleQrScanned = async (raw) => {
     const parsed = await parseCheckin(raw);
-    if (!parsed.ok) {
+    if (parsed.ok === false) {
       setCheckinError(parsed.message);
       return parsed;
     }
@@ -292,7 +298,7 @@ export default function App() {
                 }`}
               >
                 <QrCode className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Student Verification</span>
+                <span className="hidden sm:inline">Student Portal</span>
               </button>
 
               <button
@@ -322,7 +328,7 @@ export default function App() {
       </header>
 
       {/* MAIN CONTENT CONTAINER */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 page-enter">
         {activeTab === 'admin' && (
           <AdminPortal 
             activeSession={activeSession}
@@ -413,15 +419,20 @@ function AdminPortal({
   const [showSessionForm, setShowSessionForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [retentionDays, setRetentionDays] = useState(30);
+  const [enrollmentRequests, setEnrollmentRequests] = useState([]);
+  const [reviewingRequestId, setReviewingRequestId] = useState('');
+  const [editingLog, setEditingLog] = useState(null);
+  const [editAttendanceForm, setEditAttendanceForm] = useState({ studentName: '', dept: '', status: 'Verified' });
 
-  const [adminTab, setAdminTab] = useState('roster'); // 'roster' | 'registry'
+  const [adminTab, setAdminTab] = useState('roster'); // 'roster' | 'registry' | 'requests'
 
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
   const [newStudentForm, setNewStudentForm] = useState({
     id: '',
     name: '',
     dept: 'Computer Science',
-    level: '300'
+    level: '300',
+    course: activeStaff ? activeStaff.course : ''
   });
   const [registrySearch, setRegistrySearch] = useState('');
 
@@ -495,17 +506,21 @@ function AdminPortal({
   const refreshLogs = async () => {
     try { setAttendanceLogs(await db.loadAttendance()); } catch (e) { console.error(e); }
   };
+  const refreshEnrollmentRequests = async () => {
+    try { setEnrollmentRequests(await db.loadEnrollmentRequests()); } catch (e) { console.error(e); }
+  };
 
   // Load the roster + attendance once signed in, then refresh attendance every 5 seconds
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !activeStaff?.isVerified) return;
     refreshRegistry();
     refreshLogs();
     refreshSessions();
-    const t = setInterval(() => { refreshLogs(); refreshSessions(); }, 5000);
+    refreshEnrollmentRequests();
+    const t = setInterval(() => { refreshLogs(); refreshSessions(); refreshEnrollmentRequests(); }, 7000);
     return () => clearInterval(t);
     // eslint-disable-next-line
-  }, [isAuthenticated]);
+  }, [isAuthenticated, activeStaff?.isVerified]);
 
   // Turn a Supabase profile row into the staff object the dashboard uses
   const startStaffSession = async (profile) => {
@@ -521,6 +536,10 @@ function AdminPortal({
     setActiveStaff(admin);
     setIsAuthenticated(true);
     setLoginError('');
+    if (!admin.isVerified) {
+      setActiveSession(prev => ({ ...prev, id: '', secret: '', title: '', isRevoked: false, endsAt: null, course: admin.course, teacher: admin.name, teacherId: admin.id, teacherEmail: admin.email }));
+      return;
+    }
     // Resume a session that is still live; otherwise wait for the lecturer to start a new one
     try {
       const last = await db.latestSession(admin.course);
@@ -687,7 +706,7 @@ function AdminPortal({
   const handleAddStudent = async (e) => {
     e.preventDefault();
     if (!newStudentForm.id.trim() || !newStudentForm.name.trim()) return;
-    const assignedCourse = activeStaff ? activeStaff.course : '';
+    const assignedCourse = newStudentForm.course || (activeStaff ? activeStaff.course : '');
     try {
       await db.addStudent({
         course: assignedCourse,
@@ -701,7 +720,7 @@ function AdminPortal({
       return;
     }
     await refreshRegistry();
-    setNewStudentForm({ id: '', name: '', dept: 'Computer Science', level: '300' });
+    setNewStudentForm({ id: '', name: '', dept: 'Computer Science', level: '300', course: activeStaff ? activeStaff.course : '' });
     setIsAddStudentOpen(false);
   };
 
@@ -712,6 +731,47 @@ function AdminPortal({
       await refreshRegistry();
     } catch (err) {
       alert(db.friendly(err));
+    }
+  };
+
+  const handleReviewEnrollment = async (request, decision) => {
+    const action = decision === 'approve' ? 'approve' : 'reject';
+    if (action === 'reject' && !window.confirm(`Reject ${request.student_name}'s request for ${request.course}?`)) return;
+    setReviewingRequestId(request.id);
+    try {
+      await db.reviewEnrollmentRequest(request.id, action);
+      await Promise.all([refreshEnrollmentRequests(), refreshRegistry()]);
+    } catch (err) {
+      alert('Could not review this request: ' + db.friendly(err));
+    } finally {
+      setReviewingRequestId('');
+    }
+  };
+
+  const openAttendanceEditor = (log) => {
+    setEditingLog(log);
+    setEditAttendanceForm({ studentName: log.registeredName || '', dept: log.dept || '', status: log.status || 'Verified' });
+  };
+
+  const handleSaveAttendanceEdit = async (e) => {
+    e.preventDefault();
+    if (!editingLog || !editAttendanceForm.studentName.trim()) return;
+    try {
+      await db.updateAttendance(editingLog.id, editAttendanceForm);
+      setEditingLog(null);
+      await refreshLogs();
+    } catch (err) {
+      alert('Could not update attendance: ' + db.friendly(err));
+    }
+  };
+
+  const handleDeleteAttendance = async (log) => {
+    if (!log.id || !window.confirm(`Permanently delete ${log.registeredName}'s attendance record (${log.receiptNo})?`)) return;
+    try {
+      await db.deleteAttendance(log.id);
+      await refreshLogs();
+    } catch (err) {
+      alert('Could not delete attendance: ' + db.friendly(err));
     }
   };
 
@@ -805,6 +865,27 @@ function AdminPortal({
      s.id.toLowerCase().includes(registrySearch.toLowerCase()) ||
      s.dept.toLowerCase().includes(registrySearch.toLowerCase()))
   );
+
+  if (isAuthenticated && activeStaff && !activeStaff.isVerified) {
+    return (
+      <div className="max-w-xl mx-auto my-12 bg-white dark:bg-slate-900 rounded-3xl p-7 sm:p-9 border border-amber-300 dark:border-amber-900 shadow-xl text-center space-y-5 animate-fade-up">
+        <div className="w-16 h-16 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 flex items-center justify-center mx-auto">
+          <Clock3 className="w-8 h-8" />
+        </div>
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.2em] font-black text-amber-700 dark:text-amber-400">Account review in progress</p>
+          <h2 className="text-2xl font-black text-slate-900 dark:text-white mt-2">Your lecturer account is pending verification</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">Hello {activeStaff.name}. Your account has been created, but an administrator must verify your academic profile before you can access attendance sessions, student records, or other lecturer tools.</p>
+        </div>
+        <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 text-left text-xs space-y-1">
+          <div className="flex justify-between gap-3"><span className="text-slate-500">Academic email</span><strong className="text-slate-800 dark:text-slate-100">{activeStaff.email}</strong></div>
+          <div className="flex justify-between gap-3"><span className="text-slate-500">Department</span><strong className="text-slate-800 dark:text-slate-100">{activeStaff.dept}</strong></div>
+          <div className="flex justify-between gap-3"><span className="text-slate-500">Submitted course</span><strong className="text-slate-800 dark:text-slate-100">{activeStaff.course}</strong></div>
+        </div>
+        <button onClick={handleLogout} className="w-full py-3 rounded-xl bg-emerald-900 hover:bg-emerald-800 text-amber-400 font-extrabold text-sm transition-all hover:-translate-y-0.5">Sign out</button>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return (
@@ -998,6 +1079,22 @@ function AdminPortal({
           aria-label="Sign out"
         >
           <LogOut className="w-4 h-4" /> <span className="hidden sm:inline">Sign Out</span>
+        </button>
+      </div>
+
+      {/* QUICK STATUS OVERVIEW */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="rounded-2xl p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-3 interactive-card">
+          <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 flex items-center justify-center"><Users className="w-5 h-5" /></div>
+          <div><div className="text-2xl font-black text-slate-900 dark:text-white tabular-nums">{filteredRegistry.length}</div><div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Course roster</div></div>
+        </div>
+        <div className="rounded-2xl p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-3 interactive-card">
+          <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 flex items-center justify-center"><FileCheck className="w-5 h-5" /></div>
+          <div><div className="text-2xl font-black text-slate-900 dark:text-white tabular-nums">{lecturerAttendanceLogs.length}</div><div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Attendance records</div></div>
+        </div>
+        <button onClick={() => setAdminTab('requests')} className="rounded-2xl p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-3 text-left interactive-card">
+          <div className="w-10 h-10 rounded-xl bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 flex items-center justify-center"><ClipboardList className="w-5 h-5" /></div>
+          <div className="flex-1"><div className="text-2xl font-black text-slate-900 dark:text-white tabular-nums">{enrollmentRequests.length}</div><div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Pending enrolments</div></div><ArrowRight className="w-4 h-4 text-slate-400" />
         </button>
       </div>
 
@@ -1308,6 +1405,18 @@ function AdminPortal({
               <span className="sm:hidden">Roster ({filteredRegistry.length})</span>
               <span className="hidden sm:inline">{activeStaff ? activeStaff.name.split(' ')[0] : 'Lecturer'}'s Student Roster ({filteredRegistry.length})</span>
             </button>
+
+            <button
+              onClick={() => setAdminTab('requests')}
+              className={`px-3 sm:px-4 py-2.5 sm:py-2 text-xs font-bold rounded-xl transition-all flex flex-1 sm:flex-none justify-center items-center gap-2 ${
+                adminTab === 'requests'
+                  ? 'bg-emerald-900 text-amber-400 shadow'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+              }`}
+            >
+              <ClipboardList className="w-4 h-4" />
+              <span>Requests ({enrollmentRequests.length})</span>
+            </button>
           </div>
 
           {/* Action Buttons */}
@@ -1319,12 +1428,19 @@ function AdminPortal({
             >
               <Download className="w-4 h-4" /> Export CSV
             </button>
-          ) : (
+          ) : adminTab === 'registry' ? (
             <button
               onClick={() => setIsAddStudentOpen(true)}
               className="w-full sm:w-auto justify-center px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-emerald-950 text-xs font-extrabold rounded-xl shadow transition-colors flex items-center gap-2 border border-amber-300"
             >
               <UserPlus className="w-4 h-4" /> Add Student to {activeStaff ? activeStaff.course.split(' ')[0] : 'Course'}
+            </button>
+          ) : (
+            <button
+              onClick={refreshEnrollmentRequests}
+              className="w-full sm:w-auto justify-center px-4 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl flex items-center gap-2 border border-slate-200 dark:border-slate-700"
+            >
+              <RefreshCw className="w-4 h-4" /> Refresh requests
             </button>
           )}
         </div>
@@ -1362,7 +1478,7 @@ function AdminPortal({
               <>
               <div className="md:hidden space-y-2.5">
                 {filteredLogs.map((log, idx) => (
-                  <div key={idx} className="flex items-center gap-3 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40">
+                  <div key={log.id || idx} className="flex items-center gap-3 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40">
                     {log.facePhoto ? (
                       <img src={log.facePhoto} alt="" className="w-11 h-11 rounded-full object-cover border-2 border-emerald-600 shrink-0" />
                     ) : (
@@ -1376,11 +1492,15 @@ function AdminPortal({
                       <span className="shrink-0 px-2 py-1 rounded-full text-[10px] font-bold bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800">
                         {LOC_LABEL[log.locationStatus] || 'Flagged'}{log.distanceM != null ? ` · ${log.distanceM} m` : ''}
                       </span>
+                    ) : log.status === 'Verified' ? (
+                      <span className="shrink-0 px-2 py-1 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">Verified</span>
                     ) : (
-                      <span className="shrink-0 px-2 py-1 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
-                        Verified
-                      </span>
+                      <span className="shrink-0 px-2 py-1 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800">{log.status || 'Reviewed'}</span>
                     )}
+                    <div className="flex gap-1 shrink-0">
+                      <button onClick={() => openAttendanceEditor(log)} className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700" aria-label="Edit attendance"><Pencil className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => handleDeleteAttendance(log)} className="p-2 rounded-lg border border-rose-200 dark:border-rose-900 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950" aria-label="Delete attendance"><Trash2 className="w-3.5 h-3.5" /></button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1394,12 +1514,13 @@ function AdminPortal({
                       <th className="p-3">Department</th>
                       <th className="p-3">Verified Time</th>
                       <th className="p-3">Status</th>
-                      <th className="p-3 rounded-r-xl">Receipt Ref</th>
+                      <th className="p-3">Receipt Ref</th>
+                      <th className="p-3 text-right rounded-r-xl">Manage</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
                     {filteredLogs.map((log, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
+                      <tr key={log.id || idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
                         <td className="p-3">
                           {log.facePhoto ? <img src={log.facePhoto} alt="Biometric Signature" className="w-10 h-10 rounded-full object-cover border-2 border-emerald-600 shadow-sm" /> : <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700" />}
                         </td>
@@ -1419,13 +1540,19 @@ function AdminPortal({
                             <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800 inline-flex items-center gap-1">
                               <AlertTriangle className="w-3 h-3" /> {LOC_LABEL[log.locationStatus] || 'Flagged'}{log.distanceM != null ? ` (${log.distanceM} m)` : ''}
                             </span>
+                          ) : log.status === 'Verified' ? (
+                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 inline-flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-emerald-600" /> Verified</span>
                           ) : (
-                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 inline-flex items-center gap-1">
-                              <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Verified
-                            </span>
+                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800">{log.status || 'Reviewed'}</span>
                           )}
                         </td>
                         <td className="p-3 font-mono text-[10px] text-slate-400">{log.receiptNo}</td>
+                        <td className="p-3">
+                          <div className="flex justify-end gap-1">
+                            <button onClick={() => openAttendanceEditor(log)} className="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700" title="Edit attendance"><Pencil className="w-3.5 h-3.5" /></button>
+                            <button onClick={() => handleDeleteAttendance(log)} className="p-2 rounded-lg text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950" title="Delete attendance"><Trash2 className="w-3.5 h-3.5" /></button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -1436,7 +1563,49 @@ function AdminPortal({
           </div>
         )}
 
-        {/* TAB 2: LECTURER-SPECIFIC COURSE STUDENT DATABASE */}
+        {/* TAB 2: SELF-ENROLMENT REQUESTS */}
+        {adminTab === 'requests' && (
+          <div className="space-y-4 animate-fade-up">
+            <div className="flex items-start gap-3 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900">
+              <ClipboardList className="w-5 h-5 text-amber-700 dark:text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">Student enrolment inbox</h3>
+                <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">Students who select your course appear here. Approving a request adds the student to your roster and securely activates their submitted face template.</p>
+              </div>
+            </div>
+            {enrollmentRequests.length === 0 ? (
+              <div className="py-12 text-center text-slate-400 text-xs">
+                <ClipboardList className="w-12 h-12 mx-auto mb-2 opacity-30 text-emerald-600" />
+                <p>No pending student requests. New requests will appear here automatically.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                {enrollmentRequests.map(request => (
+                  <article key={request.id} className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 p-4 space-y-3 transition-all hover:-translate-y-0.5 hover:shadow-md">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h4 className="font-extrabold text-slate-900 dark:text-white truncate">{request.student_name}</h4>
+                        <p className="text-xs font-mono text-emerald-800 dark:text-emerald-400 mt-0.5">{request.student_id}</p>
+                      </div>
+                      <span className="px-2 py-1 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-900">Pending</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div><span className="block text-slate-400">Department</span><strong className="text-slate-700 dark:text-slate-200">{request.dept}</strong></div>
+                      <div><span className="block text-slate-400">Level</span><strong className="text-slate-700 dark:text-slate-200">{request.level} Level</strong></div>
+                    </div>
+                    <div className="text-[11px] text-slate-500 flex items-center justify-between gap-2"><span className="truncate">{request.course}</span><span className="shrink-0">{new Date(request.created_at).toLocaleDateString()}</span></div>
+                    <div className="flex gap-2 pt-1">
+                      <button disabled={reviewingRequestId === request.id} onClick={() => handleReviewEnrollment(request, 'approve')} className="flex-1 py-2.5 rounded-xl bg-emerald-900 hover:bg-emerald-800 disabled:opacity-50 text-amber-300 font-extrabold text-xs inline-flex items-center justify-center gap-1.5 transition-colors"><Check className="w-4 h-4" /> Approve & enrol</button>
+                      <button disabled={reviewingRequestId === request.id} onClick={() => handleReviewEnrollment(request, 'reject')} className="px-4 py-2.5 rounded-xl border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950 disabled:opacity-50 font-bold text-xs inline-flex items-center justify-center gap-1.5"><X className="w-4 h-4" /> Reject</button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 3: LECTURER-SPECIFIC COURSE STUDENT DATABASE */}
         {adminTab === 'registry' && (
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -1820,6 +1989,23 @@ function AdminPortal({
         </div>
       )}
 
+      {/* EDIT ATTENDANCE MODAL */}
+      {editingLog && (
+        <div className="fixed inset-0 z-[60] bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Edit attendance record">
+          <form onSubmit={handleSaveAttendanceEdit} className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-md w-full space-y-4 animate-fade-up">
+            <div className="flex items-center justify-between gap-3">
+              <div><h3 className="text-lg font-extrabold text-slate-900 dark:text-white">Edit attendance</h3><p className="text-[11px] text-slate-500 font-mono">{editingLog.studentId} · {editingLog.receiptNo}</p></div>
+              <button type="button" onClick={() => setEditingLog(null)} className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Close editor"><X className="w-4 h-4" /></button>
+            </div>
+            <div><label className={LABEL}>Student name</label><input required value={editAttendanceForm.studentName} onChange={e => setEditAttendanceForm(prev => ({ ...prev, studentName: e.target.value }))} className={FIELD} /></div>
+            <div><label className={LABEL}>Department</label><input value={editAttendanceForm.dept} onChange={e => setEditAttendanceForm(prev => ({ ...prev, dept: e.target.value }))} className={FIELD} /></div>
+            <div><label className={LABEL}>Attendance status</label><select value={editAttendanceForm.status} onChange={e => setEditAttendanceForm(prev => ({ ...prev, status: e.target.value }))} className={FIELD}><option value="Verified">Verified</option><option value="Flagged">Flagged</option><option value="Excused">Excused</option><option value="Absent">Absent</option></select></div>
+            <p className="text-[11px] text-slate-500">Student ID, course, receipt reference, and original check-in time remain unchanged for audit consistency.</p>
+            <div className="flex gap-2"><button type="button" onClick={() => setEditingLog(null)} className="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold">Cancel</button><button type="submit" className="flex-1 py-3 rounded-xl bg-emerald-900 hover:bg-emerald-800 text-amber-300 text-xs font-extrabold">Save changes</button></div>
+          </form>
+        </div>
+      )}
+
     </div>
   );
 }
@@ -1857,6 +2043,20 @@ function StudentPortal({
   const [receiptData, setReceiptData] = useState(null);
   const locRef = useRef(null); // location lookup started at the consent step
   const [submitting, setSubmitting] = useState(false);
+
+  // Student self-enrolment is independent of the live QR check-in flow.
+  const [showEnrollment, setShowEnrollment] = useState(false);
+  const [enrollmentStage, setEnrollmentStage] = useState('profile');
+  const [availableCourses, setAvailableCourses] = useState([]);
+  const [coursesLoading, setCoursesLoading] = useState(false);
+  const [selectedCourses, setSelectedCourses] = useState([]);
+  const [studentEnrollmentForm, setStudentEnrollmentForm] = useState({
+    studentId: '', name: '', dept: '', level: '100'
+  });
+  const [enrollmentError, setEnrollmentError] = useState('');
+  const [enrollmentResult, setEnrollmentResult] = useState(null);
+  const [enrollmentSubmitting, setEnrollmentSubmitting] = useState(false);
+  const [enrollmentFaceAttempt, setEnrollmentFaceAttempt] = useState(0);
 
   // The session comes from the QR the student actually scanned (signed + time-limited)
   const session = checkin ? checkin.session : null;
@@ -1930,6 +2130,63 @@ function StudentPortal({
 
   const handleFaceCaptured = ({ photo, descriptors }) => submitCheckIn(photo, descriptors);
 
+  const startStudentEnrollment = async () => {
+    setShowEnrollment(true);
+    setEnrollmentStage('profile');
+    setEnrollmentError('');
+    setEnrollmentResult(null);
+    if (!availableCourses.length) {
+      setCoursesLoading(true);
+      try {
+        setAvailableCourses(await db.loadAvailableCourses());
+      } catch (err) {
+        setEnrollmentError('Could not load available courses: ' + db.friendly(err));
+      } finally {
+        setCoursesLoading(false);
+      }
+    }
+  };
+
+  const toggleCourseSelection = (course) => {
+    setSelectedCourses(prev => prev.includes(course) ? prev.filter(c => c !== course) : [...prev, course]);
+  };
+
+  const continueToFaceEnrollment = (e) => {
+    e.preventDefault();
+    if (!studentEnrollmentForm.studentId.trim() || !studentEnrollmentForm.name.trim() || !studentEnrollmentForm.dept.trim()) {
+      setEnrollmentError('Complete your student ID, full name, and department.');
+      return;
+    }
+    if (!selectedCourses.length) {
+      setEnrollmentError('Select at least one course before continuing.');
+      return;
+    }
+    setEnrollmentError('');
+    setEnrollmentStage('face');
+  };
+
+  const handleStudentFaceEnrollment = async ({ descriptors }) => {
+    setEnrollmentSubmitting(true);
+    setEnrollmentError('');
+    try {
+      const result = await db.submitStudentEnrollment({
+        studentId: studentEnrollmentForm.studentId.trim().toUpperCase(),
+        name: studentEnrollmentForm.name.trim(),
+        dept: studentEnrollmentForm.dept.trim(),
+        level: studentEnrollmentForm.level,
+        courses: selectedCourses,
+        descriptors,
+      });
+      setEnrollmentResult(result);
+      setEnrollmentStage('success');
+    } catch (err) {
+      setEnrollmentError(db.friendly(err));
+      setEnrollmentFaceAttempt(n => n + 1);
+    } finally {
+      setEnrollmentSubmitting(false);
+    }
+  };
+
   const handleNoFaceCheckIn = async () => {
     setSubmitting(true);
     await submitCheckIn(null, null);
@@ -1954,8 +2211,72 @@ function StudentPortal({
     setStep(5); // Go to receipt screen
   };
 
+  if (showEnrollment) {
+    return (
+      <div className="max-w-2xl mx-auto space-y-5 page-enter">
+        <div className="rounded-3xl bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-950 text-white p-6 sm:p-8 border border-emerald-800 shadow-xl relative overflow-hidden">
+          <div className="absolute -right-10 -top-10 w-48 h-48 rounded-full bg-amber-400/10 blur-2xl" />
+          <div className="relative flex items-start justify-between gap-4">
+            <div>
+              <span className="text-[10px] uppercase tracking-[0.22em] font-black text-amber-300">CampusSign · Student onboarding</span>
+              <h2 className="text-2xl sm:text-3xl font-black mt-2">Your courses. Your identity. One enrolment.</h2>
+              <p className="text-xs sm:text-sm text-emerald-100/80 mt-2 max-w-xl">Create your student profile, choose your courses, and securely enrol your face. Each selected course sends an approval request to its lecturer.</p>
+            </div>
+            <div className="hidden sm:flex w-14 h-14 rounded-2xl bg-amber-400/15 border border-amber-300/30 items-center justify-center shrink-0"><Sparkles className="w-7 h-7 text-amber-300" /></div>
+          </div>
+          <div className="relative flex items-center gap-2 mt-6 text-[10px] font-bold text-emerald-100">
+            <span className={`px-3 py-1.5 rounded-full ${enrollmentStage === 'profile' ? 'bg-amber-400 text-emerald-950' : 'bg-white/10'}`}>1 · Profile & courses</span>
+            <span className="h-px flex-1 bg-emerald-700" />
+            <span className={`px-3 py-1.5 rounded-full ${enrollmentStage === 'face' ? 'bg-amber-400 text-emerald-950' : enrollmentStage === 'success' ? 'bg-emerald-700 text-white' : 'bg-white/10'}`}>2 · Face enrolment</span>
+            <span className="h-px flex-1 bg-emerald-700" />
+            <span className={`px-3 py-1.5 rounded-full ${enrollmentStage === 'success' ? 'bg-amber-400 text-emerald-950' : 'bg-white/10'}`}>3 · Submit</span>
+          </div>
+        </div>
+
+        {enrollmentError && <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex gap-2"><AlertTriangle className="w-4 h-4 shrink-0" /><span>{enrollmentError}</span></div>}
+
+        {enrollmentStage === 'profile' && (
+          <form onSubmit={continueToFaceEnrollment} className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-lg space-y-5">
+            <div><h3 className="text-lg font-extrabold text-slate-900 dark:text-white">Student information</h3><p className="text-xs text-slate-500 mt-1">Enter your details exactly as they appear in your institution's records.</p></div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div><label className={LABEL}>Matriculation / Student ID *</label><input required value={studentEnrollmentForm.studentId} onChange={e => setStudentEnrollmentForm(prev => ({ ...prev, studentId: e.target.value.toUpperCase() }))} placeholder="e.g. CSC/2024/001" className={FIELD} /></div>
+              <div><label className={LABEL}>Full registered name *</label><input required value={studentEnrollmentForm.name} onChange={e => setStudentEnrollmentForm(prev => ({ ...prev, name: e.target.value }))} placeholder="As shown on your student ID" className={FIELD} /></div>
+              <div><label className={LABEL}>Department *</label><input required value={studentEnrollmentForm.dept} onChange={e => setStudentEnrollmentForm(prev => ({ ...prev, dept: e.target.value }))} placeholder="e.g. Computer Science" className={FIELD} /></div>
+              <div><label className={LABEL}>Academic level *</label><select value={studentEnrollmentForm.level} onChange={e => setStudentEnrollmentForm(prev => ({ ...prev, level: e.target.value }))} className={FIELD}><option value="100">100 Level</option><option value="200">200 Level</option><option value="300">300 Level</option><option value="400">400 Level</option><option value="500">500 Level</option><option value="600">600 Level</option></select></div>
+            </div>
+            <div className="border-t border-slate-100 dark:border-slate-800 pt-4 space-y-3">
+              <div className="flex items-center justify-between gap-3"><div><h3 className="font-extrabold text-sm text-slate-900 dark:text-white">Choose your courses</h3><p className="text-[11px] text-slate-500 mt-0.5">Select every course you are registered for.</p></div><span className="px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 text-[10px] font-bold">{selectedCourses.length} selected</span></div>
+              {coursesLoading ? <div className="py-8 text-center text-xs text-slate-500"><RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2" />Loading verified courses…</div> : availableCourses.length === 0 ? <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 text-xs text-amber-800 dark:text-amber-300">No courses are currently available. Courses appear here after a lecturer has registered and been verified by an administrator.</div> : <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{availableCourses.map(course => { const selected = selectedCourses.includes(course); return <button key={course} type="button" onClick={() => toggleCourseSelection(course)} className={`text-left p-3.5 rounded-2xl border transition-all ${selected ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/50 shadow-sm' : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 hover:border-emerald-300'}`}><span className="flex items-center gap-2"><span className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 ${selected ? 'bg-emerald-700 border-emerald-700 text-white' : 'border-slate-300 dark:border-slate-600'}`}>{selected && <Check className="w-3.5 h-3.5" />}</span><span className="text-xs font-bold text-slate-800 dark:text-slate-100">{course}</span></span></button>; })}</div>}
+            </div>
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] text-slate-500 leading-relaxed"><Lock className="w-4 h-4 inline mr-1.5 text-emerald-700" />Face data is processed into numeric templates for verification. The template is delivered securely to the selected course lecturers' protected review queues and is not visible as a photo.</div>
+            <div className="flex flex-col-reverse sm:flex-row gap-2"><button type="button" onClick={() => setShowEnrollment(false)} className="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold">Back to check-in</button><button type="submit" disabled={coursesLoading || !availableCourses.length} className="flex-1 py-3 rounded-xl bg-emerald-900 hover:bg-emerald-800 disabled:opacity-50 text-amber-300 font-extrabold text-xs shadow-lg">Continue to face enrolment <ArrowRight className="w-4 h-4 inline ml-1" /></button></div>
+          </form>
+        )}
+
+        {enrollmentStage === 'face' && (
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-lg space-y-5 text-center">
+            <div><h3 className="text-lg font-extrabold text-slate-900 dark:text-white">Enrol your face</h3><p className="text-xs text-slate-500 mt-1">Position your face in the frame and follow the prompts to capture multiple samples.</p></div>
+            <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-left text-xs text-emerald-800 dark:text-emerald-300"><strong>{studentEnrollmentForm.name}</strong> · {studentEnrollmentForm.studentId.toUpperCase()}<br />Submitting for {selectedCourses.length} course(s): {selectedCourses.join(', ')}</div>
+            {enrollmentSubmitting ? <div className="py-8 text-xs text-slate-500"><RefreshCw className="w-6 h-6 mx-auto mb-2 animate-spin" />Submitting your enrolment requests securely…</div> : <FaceCapture key={enrollmentFaceAttempt} mode="enroll" onEnrolled={handleStudentFaceEnrollment} />}
+            <button type="button" onClick={() => setEnrollmentStage('profile')} className="text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200">Back to profile</button>
+          </div>
+        )}
+
+        {enrollmentStage === 'success' && (
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-7 sm:p-9 border border-slate-200 dark:border-slate-800 shadow-xl text-center space-y-5 animate-fade-up">
+            <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 flex items-center justify-center mx-auto"><Check className="w-8 h-8" /></div>
+            <div><h3 className="text-xl font-black text-slate-900 dark:text-white">Enrolment requests submitted!</h3><p className="text-sm text-slate-500 mt-2">Your profile and face template have been sent to the lecturers responsible for your selected courses.</p></div>
+            <div className="grid grid-cols-2 gap-3"><div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800"><strong className="block text-2xl text-emerald-700 dark:text-emerald-400">{enrollmentResult?.requests_sent ?? selectedCourses.length}</strong><span className="text-[10px] text-slate-500">Lecturer requests</span></div><div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800"><strong className="block text-2xl text-emerald-700 dark:text-emerald-400">{selectedCourses.length}</strong><span className="text-[10px] text-slate-500">Courses selected</span></div></div>
+            <p className="text-xs text-slate-500">Your lecturers must approve each request before you can use face-verified attendance for that course.</p>
+            <button onClick={() => { setShowEnrollment(false); setEnrollmentStage('profile'); setStudentEnrollmentForm({ studentId: '', name: '', dept: '', level: '100' }); setSelectedCourses([]); }} className="w-full py-3.5 rounded-xl bg-emerald-900 hover:bg-emerald-800 text-amber-300 font-extrabold text-sm">Return to student check-in</button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-xl mx-auto space-y-6">
+    <div className="max-w-xl mx-auto space-y-6 page-enter">
       
       {/* STEP PROGRESS BAR */}
       <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
@@ -2039,6 +2360,10 @@ function StudentPortal({
               <span>Proceed to Student Verification</span>
               <ArrowRight className="w-4 h-4" />
             </button>
+            <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
+              <p className="text-[11px] text-slate-500 mb-2">First time using CampusSign?</p>
+              <button onClick={startStudentEnrollment} className="w-full py-3 rounded-xl border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 font-extrabold text-xs transition-all hover:-translate-y-0.5">Create student profile & enrol courses <ArrowRight className="w-4 h-4 inline ml-1" /></button>
+            </div>
           </div>
         </div>
       )}
@@ -2303,6 +2628,14 @@ app.post('/api/v1/verify-student', async (req, res) => {
   res.json({ success: true, student });
 });`}
         </pre>
+      </div>
+
+      <div className="space-y-3 border-t border-slate-100 dark:border-slate-800 pt-6 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+        <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2"><ClipboardList className="w-4 h-4 text-emerald-700" /> Student self-enrolment and lecturer approval</h3>
+        <p>Run <strong>supabase-step6-self-enrollment.sql</strong> in the Supabase SQL Editor after steps 1–5. Students can then create their profile, select one or more courses, and complete face enrolment from the Student Portal. CampusSign places one private request in each verified lecturer's inbox for the selected course(s).</p>
+        <p>Lecturers open <strong>Requests</strong> in their portal to approve or reject enrolments. Approval adds the student to that lecturer's course roster and moves the protected face template into the face verification store. Students cannot check in to that course until approval is complete.</p>
+        <p>New lecturer accounts remain locked to a pending-verification screen. An administrator must verify the lecturer in Supabase by setting <code>public.lecturers.is_verified</code> to <code>true</code>. The database policies continue to enforce this restriction even if someone bypasses the interface.</p>
+        <p>Attendance records can be edited (name, department, and status) or deleted from the session attendance table. Student ID, course, receipt number, and original check-in time are kept fixed for audit consistency.</p>
       </div>
 
     </div>

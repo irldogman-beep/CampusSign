@@ -12,6 +12,17 @@ const MESSAGES: Record<string, string> = {
   bad_descriptor: 'The face scan was unreadable. Please try again.',
   not_verified: 'Your account is awaiting verification by the administrator.',
   duplicate_face: 'This face is already enrolled for another student on this course. One person cannot be enrolled under two IDs.',
+  invalid_student_id: 'Enter a valid student ID (at least 3 characters).',
+  invalid_student_name: 'Enter your full registered name (at least 3 characters).',
+  invalid_department: 'Enter your department.',
+  select_at_least_one_course: 'Select at least one course.',
+  duplicate_course: 'A course was selected more than once. Review your choices and try again.',
+  course_unavailable: 'One of the selected courses is no longer available. Refresh the course list and try again.',
+  already_enrolled: 'This student ID is already enrolled in one or more of the selected courses.',
+  enrollment_request_exists: 'An enrolment request already exists for this student ID and course.',
+  request_not_found: 'This enrolment request is no longer available.',
+  request_already_reviewed: 'This enrolment request has already been reviewed.',
+  missing_face_template: 'This request has no saved face template. Ask the student to enrol again.',
 };
 
 export function friendly(e: any): string {
@@ -93,7 +104,7 @@ export async function loadAttendance() {
     await supabase.from('attendance').select('*').order('created_at', { ascending: false }).limit(1000)
   );
   return rows.map((r) => ({
-    sessionId: r.session_id, course: r.course, studentId: r.student_id, registeredName: r.student_name,
+    id: r.id, sessionId: r.session_id, course: r.course, studentId: r.student_id, registeredName: r.student_name,
     dept: r.dept, facePhoto: r.face_photo, time: new Date(r.created_at).toLocaleTimeString(),
     isoTime: r.created_at, status: r.status, receiptNo: r.receipt_no,
     locationStatus: r.location_status, distanceM: r.distance_m, faceScore: r.face_score,
@@ -117,4 +128,48 @@ export async function checkIn(sessionId: string, t: { exp: number; sig: string }
     p_descriptor: descriptors, p_photo: photo,
     p_lat: fix ? fix.lat : null, p_lng: fix ? fix.lng : null, p_acc: fix ? fix.acc : null,
   }));
+}
+
+// ---- student self-enrolment + lecturer review queue ----
+export async function loadAvailableCourses(): Promise<string[]> {
+  return unwrap<string[]>(await supabase.rpc('list_available_courses'));
+}
+
+export async function submitStudentEnrollment(input: {
+  studentId: string; name: string; dept: string; level: string;
+  courses: string[]; descriptors: number[][];
+}) {
+  return unwrap<any>(await supabase.rpc('submit_student_enrollment', {
+    p_student_id: input.studentId,
+    p_name: input.name,
+    p_dept: input.dept,
+    p_level: input.level,
+    p_courses: input.courses,
+    p_descriptors: input.descriptors,
+  }));
+}
+
+export async function loadEnrollmentRequests() {
+  return unwrap<any[]>(await supabase.rpc('list_my_enrollment_requests'));
+}
+
+export async function reviewEnrollmentRequest(requestId: string, decision: 'approve' | 'reject') {
+  return unwrap<any>(await supabase.rpc('review_student_enrollment', {
+    p_request: requestId,
+    p_decision: decision,
+  }));
+}
+
+export async function deleteAttendance(id: string) {
+  unwrap(await supabase.from('attendance').delete().eq('id', id).select('id'));
+}
+
+export async function updateAttendance(id: string, patch: {
+  studentName: string; dept: string; status: string;
+}) {
+  unwrap(await supabase.from('attendance').update({
+    student_name: patch.studentName.trim(),
+    dept: patch.dept.trim(),
+    status: patch.status,
+  }).eq('id', id).select('id'));
 }

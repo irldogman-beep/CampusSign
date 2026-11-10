@@ -79,7 +79,7 @@ export function QRScanner({ onCode }: { onCode: (data: string) => void }) {
     let last = '';
     let lastAt = 0;
     const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d', { willReadFrequently: true } as any);
+    const ctx = canvas.getContext('2d', { willReadFrequently: true } as any) as CanvasRenderingContext2D | null;
 
     (async () => {
       try {
