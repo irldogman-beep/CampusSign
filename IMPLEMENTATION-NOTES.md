@@ -52,3 +52,22 @@ The source files were syntax-transpiled successfully with the TypeScript compile
 - Scanning a QR still issues the existing 10-minute server check-in ticket. The QR's lifetime and the time allowed to complete a check-in after scanning are separate controls.
 - The lecturer can open a dedicated `?display=qr` browser window. It shows only the course/session information, QR image and scan instructions; state is shared from the lecturer portal with `BroadcastChannel`. It receives the signed QR payload but not the lecturer portal, session secret, roster, or attendance data.
 - Apply `supabase-step8-qr-lifetime-and-display.sql` after migrations 1–7 before creating sessions with the new UI.
+
+
+## Step 9 — Duplicate-face false-positive review
+
+The earlier approval RPC rejected a self-enrolment immediately whenever its server-side descriptor distance to an already-enrolled face on the same lecturer/course was below `0.45`. It returned only a generic `duplicate_face` error. The lecturer was not shown which roster entry caused the match, and there was no reviewed exception path.
+
+The updated workflow treats this score as a possible-match signal, not proof that two people are identical:
+
+1. The server compares the submitted five-frame descriptor set against face templates on the same lecturer's exact course roster.
+2. If the closest score is below `0.45`, the request remains pending and the request inbox displays the candidate student's name and student ID.
+3. The lecturer must check the student's official university identity in person. If they establish that the two students are different people, they may approve with a written reason of at least 15 characters.
+4. The server recomputes the match during approval and writes an audit record to `face_duplicate_review_audit`. The audit stores the reason, candidate/student references and distance, but no face descriptors or photographs.
+5. If identity cannot be confidently established, the lecturer should reject the request and ask the student to submit a fresh capture with only one person visible and suitable lighting.
+
+Face capture now uses multi-face detection during final sample capture and rejects frames containing more than one face. It also checks that the five descriptors captured in one enrolment session are mutually consistent, reducing the chance of mixing two people into one student's template.
+
+**Important limitation:** this review workflow reduces harm from false-positive screening, but it does not prove biometric identity. The `0.45` value still needs evaluation against representative, consented campus test data. Do not loosen or tighten it globally without a measured false-accept / false-reject assessment. The actual descriptor values in the live Supabase database were not accessible during this code review, so the exact candidate that triggered the earlier friend's warning cannot be identified from the source alone.
+
+Apply `supabase-step9-face-duplicate-review.sql` after steps 1–8. Existing pending requests remain pending; requests that were previously rejected have had their face descriptors cleared and must be submitted again by the student.

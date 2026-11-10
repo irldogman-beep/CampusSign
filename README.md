@@ -45,8 +45,11 @@ Apply the SQL files in Supabase SQL Editor in order, after backing up production
 6. `supabase-step6-self-enrollment.sql`
 7. `supabase-step7-delete-session-lists.sql`
 8. `supabase-step8-qr-lifetime-and-display.sql`
+9. `supabase-step9-face-duplicate-review.sql`
 
 Step 8 is required before the new UI can create sessions with a QR-lifetime selection. It adds `sessions.qr_interval_seconds` and updates the server-side `session_info` RPC to enforce that setting. Existing rows get the 30-second default.
+
+Step 9 replaces automatic duplicate-face rejection with a possible-match review. It records the closest same-course roster entry, lets a verified lecturer approve only after an in-person identity check and a written reason, and records that override in `face_duplicate_review_audit`. It does not expose biometric descriptors to the lecturer UI.
 
 ## QR lifetime behaviour
 
@@ -88,8 +91,10 @@ The application connects directly to Supabase. The Supabase URL and publishable 
 - The projector display receives only a signed QR URL and non-sensitive display labels.
 - The student-facing flow uses HTTPS because camera APIs require a secure context.
 - Face descriptors are sensitive biometric data. Restrict access, set retention rules, obtain appropriate consent, and review applicable institutional and local privacy requirements before wider deployment.
+- Duplicate-face screening is a warning, not a proof of identity. Step 9 keeps the score server-side and requires a verified lecturer to check institutional identity in person before an override; every override is audited.
+- Face enrolment now checks that exactly one face is visible at capture time and that the five samples are mutually consistent. If the samples appear mixed or unstable, the capture is rejected and the student is asked to retry.
 - A QR code, even when rotating, does not independently prove physical presence. Face verification, location checks, class supervision and sensible session duration remain separate controls.
 
 ## Validation record
 
-The new and changed TypeScript/TSX files were syntax-transpiled with TypeScript. A full `npm run build` could not be completed in the authoring environment because npm dependency installation timed out. Apply the Step 8 migration in Supabase and run a production build/test in the connected project environment before treating this release as production-verified.
+The new and changed TypeScript/TSX files were syntax-transpiled with TypeScript. A full `npm run build` could not be completed in the authoring environment because npm dependency installation timed out. Apply the Step 8 and Step 9 migrations in Supabase and run a production build/test in the connected project environment before treating this release as production-verified.
