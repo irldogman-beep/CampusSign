@@ -119,6 +119,11 @@ const INITIAL_STUDENTS = [
 /* ==========================================================================
    MAIN APP COMPONENT
    ========================================================================== */
+const FIELD = 'w-full px-3.5 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-base sm:text-sm font-semibold focus:ring-2 focus:ring-emerald-600 outline-none';
+const LABEL = 'block font-bold text-slate-600 dark:text-slate-400 mb-1.5 uppercase tracking-wider text-[10px]';
+const CHIP = 'px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[11px] font-semibold';
+const STRICTNESS = { lenient: 0.58, standard: 0.5, strict: 0.42 };
+
 const LOC_LABEL = {
   outside: 'Not present in class',
   uncertain: 'Location unconfirmed',
@@ -209,7 +214,10 @@ export default function App() {
       // The server verifies the signature and freshness, then returns a 10-minute ticket
       const info = await db.sessionInfo(parsed.code);
       setCheckin({
-        session: { id: parsed.code.i, course: info.course, teacher: info.teacher },
+        session: {
+          id: parsed.code.i, course: info.course, teacher: info.teacher, title: info.title,
+          faceRequired: info.face_required, locationMode: info.location_mode, radius: info.radius_m
+        },
         ticket: { exp: info.exp, sig: info.ticket },
         validatedAt: Date.now()
       });
@@ -242,7 +250,7 @@ export default function App() {
       
       {/* HEADER / NAVIGATION BAR */}
       <header className="sticky top-0 z-40 bg-emerald-950/90 backdrop-blur-md border-b border-emerald-900 shadow-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
           
           {/* Logo & Brand Name */}
           <div className="flex items-center gap-3">
@@ -250,11 +258,11 @@ export default function App() {
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-black text-white text-lg tracking-tight">CampusSign</span>
-                <span className="bg-amber-500 text-emerald-950 font-extrabold text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider">
+                <span className="hidden sm:inline-block bg-amber-500 text-emerald-950 font-extrabold text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider">
                   v2.0 Enterprise
                 </span>
               </div>
-              <p className="text-[10px] text-emerald-200 font-medium">QR Biometric Student Verification System</p>
+              <p className="hidden sm:block text-[10px] text-emerald-200 font-medium">QR Biometric Student Verification System</p>
             </div>
           </div>
 
@@ -314,7 +322,7 @@ export default function App() {
       </header>
 
       {/* MAIN CONTENT CONTAINER */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         {activeTab === 'admin' && (
           <AdminPortal 
             activeSession={activeSession}
@@ -400,6 +408,9 @@ function AdminPortal({
   const [loginError, setLoginError] = useState('');
   const [isFullscreenQR, setIsFullscreenQR] = useState(false);
   const [locBusy, setLocBusy] = useState(false);
+  const [sessionList, setSessionList] = useState([]);
+  const [viewSessionId, setViewSessionId] = useState('');
+  const [showSessionForm, setShowSessionForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [retentionDays, setRetentionDays] = useState(30);
 
@@ -429,9 +440,14 @@ function AdminPortal({
   });
 
   const [sessionForm, setSessionForm] = useState({
-    title: 'CSC401 Final Examination',
-    course: activeStaff ? activeStaff.course : 'CSC401 - Advanced Algorithms',
-    venue: 'Auditorium Hall B',
+    title: '',
+    course: activeStaff ? activeStaff.course : '',
+    venue: '',
+    faceRequired: true,
+    strictness: 'standard',
+    locationMode: 'flag',
+    radius: 15,
+    duration: 0,
   });
 
   useEffect(() => {
@@ -441,19 +457,34 @@ function AdminPortal({
   }, [activeStaff]);
 
   // Turn a Supabase profile row into the staff object the dashboard uses
-  const beginSession = async (course, title, venue, admin) => {
+  const refreshSessions = async () => {
+    try { setSessionList(await db.loadSessions()); } catch (e) { console.error(e); }
+  };
+
+  // Start a brand-new session (with its own, empty attendance list)
+  const beginSession = async (admin, f) => {
     const base = {
-      title, course, venue,
+      title: f.title, course: admin.course, venue: f.venue,
       teacher: admin.name, teacherId: admin.id, teacherEmail: admin.email,
-      isRevoked: false, tokenCreatedAt: Date.now(), anchorAcc: null, anchorSetAt: null
+      isRevoked: false, tokenCreatedAt: Date.now(), anchorAcc: null, anchorSetAt: null,
+      locationMode: f.locationMode, radius: f.radius, faceRequired: f.faceRequired,
+      endsAt: f.durationMin ? Date.now() + f.durationMin * 60000 : null
     };
     try {
-      const row = await db.createSession(course, title, venue);
+      // starting a new session ends the previous one
+      if (activeSession.id && !activeSession.isRevoked) {
+        try { await db.setRevoked(activeSession.id, true); } catch (e) { console.error(e); }
+      }
+      const row = await db.createSession({
+        course: admin.course, title: f.title, venue: f.venue, locationMode: f.locationMode,
+        radius: f.radius, faceRequired: f.faceRequired, threshold: f.threshold, endsAt: base.endsAt
+      });
       setActiveSession(prev => ({ ...prev, ...base, id: row.id, secret: row.secret }));
+      setViewSessionId('');
+      await refreshSessions();
       return true;
     } catch (e) {
-      setActiveSession(prev => ({ ...prev, ...base, id: '', secret: '' }));
-      alert('Could not start a session: ' + db.friendly(e));
+      alert('Could not start the session: ' + db.friendly(e));
       return false;
     }
   };
@@ -470,7 +501,8 @@ function AdminPortal({
     if (!isAuthenticated) return;
     refreshRegistry();
     refreshLogs();
-    const t = setInterval(refreshLogs, 5000);
+    refreshSessions();
+    const t = setInterval(() => { refreshLogs(); refreshSessions(); }, 5000);
     return () => clearInterval(t);
     // eslint-disable-next-line
   }, [isAuthenticated]);
@@ -489,23 +521,29 @@ function AdminPortal({
     setActiveStaff(admin);
     setIsAuthenticated(true);
     setLoginError('');
-    // Resume today's session (keeps a revoked QR revoked); start a new one only if there is none recent
+    // Resume a session that is still live; otherwise wait for the lecturer to start a new one
     try {
       const last = await db.latestSession(admin.course);
-      if (last && Date.now() - new Date(last.created_at).getTime() < 12 * 3600 * 1000) {
+      const fresh = last && Date.now() - new Date(last.created_at).getTime() < 12 * 3600 * 1000;
+      const notEnded = last && !last.revoked && (!last.ends_at || new Date(last.ends_at).getTime() > Date.now());
+      if (last && fresh && notEnded) {
         setActiveSession(prev => ({
           ...prev,
           id: last.id,
           secret: last.secret,
-          title: last.title || `${admin.course} Attendance`,
+          title: last.title,
           course: admin.course,
-          venue: last.venue || 'Lecture Room 1',
+          venue: last.venue,
           teacher: admin.name,
           teacherId: admin.id,
           teacherEmail: admin.email,
-          isRevoked: last.revoked,
+          isRevoked: false,
           anchorAcc: last.anchor_acc,
           anchorSetAt: last.anchor_set_at ? new Date(last.anchor_set_at).getTime() : null,
+          locationMode: last.location_mode,
+          radius: last.radius_m,
+          faceRequired: last.face_required,
+          endsAt: last.ends_at ? new Date(last.ends_at).getTime() : null,
           tokenCreatedAt: Date.now()
         }));
         return;
@@ -513,7 +551,10 @@ function AdminPortal({
     } catch (e) {
       console.error(e);
     }
-    await beginSession(admin.course, `${admin.course} Attendance`, 'Lecture Room 1', admin);
+    setActiveSession(prev => ({
+      ...prev, id: '', secret: '', title: '', isRevoked: false, endsAt: null, anchorAcc: null, anchorSetAt: null,
+      course: admin.course, teacher: admin.name, teacherId: admin.id, teacherEmail: admin.email
+    }));
   };
 
   const loadProfile = async (userId) => {
@@ -624,8 +665,23 @@ function AdminPortal({
 
   const handleCreateSession = async (e) => {
     e.preventDefault();
-    const ok = await beginSession(sessionForm.course, sessionForm.title, sessionForm.venue, activeStaff);
-    if (ok) alert(`New session created for ${sessionForm.course}. QR code updated.`);
+    if (!sessionForm.title.trim()) {
+      alert('Give the session a name, for example "Test attendance".');
+      return;
+    }
+    const ok = await beginSession(activeStaff, {
+      title: sessionForm.title.trim(),
+      venue: sessionForm.venue.trim(),
+      locationMode: sessionForm.locationMode,
+      radius: Math.min(1000, Math.max(5, Number(sessionForm.radius) || 15)),
+      faceRequired: sessionForm.faceRequired,
+      threshold: STRICTNESS[sessionForm.strictness] || 0.5,
+      durationMin: Number(sessionForm.duration) || 0
+    });
+    if (ok) {
+      setShowSessionForm(false);
+      setSessionForm(prev => ({ ...prev, title: '' }));
+    }
   };
 
   const handleAddStudent = async (e) => {
@@ -677,20 +733,31 @@ function AdminPortal({
     setLocBusy(false);
   };
 
-  const setSessionRevoked = async (revoked) => {
+  const handleEndSession = async () => {
+    if (!window.confirm('End this session? Students will no longer be able to check in. To take attendance again, start a new session (it gets a fresh list).')) return;
     try {
-      if (activeSession.id) await db.setRevoked(activeSession.id, revoked);
-      setActiveSession(prev => ({ ...prev, isRevoked: revoked }));
+      await db.setRevoked(activeSession.id, true);
+      setActiveSession(prev => ({ ...prev, isRevoked: true }));
+      setShowSessionForm(false);
+      await refreshSessions();
     } catch (e) {
       alert(db.friendly(e));
     }
   };
-  const handleRevokeSession = () => setSessionRevoked(true);
 
   // Filter attendance logs STRICTLY for the active lecturer's course/session
-  const lecturerAttendanceLogs = attendanceLogs.filter(log => 
-    log.sessionId === activeSession.id || log.course === activeSession.course
-  );
+  const shownSessionId = viewSessionId || activeSession.id;
+  const lecturerAttendanceLogs = attendanceLogs.filter(log => log.sessionId === shownSessionId);
+  const sessionLive = !!activeSession.id && !activeSession.isRevoked && !(activeSession.endsAt && Date.now() > activeSession.endsAt);
+  const shownSession = sessionList.find(x => x.id === shownSessionId);
+  const sessionOptions = sessionList.map(x => {
+    const when = new Date(x.created_at);
+    const n = attendanceLogs.filter(l => l.sessionId === x.id).length;
+    return {
+      id: x.id,
+      label: `${x.title || 'Untitled'} · ${when.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })} ${when.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · ${n} present`
+    };
+  });
 
   const exportToCSV = () => {
     const headers = ["Student ID", "Registered Name", "Course", "Department", "Time", "Status", "Receipt Ref"];
@@ -717,11 +784,11 @@ function AdminPortal({
   };
 
   const exportLogsCsv = () => {
-    const safeCourse = String(activeSession.course || 'course').replace(/[^a-z0-9]+/gi, '_');
+    const safeCourse = String((shownSession && shownSession.title) || 'session').replace(/[^a-z0-9]+/gi, '_');
     downloadCsv(
       `attendance_${safeCourse}_${new Date().toISOString().slice(0, 10)}.csv`,
-      ['Student ID', 'Name', 'Course', 'Department', 'Date & Time', 'Status', 'Location', 'Distance (m)', 'Receipt Ref', 'Session ID'],
-      filteredLogs.map(l => [l.studentId, l.registeredName, l.course, l.dept, l.isoTime || l.time, l.status, l.locationStatus || '', l.distanceM ?? '', l.receiptNo, l.sessionId])
+      ['Student ID', 'Name', 'Course', 'Department', 'Date & Time', 'Status', 'Location', 'Distance (m)', 'Face Score', 'Receipt Ref', 'Session ID'],
+      filteredLogs.map(l => [l.studentId, l.registeredName, l.course, l.dept, l.isoTime || l.time, l.status, l.locationStatus || '', l.distanceM ?? '', l.faceScore ?? '', l.receiptNo, l.sessionId])
     );
   };
 
@@ -906,278 +973,356 @@ function AdminPortal({
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5 sm:space-y-8">
       
-      {/* LECTURER ACCOUNT STATUS BAR & LOGOUT */}
-      <div className="bg-emerald-900 text-white rounded-2xl p-4 border border-emerald-800 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-emerald-950 rounded-xl border border-emerald-700 text-amber-400">
+      {/* ACCOUNT BAR */}
+      <div className="bg-emerald-900 text-white rounded-2xl px-4 py-3 border border-emerald-800 shadow-md flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="p-2 bg-emerald-950 rounded-xl border border-emerald-700 text-amber-400 shrink-0">
             <UserCheck className="w-5 h-5" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-emerald-200">Authenticated Staff:</span>
-              <span className="font-extrabold text-amber-400 text-sm">{activeStaff ? activeStaff.name : 'Staff'}</span>
-              <span className="px-2 py-0.5 bg-emerald-950 text-emerald-300 rounded text-[10px] font-mono">{activeStaff ? activeStaff.id : ''}</span>
+          <div className="min-w-0">
+            <div className="font-extrabold text-amber-400 text-sm truncate">{activeStaff ? activeStaff.name : 'Staff'}</div>
+            <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
               <span className="px-2 py-0.5 bg-amber-500/20 border border-amber-500/40 text-amber-300 rounded text-[10px] font-bold">{activeStaff ? activeStaff.course : ''}</span>
               {activeStaff && !activeStaff.isVerified && (
-                <span className="px-2 py-0.5 bg-rose-500/20 border border-rose-400/40 text-rose-300 rounded text-[10px] font-bold">
-                  PENDING ADMIN APPROVAL
-                </span>
+                <span className="px-2 py-0.5 bg-rose-500/20 border border-rose-400/40 text-rose-300 rounded text-[10px] font-bold">PENDING APPROVAL</span>
               )}
             </div>
-            <p className="text-[11px] text-emerald-300">Managing isolated student roster & QR check-in session for {activeStaff ? activeStaff.course : 'assigned course'}.</p>
           </div>
         </div>
-
-        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 bg-rose-950 hover:bg-rose-900 border border-rose-800 text-rose-200 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 shrink-0 shadow"
-            title="Log Out Lecturer"
-          >
-            <LogOut className="w-3.5 h-3.5" /> Secure Sign Out
-          </button>
-        </div>
+        <button
+          onClick={handleLogout}
+          className="p-2.5 sm:px-4 sm:py-2 bg-rose-950 hover:bg-rose-900 border border-rose-800 text-rose-200 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 shrink-0"
+          title="Sign out"
+          aria-label="Sign out"
+        >
+          <LogOut className="w-4 h-4" /> <span className="hidden sm:inline">Sign Out</span>
+        </button>
       </div>
 
-      {/* Session Manager & Live Display Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        
-        {/* Left Column: Create & Manage Session */}
-        <div className="lg:col-span-5 space-y-6">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-5">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-2">
-                <Building className="w-5 h-5 text-emerald-700 dark:text-amber-400" />
-                <h3 className="font-extrabold text-slate-900 dark:text-white">Active Session Control</h3>
-              </div>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
-                {activeSession.isRevoked ? 'REVOKED' : 'ONLINE'}
-              </span>
-            </div>
+      {/* SESSION + QR */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-8">
 
-            <form onSubmit={handleCreateSession} className="space-y-4 text-xs">
-              <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider text-[10px]">Session / Exam Title</label>
-                <input 
-                  type="text" 
-                  value={sessionForm.title}
-                  onChange={e => setSessionForm({ ...sessionForm, title: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold focus:ring-2 focus:ring-emerald-600 outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider text-[10px]">Assigned Course Code</label>
-                  <input 
-                    type="text" 
-                    value={sessionForm.course}
-                    onChange={e => setSessionForm({ ...sessionForm, course: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold focus:ring-2 focus:ring-emerald-600 outline-none"
-                  />
+        {/* Session card */}
+        <div className="lg:col-span-5">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+            {sessionLive && !showSessionForm ? (
+              <>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> LIVE
+                  </span>
+                  {activeSession.endsAt && (
+                    <span className="text-[11px] font-mono text-slate-500">
+                      Ends in {Math.max(0, Math.ceil((activeSession.endsAt - Date.now()) / 60000))} min
+                    </span>
+                  )}
                 </div>
-                <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 uppercase tracking-wider text-[10px]">Venue / Room</label>
-                  <input 
-                    type="text" 
-                    value={sessionForm.venue}
-                    onChange={e => setSessionForm({ ...sessionForm, venue: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold focus:ring-2 focus:ring-emerald-600 outline-none"
-                  />
-                </div>
-              </div>
 
-              <div className="pt-2 flex items-center gap-3">
-                <button 
-                  type="submit"
-                  className="flex-1 py-2.5 bg-emerald-900 hover:bg-emerald-800 text-amber-400 font-bold rounded-xl text-xs transition-colors shadow border border-emerald-700"
-                >
-                  Generate Dynamic QR Session
-                </button>
-                {activeSession.isRevoked ? (
-                  <button 
-                    type="button"
-                    onClick={() => setSessionRevoked(false)}
-                    className="px-3 py-2.5 bg-emerald-600 text-white font-bold rounded-xl text-xs hover:bg-emerald-700"
-                  >
-                    Unrevoke
-                  </button>
-                ) : (
-                  <button 
-                    type="button"
-                    onClick={handleRevokeSession}
-                    className="px-3 py-2.5 bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 font-bold rounded-xl text-xs hover:bg-rose-200 border border-rose-300 dark:border-rose-800"
-                  >
-                    Revoke
-                  </button>
+                <div>
+                  <h3 className="text-lg font-extrabold text-slate-900 dark:text-white leading-tight">{activeSession.title}</h3>
+                  {activeSession.venue && <p className="text-xs text-slate-500 mt-0.5">{activeSession.venue}</p>}
+                </div>
+
+                <div className="flex flex-wrap gap-1.5">
+                  <span className={CHIP}>{activeSession.faceRequired ? 'Face check on' : 'Face check off'}</span>
+                  <span className={CHIP}>
+                    {activeSession.locationMode === 'off'
+                      ? 'Location off'
+                      : `${activeSession.locationMode === 'block' ? 'Blocks' : 'Flags'} outside ${activeSession.radius} m`}
+                  </span>
+                </div>
+
+                {activeSession.locationMode !== 'off' && (
+                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-slate-700 dark:text-slate-300">Classroom location</span>
+                      <span className={`font-mono font-bold ${activeSession.anchorAcc == null ? 'text-rose-600' : 'text-emerald-700 dark:text-emerald-400'}`}>
+                        {activeSession.anchorAcc != null ? `Set (±${Math.round(activeSession.anchorAcc)} m)` : 'Not set'}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleSetLocation}
+                      disabled={locBusy}
+                      className="w-full py-3 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-emerald-950 font-extrabold rounded-xl text-sm border border-amber-300"
+                    >
+                      {locBusy ? 'Getting location…' : activeSession.anchorAcc != null ? 'Update classroom location' : 'Set classroom location here'}
+                    </button>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                      {activeSession.anchorAcc == null
+                        ? 'Stand in the classroom and tap this. Until you do, students are not checked against a location. A phone gives the best accuracy.'
+                        : 'Tap again to refresh it. A phone is far more accurate than a laptop.'}
+                    </p>
+                    {activeSession.anchorAcc != null && activeSession.anchorAcc > 50 && (
+                      <p className="text-[11px] text-rose-600 font-bold">
+                        Accuracy is low (±{Math.round(activeSession.anchorAcc)} m), so many students will show as "unconfirmed". Try again on your phone, near a window.
+                      </p>
+                    )}
+                  </div>
                 )}
-              </div>
-            </form>
 
-            {/* Classroom location (15 m rule) */}
-            <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-slate-700 dark:text-slate-300">Classroom Location (15 m rule)</span>
-                <span className="font-mono text-emerald-800 dark:text-emerald-400 font-bold">
-                  {activeSession.anchorAcc != null ? `Set (±${Math.round(activeSession.anchorAcc)} m)` : 'Not set'}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={handleSetLocation}
-                disabled={locBusy || !activeSession.id}
-                className="w-full py-2 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-emerald-950 font-extrabold rounded-xl text-xs border border-amber-300"
-              >
-                {locBusy ? 'Getting location…' : activeSession.anchorAcc != null ? 'Update classroom location' : 'Set classroom location here'}
-              </button>
-              <p className="text-[10px] text-slate-400 leading-relaxed">
-                Stand in the classroom and tap this. Students who check in more than 15 m away are flagged. Phone GPS is far more accurate than a laptop, so for best results sign in on your phone and tap this there.
-              </p>
-              {activeSession.anchorAcc != null && activeSession.anchorAcc > 50 && (
-                <p className="text-[10px] text-rose-600 font-bold">
-                  Accuracy is low (±{Math.round(activeSession.anchorAcc)} m), so most students will show as "unconfirmed". Try again on your phone, near a window.
-                </p>
-              )}
-            </div>
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={handleEndSession}
+                    className="py-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold"
+                  >
+                    End session
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowSessionForm(true)}
+                    className="py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-800"
+                  >
+                    New session
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">{activeSession.id ? 'Start a new session' : 'Start a session'}</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Each session gets its own attendance list.{sessionLive ? ' Starting a new one ends the current session.' : ''}
+                  </p>
+                </div>
 
-            {/* Privacy & Image Retention Config Slider */}
-            <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                  <Lock className="w-3.5 h-3.5 text-emerald-600" /> Image Retention Policy
-                </span>
-                <span className="font-mono text-emerald-800 dark:text-emerald-400 font-bold">{retentionDays} Days</span>
-              </div>
-              <input 
-                type="range" 
-                min="1" 
-                max="90" 
-                value={retentionDays} 
-                onChange={e => setRetentionDays(e.target.value)}
-                className="w-full accent-emerald-700 cursor-pointer"
-              />
-              <p className="text-[10px] text-slate-400">Captured facial signature blobs are automatically scrubbed from encrypted storage after this period.</p>
-            </div>
+                <form onSubmit={handleCreateSession} className="space-y-4">
+                  <div>
+                    <label className={LABEL}>Session name</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder='e.g. "Test attendance"'
+                      value={sessionForm.title}
+                      onChange={e => setSessionForm({ ...sessionForm, title: e.target.value })}
+                      className={FIELD}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={LABEL}>Venue (optional)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Hall B"
+                      value={sessionForm.venue}
+                      onChange={e => setSessionForm({ ...sessionForm, venue: e.target.value })}
+                      className={FIELD}
+                    />
+                  </div>
+
+                  <details className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                    <summary className="px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-200 cursor-pointer select-none">
+                      Session settings
+                    </summary>
+                    <div className="px-4 pb-4 pt-1 space-y-4">
+                      <label className="flex items-center justify-between gap-3 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                        Require face check
+                        <input
+                          type="checkbox"
+                          checked={sessionForm.faceRequired}
+                          onChange={e => setSessionForm({ ...sessionForm, faceRequired: e.target.checked })}
+                          className="w-5 h-5 accent-emerald-700"
+                        />
+                      </label>
+
+                      {sessionForm.faceRequired && (
+                        <div>
+                          <label className={LABEL}>Face strictness</label>
+                          <select
+                            value={sessionForm.strictness}
+                            onChange={e => setSessionForm({ ...sessionForm, strictness: e.target.value })}
+                            className={FIELD}
+                          >
+                            <option value="lenient">Lenient (fewer rejections)</option>
+                            <option value="standard">Standard</option>
+                            <option value="strict">Strict (fewer false matches)</option>
+                          </select>
+                        </div>
+                      )}
+
+                      <div>
+                        <label className={LABEL}>Location check</label>
+                        <select
+                          value={sessionForm.locationMode}
+                          onChange={e => setSessionForm({ ...sessionForm, locationMode: e.target.value })}
+                          className={FIELD}
+                        >
+                          <option value="off">Off</option>
+                          <option value="flag">Flag students who are outside</option>
+                          <option value="block">Block students who are outside</option>
+                        </select>
+                      </div>
+
+                      {sessionForm.locationMode !== 'off' && (
+                        <div>
+                          <label className={LABEL}>Allowed distance (metres)</label>
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            min="5"
+                            max="1000"
+                            value={sessionForm.radius}
+                            onChange={e => setSessionForm({ ...sessionForm, radius: e.target.value })}
+                            className={FIELD}
+                          />
+                        </div>
+                      )}
+
+                      <div>
+                        <label className={LABEL}>Auto-end after</label>
+                        <select
+                          value={sessionForm.duration}
+                          onChange={e => setSessionForm({ ...sessionForm, duration: e.target.value })}
+                          className={FIELD}
+                        >
+                          <option value="0">Never (I will end it)</option>
+                          <option value="15">15 minutes</option>
+                          <option value="30">30 minutes</option>
+                          <option value="60">1 hour</option>
+                          <option value="120">2 hours</option>
+                        </select>
+                      </div>
+                    </div>
+                  </details>
+
+                  <div className="flex gap-2">
+                    {sessionLive && (
+                      <button
+                        type="button"
+                        onClick={() => setShowSessionForm(false)}
+                        className="px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-sm font-bold"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                    <button
+                      type="submit"
+                      className="flex-1 py-3 rounded-xl bg-emerald-900 hover:bg-emerald-800 text-amber-400 text-sm font-extrabold border border-emerald-700"
+                    >
+                      Start session
+                    </button>
+                  </div>
+                </form>
+              </>
+            )}
           </div>
         </div>
 
-        {/* Right Column: Live Rotating Dynamic QR Hub */}
+        {/* QR card */}
         <div className="lg:col-span-7">
-          <div className={`h-full bg-gradient-to-br from-emerald-950 to-slate-950 text-white rounded-3xl p-6 sm:p-8 border border-emerald-900 shadow-lg flex flex-col justify-between relative overflow-hidden ${isFullscreenQR ? 'fixed inset-0 z-50 rounded-none border-none' : ''}`}>
-            
-            {/* Display Header */}
-            <div className="flex items-center justify-between relative z-10 mb-4">
-              <div className="flex items-center gap-2">
-                <CampusSignLogo className="w-8 h-8" />
-                <div>
-                  <h4 className="font-extrabold text-sm text-amber-400 tracking-wide uppercase">Lecturer Verification Station</h4>
-                  <p className="text-xs text-emerald-200">Instructor: <strong>{activeSession.teacher}</strong> • Course: <strong>{activeSession.course}</strong></p>
-                </div>
+          <div className={`h-full bg-gradient-to-br from-emerald-950 to-slate-950 text-white rounded-3xl p-5 sm:p-8 border border-emerald-900 shadow-lg flex flex-col relative overflow-hidden ${isFullscreenQR ? 'fixed inset-0 z-50 rounded-none border-none overflow-auto' : ''}`}>
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <div className="min-w-0">
+                <h4 className="font-extrabold text-sm text-amber-400 truncate">{activeSession.id ? activeSession.title : 'Check-in QR'}</h4>
+                <p className="text-xs text-emerald-200 truncate">
+                  {activeStaff ? activeStaff.course : activeSession.course}{activeSession.teacher ? ` • ${activeSession.teacher}` : ''}
+                </p>
               </div>
-              
-              <button 
-                onClick={() => setIsFullscreenQR(!isFullscreenQR)}
-                className="p-2 bg-emerald-900/60 hover:bg-emerald-800 border border-emerald-700 rounded-xl text-amber-300 transition-colors"
-                title={isFullscreenQR ? "Exit Fullscreen" : "Fullscreen Projection"}
-              >
-                {isFullscreenQR ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
-              </button>
-            </div>
-
-            {/* QR Scanner Display Area */}
-            <div className="my-auto text-center relative z-10 flex flex-col items-center justify-center py-4">
-              {activeSession.isRevoked ? (
-                <div className="p-8 bg-rose-950/80 rounded-3xl border border-rose-800 max-w-sm text-center">
-                  <ShieldAlert className="w-16 h-16 text-rose-500 mx-auto mb-3" />
-                  <h3 className="text-lg font-extrabold text-white">QR Display Revoked</h3>
-                  <p className="text-xs text-rose-200 mt-1">This session has been revoked by hall invigilators. Students cannot submit verification.</p>
-                </div>
-              ) : (
-                <div className="relative group">
-                  {/* Real Dynamic QR Link payload */}
-                  <div className="p-5 bg-white rounded-3xl shadow-2xl border-4 border-amber-500 inline-block relative">
-                    <QRCodeImage value={qrPayload} size={isFullscreenQR ? 420 : 256} />
-                  </div>
-
-                  {/* Test Scan Button */}
-                  <div className="mt-4 flex flex-col items-center gap-2">
-                    <button
-                      onClick={() => onSimulateScan()}
-                      className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-emerald-950 rounded-xl font-extrabold text-xs shadow-lg transition-transform transform active:scale-95 flex items-center gap-2 border border-amber-300"
-                    >
-                      <ExternalLink className="w-4 h-4" /> Test Check-In On This Device
-                    </button>
-
-                    <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-900/80 border border-emerald-700 text-xs text-amber-300">
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      <span>Auto-Rotating Token in: <strong>{secondsToRotate}s</strong></span>
-                    </div>
-                  </div>
-                </div>
+              {sessionLive && (
+                <button
+                  onClick={() => setIsFullscreenQR(!isFullscreenQR)}
+                  className="p-2 bg-emerald-900/60 hover:bg-emerald-800 border border-emerald-700 rounded-xl text-amber-300 transition-colors shrink-0"
+                  title={isFullscreenQR ? 'Exit fullscreen' : 'Fullscreen projection'}
+                >
+                  {isFullscreenQR ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+                </button>
               )}
             </div>
 
-            {/* Token Bar Footer */}
-            <div className="relative z-10 pt-4 border-t border-emerald-900/80 flex flex-col sm:flex-row items-center justify-between text-xs text-emerald-200 gap-2">
+            <div className="my-auto flex flex-col items-center justify-center text-center py-2">
+              {!activeSession.id ? (
+                <div className="max-w-xs py-8">
+                  <QrCode className="w-14 h-14 text-emerald-700 mx-auto mb-3" />
+                  <h3 className="text-base font-extrabold text-white">No active session</h3>
+                  <p className="text-xs text-emerald-200 mt-1">Start a session and the check-in QR code appears here.</p>
+                </div>
+              ) : !sessionLive ? (
+                <div className="p-6 bg-rose-950/80 rounded-3xl border border-rose-800 max-w-sm">
+                  <ShieldAlert className="w-14 h-14 text-rose-400 mx-auto mb-3" />
+                  <h3 className="text-base font-extrabold text-white">Session ended</h3>
+                  <p className="text-xs text-rose-200 mt-1">
+                    {attendanceLogs.filter(l => l.sessionId === activeSession.id).length} student(s) checked in. Start a new session for a new attendance list.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="p-4 sm:p-5 bg-white rounded-3xl shadow-2xl border-4 border-amber-500 inline-block max-w-full">
+                    <QRCodeImage value={qrPayload} size={isFullscreenQR ? 420 : 240} />
+                  </div>
+                  <div className="mt-4 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-900/80 border border-emerald-700 text-xs text-amber-300">
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>New code in <strong>{secondsToRotate}s</strong></span>
+                  </div>
+                  <button
+                    onClick={() => onSimulateScan()}
+                    className="mt-3 w-full sm:w-auto px-5 py-3 bg-amber-500 hover:bg-amber-400 text-emerald-950 rounded-xl font-extrabold text-sm shadow-lg active:scale-95 transition-transform flex items-center justify-center gap-2 border border-amber-300"
+                  >
+                    <ExternalLink className="w-4 h-4" /> Test check-in on this device
+                  </button>
+                </>
+              )}
+            </div>
+
+            <div className="hidden sm:flex pt-4 border-t border-emerald-900/80 items-center justify-between text-xs text-emerald-200 gap-2">
               <div className="flex items-center gap-1 font-mono text-[11px]">
                 <Key className="w-3.5 h-3.5 text-amber-400" />
-                <span>Payload Token: <strong className="text-white">{qrToken}</strong></span>
+                <span>Token: <strong className="text-white">{qrToken}</strong></span>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                <span>Each QR stays valid about 90s</span>
-              </div>
+              <span>Each QR stays valid about 90s</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* ADMIN SUB-TABS: ISOLATED SESSION ATTENDANCE vs LECTURER'S OWN COURSE ROSTER */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-5">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4 sm:space-y-5">
         
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
           {/* Sub Tab Buttons */}
-          <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl">
+          <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl w-full sm:w-auto">
             <button
               onClick={() => setAdminTab('roster')}
-              className={`px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-2 ${
+              className={`px-3 sm:px-4 py-2.5 sm:py-2 text-xs font-bold rounded-xl transition-all flex flex-1 sm:flex-none justify-center items-center gap-2 ${
                 adminTab === 'roster'
                   ? 'bg-emerald-900 text-amber-400 shadow'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
               }`}
             >
               <Users className="w-4 h-4" />
-              <span>Session Attendance Log ({lecturerAttendanceLogs.length})</span>
+              <span className="sm:hidden">Attendance ({lecturerAttendanceLogs.length})</span>
+              <span className="hidden sm:inline">Session Attendance Log ({lecturerAttendanceLogs.length})</span>
             </button>
 
             <button
               onClick={() => setAdminTab('registry')}
-              className={`px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center gap-2 ${
+              className={`px-3 sm:px-4 py-2.5 sm:py-2 text-xs font-bold rounded-xl transition-all flex flex-1 sm:flex-none justify-center items-center gap-2 ${
                 adminTab === 'registry'
                   ? 'bg-emerald-900 text-amber-400 shadow'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
               }`}
             >
               <Database className="w-4 h-4" />
-              <span>{activeStaff ? activeStaff.name.split(' ')[0] : 'Lecturer'}'s Student Roster ({filteredRegistry.length})</span>
+              <span className="sm:hidden">Roster ({filteredRegistry.length})</span>
+              <span className="hidden sm:inline">{activeStaff ? activeStaff.name.split(' ')[0] : 'Lecturer'}'s Student Roster ({filteredRegistry.length})</span>
             </button>
           </div>
 
           {/* Action Buttons */}
           {adminTab === 'roster' ? (
             <button
-              onClick={exportToCSV}
-              disabled={lecturerAttendanceLogs.length === 0}
-              className="px-4 py-2 bg-emerald-900 hover:bg-emerald-800 disabled:opacity-50 text-amber-400 text-xs font-bold rounded-xl shadow transition-colors flex items-center gap-2 border border-emerald-700"
+              onClick={exportLogsCsv}
+              disabled={filteredLogs.length === 0}
+              className="w-full sm:w-auto justify-center px-4 py-2.5 bg-emerald-900 hover:bg-emerald-800 disabled:opacity-50 text-amber-400 text-xs font-bold rounded-xl shadow transition-colors flex items-center gap-2 border border-emerald-700"
             >
-              <Download className="w-4 h-4" /> Export Class Attendance CSV
+              <Download className="w-4 h-4" /> Export CSV
             </button>
           ) : (
             <button
               onClick={() => setIsAddStudentOpen(true)}
-              className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-emerald-950 text-xs font-extrabold rounded-xl shadow transition-colors flex items-center gap-2 border border-amber-300"
+              className="w-full sm:w-auto justify-center px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-emerald-950 text-xs font-extrabold rounded-xl shadow transition-colors flex items-center gap-2 border border-amber-300"
             >
               <UserPlus className="w-4 h-4" /> Add Student to {activeStaff ? activeStaff.course.split(' ')[0] : 'Course'}
             </button>
@@ -1187,36 +1332,59 @@ function AdminPortal({
         {/* TAB 1: ISOLATED SESSION ATTENDANCE LOG */}
         {adminTab === 'roster' && (
           <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div className="relative max-w-sm w-full">
-                <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-                <input 
-                  type="text" 
-                  placeholder="Search logs by ID, Name, Dept..."
+            <div className="flex flex-col sm:flex-row gap-2.5">
+              <select
+                value={shownSessionId}
+                onChange={e => setViewSessionId(e.target.value)}
+                className={FIELD + ' sm:max-w-sm'}
+              >
+                {sessionOptions.length === 0 && <option value="">No sessions yet</option>}
+                {sessionOptions.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+              </select>
+              <div className="relative w-full sm:max-w-xs">
+                <Search className="w-4 h-4 absolute left-3.5 top-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search name or ID"
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs focus:ring-2 focus:ring-emerald-600 outline-none"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-base sm:text-sm focus:ring-2 focus:ring-emerald-600 outline-none"
                 />
               </div>
-              <div className="text-xs text-emerald-800 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950 px-3 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-800">
-                Course Log: <span>{activeSession.course}</span>
-              </div>
-              <button
-                onClick={exportLogsCsv}
-                disabled={filteredLogs.length === 0}
-                className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-emerald-950 text-xs font-extrabold border border-amber-300"
-              >
-                Export CSV
-              </button>
             </div>
 
             {filteredLogs.length === 0 ? (
               <div className="py-12 text-center text-slate-400 text-xs">
                 <FileCheck className="w-12 h-12 mx-auto mb-2 opacity-30 text-emerald-600" />
-                <p>No verified biometric submissions recorded for <strong>{activeSession.course}</strong> yet.</p>
+                <p>Nobody has checked in to this session yet.</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <>
+              <div className="md:hidden space-y-2.5">
+                {filteredLogs.map((log, idx) => (
+                  <div key={idx} className="flex items-center gap-3 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40">
+                    {log.facePhoto ? (
+                      <img src={log.facePhoto} alt="" className="w-11 h-11 rounded-full object-cover border-2 border-emerald-600 shrink-0" />
+                    ) : (
+                      <div className="w-11 h-11 rounded-full bg-slate-200 dark:bg-slate-700 shrink-0" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="font-bold text-sm text-slate-900 dark:text-white truncate">{log.registeredName}</div>
+                      <div className="text-[11px] text-slate-500 font-mono">{log.studentId} · {log.time}</div>
+                    </div>
+                    {log.status === 'Flagged' ? (
+                      <span className="shrink-0 px-2 py-1 rounded-full text-[10px] font-bold bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800">
+                        {LOC_LABEL[log.locationStatus] || 'Flagged'}{log.distanceM != null ? ` · ${log.distanceM} m` : ''}
+                      </span>
+                    ) : (
+                      <span className="shrink-0 px-2 py-1 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                        Verified
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 uppercase text-[10px] tracking-wider font-bold">
                     <tr>
@@ -1233,11 +1401,7 @@ function AdminPortal({
                     {filteredLogs.map((log, idx) => (
                       <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
                         <td className="p-3">
-                          <img 
-                            src={log.facePhoto} 
-                            alt="Biometric Signature" 
-                            className="w-10 h-10 rounded-full object-cover border-2 border-emerald-600 shadow-sm"
-                          />
+                          {log.facePhoto ? <img src={log.facePhoto} alt="Biometric Signature" className="w-10 h-10 rounded-full object-cover border-2 border-emerald-600 shadow-sm" /> : <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700" />}
                         </td>
                         <td className="p-3">
                           <div className="font-bold text-slate-900 dark:text-white">{log.registeredName}</div>
@@ -1267,6 +1431,7 @@ function AdminPortal({
                   </tbody>
                 </table>
               </div>
+              </>
             )}
           </div>
         )}
@@ -1302,7 +1467,41 @@ function AdminPortal({
                 </button>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <>
+              <div className="md:hidden space-y-2.5">
+                {filteredRegistry.map((student) => {
+                  const enrolled = enrolledIds.includes(student.id.toUpperCase());
+                  return (
+                    <div key={`${student.id}-${student.course}`} className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="font-bold text-sm text-slate-900 dark:text-white truncate">{student.name}</div>
+                          <div className="text-[11px] font-mono text-emerald-800 dark:text-emerald-400">{student.id}</div>
+                        </div>
+                        <span className={`shrink-0 px-2 py-1 rounded-full text-[10px] font-bold border ${enrolled ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800' : 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-800'}`}>
+                          {enrolled ? 'Enrolled' : 'Not enrolled'}
+                        </span>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => { setEnrollSaved(false); setEnrollTarget(student); }}
+                          className="flex-1 py-2.5 text-xs font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950 border border-emerald-200 dark:border-emerald-800 rounded-xl inline-flex items-center justify-center gap-1.5"
+                        >
+                          <Camera className="w-4 h-4" /> {enrolled ? 'Re-enroll face' : 'Enroll face'}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteStudent(student.rowId, student.id, student.name)}
+                          className="px-3.5 text-rose-600 border border-rose-200 dark:border-rose-900 rounded-xl"
+                          aria-label="Delete student"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 uppercase text-[10px] tracking-wider font-bold">
                     <tr>
@@ -1351,6 +1550,7 @@ function AdminPortal({
                   </tbody>
                 </table>
               </div>
+              </>
             )}
           </div>
         )}
@@ -1388,7 +1588,7 @@ function AdminPortal({
             ) : (
               <>
                 <p className="text-xs text-slate-500">
-                  The student must be present. They look straight at the camera while 3 samples are captured. Only a numeric template is saved, securely on the server.
+                  The student must be present. They look straight at the camera while 5 samples are captured. Only a numeric template is saved, securely on the server.
                 </p>
                 <FaceCapture
                   mode="enroll"
@@ -1656,9 +1856,13 @@ function StudentPortal({
   const [faceRetries, setFaceRetries] = useState(0);
   const [receiptData, setReceiptData] = useState(null);
   const locRef = useRef(null); // location lookup started at the consent step
+  const [submitting, setSubmitting] = useState(false);
 
   // The session comes from the QR the student actually scanned (signed + time-limited)
   const session = checkin ? checkin.session : null;
+  const faceRequired = !session || session.faceRequired !== false;
+  const locationMode = (session && session.locationMode) || 'flag';
+  const radius = (session && session.radius) || 15;
   const CHECKIN_WINDOW_MS = 10 * 60 * 1000;
   const isTokenValid =
     !!checkin &&
@@ -1699,15 +1903,19 @@ function StudentPortal({
     }
   };
 
-  // The face is compared on the server; this device never sees the enrolled template.
-  const handleFaceCaptured = async ({ photo, descriptors }) => {
+  // The face (if required) and location are checked on the server; this device never sees any template.
+  const submitCheckIn = async (photo, descriptors) => {
     try {
-      const fix = await (locRef.current || getBestFix(8000, 15));
+      const fix = locationMode === 'off' ? null : await (locRef.current || getBestFix(8000, 15));
       const r = await db.checkIn(session.id, checkin.ticket, matchedStudent.id, descriptors, photo, fix);
       if (r.status === 'ok') {
         finishVerification(r, photo);
       } else if (r.status === 'mismatch') {
-        setFaceError(`Your face did not match the enrolled record (score ${r.distance}, needs 0.60 or lower). ${r.remaining} attempt${r.remaining === 1 ? '' : 's'} left.`);
+        setFaceError(`Your face did not match the enrolled record (score ${r.distance}). ${r.remaining} attempt${r.remaining === 1 ? '' : 's'} left.`);
+      } else if (r.status === 'blocked_location') {
+        setFaceError(r.location === 'unavailable'
+          ? 'This session needs your location. Allow location access for this site in your browser settings, then try again.'
+          : `You appear to be outside the classroom (about ${r.distance_m} m away). Move closer to the lecturer and try again.`);
       } else if (r.status === 'locked' || r.status === 'already') {
         setMatchedStudent(null);
         setStep(2);
@@ -1718,6 +1926,14 @@ function StudentPortal({
     } catch (err) {
       setFaceError(db.friendly(err));
     }
+  };
+
+  const handleFaceCaptured = ({ photo, descriptors }) => submitCheckIn(photo, descriptors);
+
+  const handleNoFaceCheckIn = async () => {
+    setSubmitting(true);
+    await submitCheckIn(null, null);
+    setSubmitting(false);
   };
 
   const finishVerification = (r, photoUrl) => {
@@ -1767,7 +1983,7 @@ function StudentPortal({
             <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">Student Verification Check-In</h2>
             <p className="text-xs text-slate-500 mt-1">
               {session ? (
-                <>Course: <strong className="text-emerald-800 dark:text-emerald-400">{session.course}</strong> • Invigilator: <strong>{session.teacher}</strong></>
+                <>{session.title ? <><strong>{session.title}</strong> • </> : null}Course: <strong className="text-emerald-800 dark:text-emerald-400">{session.course}</strong> • Invigilator: <strong>{session.teacher}</strong></>
               ) : (
                 <>Scan the QR code on the lecturer's screen to begin.</>
               )}
@@ -1898,21 +2114,27 @@ function StudentPortal({
               <Lock className="w-4 h-4" /> Biometric Privacy Notice
             </div>
             <p className="text-[11px] text-emerald-200 leading-relaxed">
-              Your face is captured on this device and compared with the template enrolled for your ID on the secure server. A small photo of your face is attached to your attendance record. Your phone's location is also checked once, to confirm you are in the classroom (within about 15 m of the lecturer). Only the distance and a pass/flag are saved, never your coordinates.
+              {[faceRequired && 'Your face is captured on this device and compared with the template enrolled for your ID on the secure server. A small photo of your face is attached to your attendance record.', locationMode !== 'off' && `Your phone's location is checked once to confirm you are in the classroom (within about ${radius} m of the lecturer). Only the distance and a pass/flag are saved, never your coordinates.`, !faceRequired && locationMode === 'off' && 'Only your Student ID is recorded for this session.'].filter(Boolean).join(' ')}
             </p>
           </div>
 
-          {enrollment ? (
+          {faceError && (
+            <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs">{faceError}</div>
+          )}
+
+          {enrollment || !faceRequired ? (
             <button
+              disabled={submitting}
               onClick={() => {
-                locRef.current = getBestFix(10000, 10); // asks for location permission now, finishes while the face scan runs
+                locRef.current = locationMode !== 'off' ? getBestFix(10000, 10) : Promise.resolve(null); // asks for location now
                 setFaceError('');
+                if (!faceRequired) { handleNoFaceCheckIn(); return; }
                 setFaceAttempt(a => a + 1);
                 setStep(4);
               }}
               className="w-full py-3.5 bg-amber-500 hover:bg-amber-400 text-emerald-950 font-extrabold rounded-2xl text-sm transition-colors shadow-lg border border-amber-300"
             >
-              I Consent - Share Location &amp; Start Face Scan
+              {faceRequired ? 'I Consent - Start Face Scan' : submitting ? 'Checking in…' : 'I Consent - Check In'}
             </button>
           ) : (
             <div className="space-y-3">
