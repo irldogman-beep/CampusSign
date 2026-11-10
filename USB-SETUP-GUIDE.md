@@ -26,7 +26,7 @@ The folder intentionally does not include `node_modules/` or `dist/`. Dependenci
 4. On first run, it creates `.env` from `.env.example` and runs `npm install`.
 5. When Vite starts, open the local address it prints (usually `http://localhost:5173`).
 6. The project currently has no committed npm lockfile. After `npm install` succeeds, retain the generated `package-lock.json` and commit it to the private repository to make later installs more reproducible.
-6. Leave the command window open while the site is running. Press `Ctrl+C` to stop it.
+7. Leave the command window open while the site is running. Press `Ctrl+C` to stop it.
 
 To create a production build, double-click `BUILD-WINDOWS.bat`. The build is written to `dist/`.
 
@@ -39,9 +39,9 @@ The app currently points to the existing CampusSign Supabase project by default.
 3. In the CampusSign folder, edit `.env` (create it by copying `.env.example` if it does not exist).
 4. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` to the new project's public values.
 5. Do not use or paste a `service_role` secret into the frontend.
-6. Apply the nine SQL migrations in order as listed in `README.md`.
+6. Apply the ten SQL migrations in order as listed in `README.md`.
 7. Configure Supabase Auth settings and redirect URLs for the local and production site addresses.
-8. Create/verify administrator and lecturer accounts using the documented secure admin process.
+9. Apply Step 10 and follow `ADMIN-SETUP-STEP10.md` to promote one trusted administrator account; then verify lecturer accounts in the administrator workspace.
 
 Changing the Supabase project creates a separate database. It does **not** copy existing student profiles, attendance history or face templates.
 

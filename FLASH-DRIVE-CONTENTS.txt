@@ -14,3 +14,7 @@ Key files:
 A source-code backup does NOT include live Supabase student/attendance data.
 Make a separate protected database backup. Never store service_role keys or
 database passwords in this folder.
+
+- ADMIN-SETUP-STEP10.md — how to securely bootstrap the first administrator.
+- supabase-step10-admin-notifications-analytics-audit.sql — admin workspace, notifications, analytics and audit migration.
+- BACKUP-RECOVERY-PLAN.md — separate source/data backup and restore-drill guidance.

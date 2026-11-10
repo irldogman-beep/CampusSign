@@ -33,3 +33,15 @@ Release date: 10 November 2026
 - Live Supabase records, user accounts, biometric face descriptors, QR/session history, or attendance records.
 - Supabase database password, service-role key, Cloudflare API token, or GitHub credentials.
 - `node_modules/` and `dist/`; they are generated locally by npm/Vite.
+
+## Administrator workspace increment
+
+- Added a role-based administrator workspace. New lecturer profiles default to `role = 'lecturer'`; the first administrator must be promoted manually in Supabase using `ADMIN-SETUP-STEP10.md`.
+- Added aggregate campus analytics and lecturer verification controls backed by admin-only security-definer RPCs.
+- Added private in-app notifications for lecturer sign-ups, student course enrolment requests and lecturer verification decisions.
+- Added audit events for attendance edits/deletions, entire attendance-list deletion, enrolment review decisions and lecturer verification changes. The audit schema excludes biometric descriptors, face photos and raw coordinates.
+- Added lecturer-side notification bell with unread count and mark-read controls.
+
+Validation: a full dependency install/build remains outstanding because npm dependency installation timed out in the authoring environment. Apply Step 10 to a backed-up Supabase project and test with a dedicated administrator and lecturer account before production deployment.
+
+- Added `BACKUP-RECOVERY-PLAN.md`. Scheduled off-site backups are not active; the guide explains the secure operational path and why a browser-only backup button would be unsafe.

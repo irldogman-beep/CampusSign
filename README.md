@@ -17,6 +17,9 @@ CampusSign is a browser-based university attendance application built with React
 - Face verification with liveness prompts, optional location checks and duplicate-face review workflow.
 - Attendance record editing/deletion and whole closed-session deletion.
 - CSV export, dark/light theme, responsive layouts and reduced-motion support.
+- Administrator workspace with campus-wide aggregate analytics and lecturer verification controls (requires Step 10 and a manually bootstrapped admin account).
+- In-app notifications for new lecturer registrations, student enrolment requests and lecturer verification changes.
+- Append-only audit history for attendance edits/deletions, whole-session deletion, enrolment decisions and lecturer verification changes.
 
 ## Quick start on Windows
 
@@ -70,10 +73,11 @@ Before running migrations against a database that contains real students or atte
 7. `supabase-step7-delete-session-lists.sql`
 8. `supabase-step8-qr-lifetime-and-display.sql`
 9. `supabase-step9-face-duplicate-review.sql`
+10. `supabase-step10-admin-notifications-analytics-audit.sql`
 
-Run each file once, in order, and inspect the SQL Editor result before continuing. Do not run Step 6–9 on a brand-new database without first running Steps 1–5. The migration scripts describe database structure and functions; **they are not a backup of actual student, biometric or attendance data.** For Supabase backup coverage and plan-specific details, see https://supabase.com/docs/guides/platform/backups. Supabase notes that a default CLI schema dump omits data and managed `auth`/`storage` schemas; plan a full backup deliberately and separately back up Storage objects if used: https://supabase.com/docs/reference/cli/supabase-db-dump.
+Run each file once, in order, and inspect the SQL Editor result before continuing. Do not run Step 6–10 on a brand-new database without first running Steps 1–5. The migration scripts describe database structure and functions; **they are not a backup of actual student, biometric or attendance data.** See `BACKUP-RECOVERY-PLAN.md` for the separate data-backup and restore-drill procedure. For Supabase backup coverage and plan-specific details, see https://supabase.com/docs/guides/platform/backups. Supabase notes that a default CLI schema dump omits data and managed `auth`/`storage` schemas; plan a full backup deliberately and separately back up Storage objects if used: https://supabase.com/docs/reference/cli/supabase-db-dump.
 
-After migrations, create/verify a lecturer account and confirm an administrator sets the account's `is_verified` field through the approved admin procedure before using lecturer tools. Do not manually mark unknown accounts verified.
+After applying Step 10, use `ADMIN-SETUP-STEP10.md` to promote one trusted, confirmed account to `role = 'admin'` using the Supabase SQL Editor. Do not add a public admin sign-up or allow users to edit their own role. The administrator can then verify lecturer accounts inside the app. New lecturer accounts remain unverified by default.
 
 ## Cloudflare deployment
 
@@ -98,3 +102,9 @@ From a live lecturer attendance session, use **Projector view**. It opens a sepa
 ## Validation status
 
 The interface has received a UI polish pass: theme preference persistence, tab transition replay, responsive interaction feedback, modal entrance motion, improved keyboard focus and reduced-motion support. A full clean dependency install and production build must still be run in the target environment before treating this release as production-verified.
+
+## Administrator workspace (Step 10)
+
+Apply `supabase-step10-admin-notifications-analytics-audit.sql` after Step 9, then follow `ADMIN-SETUP-STEP10.md` to promote a trusted existing lecturer account. The app does not expose public administrator registration. The admin workspace is rendered for authenticated profiles whose database role is `admin` and whose account is verified.
+
+Notifications are in-app only and are refreshed periodically; no email/SMS/push channel is configured. Analytics are aggregate operational counts and should not be interpreted as student attendance percentages. Audit history begins after Step 10 is installed and excludes face descriptors, face photos and raw location coordinates.
