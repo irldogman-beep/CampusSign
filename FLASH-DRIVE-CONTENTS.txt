@@ -1,0 +1,16 @@
+CAMPUSSIGN FLASH DRIVE BACKUP
+
+Copy the entire CampusSign folder. Preserve all subfolders.
+
+Key files:
+  START-LOCAL-WINDOWS.bat  - start a local development copy
+  BUILD-WINDOWS.bat        - build the production frontend
+  USB-SETUP-GUIDE.md       - full flash-drive setup and recovery instructions
+  README.md                - project overview and technical notes
+  .env.example             - public Supabase frontend configuration template
+  supabase-*.sql           - ordered database migrations
+  src/                     - application source code
+
+A source-code backup does NOT include live Supabase student/attendance data.
+Make a separate protected database backup. Never store service_role keys or
+database passwords in this folder.
