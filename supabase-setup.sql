@@ -40,3 +40,12 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
+
+-- Backfill: create profiles for anyone who registered BEFORE this script ran.
+insert into public.lecturers (id, email, name, dept, course)
+select u.id, u.email,
+       coalesce(u.raw_user_meta_data->>'name', ''),
+       coalesce(u.raw_user_meta_data->>'dept', ''),
+       coalesce(u.raw_user_meta_data->>'course', '')
+from auth.users u
+where not exists (select 1 from public.lecturers l where l.id = u.id);
