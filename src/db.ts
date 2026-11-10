@@ -31,6 +31,13 @@ export async function createSession(course: string, title: string, venue: string
   return unwrap(await supabase.from('sessions').insert({ course, title, venue }).select('id, secret').single());
 }
 
+export async function latestSession(course: string) {
+  return unwrap<any>(
+    await supabase.from('sessions').select('id, secret, title, venue, revoked, created_at')
+      .eq('course', course).order('created_at', { ascending: false }).limit(1).maybeSingle()
+  );
+}
+
 export async function setRevoked(id: string, revoked: boolean) {
   unwrap(await supabase.from('sessions').update({ revoked }).eq('id', id).select('id'));
 }

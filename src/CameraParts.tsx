@@ -346,7 +346,13 @@ export function FaceCapture(props: FaceCaptureProps) {
 
         if (!det) {
           stable = 0;
-          say('No face found. Look at the camera.');
+          if (phase === 'blink') {
+            // With eyes shut the detector can lose the face for a moment: count that as the blink
+            closedSeen = true;
+            say('Blink slowly: close your eyes for a second, then open them');
+          } else {
+            say('No face found. Look at the camera.');
+          }
           return next();
         }
 
@@ -370,7 +376,7 @@ export function FaceCapture(props: FaceCaptureProps) {
               stable = 0;
               if (verify) {
                 phase = 'blink';
-                say('Blink your eyes once', 30);
+                say('Blink slowly: close your eyes for a second, then open them', 30);
               } else {
                 phase = 'capturing';
                 say('Capturing…', 40);
@@ -384,8 +390,8 @@ export function FaceCapture(props: FaceCaptureProps) {
 
         if (phase === 'blink') {
           if (!closedSeen && open > baseline * 0.85) baseline = 0.9 * baseline + 0.1 * open;
-          if (!closedSeen && open < baseline * 0.72) closedSeen = true;
-          else if (closedSeen && open > baseline * 0.88) {
+          if (!closedSeen && open < baseline * 0.8) closedSeen = true;
+          else if (closedSeen && open > baseline * 0.85) {
             phase = 'turn';
             say('Good. Now slowly turn your head to one side', 55);
           }

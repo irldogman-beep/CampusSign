@@ -481,6 +481,28 @@ function AdminPortal({
     setActiveStaff(admin);
     setIsAuthenticated(true);
     setLoginError('');
+    // Resume today's session (keeps a revoked QR revoked); start a new one only if there is none recent
+    try {
+      const last = await db.latestSession(admin.course);
+      if (last && Date.now() - new Date(last.created_at).getTime() < 12 * 3600 * 1000) {
+        setActiveSession(prev => ({
+          ...prev,
+          id: last.id,
+          secret: last.secret,
+          title: last.title || `${admin.course} Attendance`,
+          course: admin.course,
+          venue: last.venue || 'Lecture Room 1',
+          teacher: admin.name,
+          teacherId: admin.id,
+          teacherEmail: admin.email,
+          isRevoked: last.revoked,
+          tokenCreatedAt: Date.now()
+        }));
+        return;
+      }
+    } catch (e) {
+      console.error(e);
+    }
     await beginSession(admin.course, `${admin.course} Attendance`, 'Lecture Room 1', admin);
   };
 
