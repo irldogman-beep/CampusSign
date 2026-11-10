@@ -51,6 +51,23 @@ export function bestDistance(sample: number[], enrolled: number[][]): number {
   return Math.min(...enrolled.map((e) => descriptorDistance(sample, e)));
 }
 
+/**
+ * Check that a multi-frame enrolment belongs to one visually consistent face.
+ * Each captured sample must have at least one close neighbour among the other
+ * samples. This catches an isolated frame where the detector switched to a
+ * second person or produced a badly degraded descriptor.
+ */
+export function areFaceSamplesConsistent(samples: number[][], maxNearestDistance = 0.6): boolean {
+  if (samples.length < 2) return false;
+  return samples.every((sample, index) => {
+    let nearest = Number.POSITIVE_INFINITY;
+    samples.forEach((other, otherIndex) => {
+      if (index !== otherIndex) nearest = Math.min(nearest, descriptorDistance(sample, other));
+    });
+    return Number.isFinite(nearest) && nearest <= maxNearestDistance;
+  });
+}
+
 // ---- photo crop ----------------------------------------------------------------
 export function cropFace(
   video: HTMLVideoElement,

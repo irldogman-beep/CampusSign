@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import jsQR from 'jsqr';
 import { Camera, RefreshCw, AlertTriangle } from 'lucide-react';
-import { loadFaceApi, eyeOpenness, headTurn, bestDistance, cropFace, FACE_MATCH_THRESHOLD } from './face';
+import { loadFaceApi, eyeOpenness, headTurn, bestDistance, areFaceSamplesConsistent, cropFace, FACE_MATCH_THRESHOLD } from './face';
 
 function cameraErrorMessage(e: any): string {
   const name = e && typeof e === 'object' ? e.name : '';
@@ -338,7 +338,12 @@ export function FaceCapture(props: FaceCaptureProps) {
       };
 
       const grab = async () => {
-        const full = await faceapi.detectSingleFace(video, opts).withFaceLandmarks().withFaceDescriptor();
+        // Enrolment and verification must not silently switch between people in
+        // the same frame. detectSingleFace can pick whichever face is largest;
+        // detectAllFaces lets us refuse ambiguous multi-person captures instead.
+        const faces = await faceapi.detectAllFaces(video, opts).withFaceLandmarks().withFaceDescriptors();
+        if (faces.length > 1) throw new Error('multiple_faces');
+        const full = faces[0];
         if (!full) return null;
         return {
           descriptor: Array.from(full.descriptor) as number[],
@@ -394,12 +399,22 @@ export function FaceCapture(props: FaceCaptureProps) {
               }
             }
             if (cancelled) return;
+            // Reject mixed/unstable captures before they can contaminate a
+            // student's template. Every sample must have at least one close
+            // neighbour among the other samples from this same capture.
+            if (!areFaceSamplesConsistent(samples, 0.6)) {
+              return fail('These face samples were inconsistent. Make sure only you are visible, face the camera, improve the lighting, and try enrolment again.');
+            }
             say('Done', 100);
             stopStream();
             propsRef.current.onEnrolled?.({ photo, descriptors: samples });
           }
-        } catch {
-          fail('Face processing failed. Please try again.');
+        } catch (captureError: any) {
+          if (captureError?.message === 'multiple_faces') {
+            fail('More than one person is visible. Please make sure only the student being enrolled is in the camera frame, then try again.');
+          } else {
+            fail('Face processing failed. Please try again.');
+          }
         }
       };
 

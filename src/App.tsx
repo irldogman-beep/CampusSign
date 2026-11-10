@@ -755,12 +755,41 @@ function AdminPortal({
     }
   };
 
-  const handleReviewEnrollment = async (request, decision) => {
+  const handleReviewEnrollment = async (request, decision, overrideDuplicate = false) => {
     const action = decision === 'approve' ? 'approve' : 'reject';
-    if (action === 'reject' && !window.confirm(`Reject ${request.student_name}'s request for ${request.course}?`)) return;
+    if (action === 'reject' && !window.confirm(`Reject ${request.student_name}'s request for ${request.course}? The submitted face template will be deleted.`)) return;
+
+    let overrideReason = '';
+    if (action === 'approve' && overrideDuplicate) {
+      const candidateName = request.duplicate_candidate_name || 'an existing student';
+      const candidateId = request.duplicate_candidate_student_id || 'unknown ID';
+      const confirmed = window.confirm(
+        `CampusSign found a POSSIBLE face match with ${candidateName} (${candidateId}). This is not proof that the students are the same person.
+
+Before continuing, verify the student's official university ID in person. Only proceed if you have confirmed that these are two different people.
+
+Continue to record a reviewed override?`
+      );
+      if (!confirmed) return;
+      overrideReason = window.prompt('Record how you verified that these are two different students (at least 15 characters). Do not enter sensitive ID numbers:') || '';
+      if (overrideReason.trim().length < 15) {
+        alert('Please provide a brief verification reason of at least 15 characters. No enrolment changes were made.');
+        return;
+      }
+    }
+
     setReviewingRequestId(request.id);
     try {
-      await db.reviewEnrollmentRequest(request.id, action);
+      const result = await db.reviewEnrollmentRequest(request.id, action, overrideDuplicate, overrideReason.trim());
+      if (result?.status === 'possible_duplicate') {
+        await refreshEnrollmentRequests();
+        alert(
+          `CampusSign found a possible face match with ${result.candidate_name} (${result.candidate_student_id}).
+
+The request has NOT been rejected or approved. Check the student's official university ID in person. If they are different people, use the "Confirm different person & approve" button. If you cannot confidently establish their identity, reject the request and ask the student to enrol again in good lighting with nobody else in the camera frame.`
+        );
+        return;
+      }
       await Promise.all([refreshEnrollmentRequests(), refreshRegistry()]);
     } catch (err) {
       alert('Could not review this request: ' + db.friendly(err));
@@ -1747,15 +1776,25 @@ function AdminPortal({
                         <h4 className="font-extrabold text-slate-900 dark:text-white truncate">{request.student_name}</h4>
                         <p className="text-xs font-mono text-emerald-800 dark:text-emerald-400 mt-0.5">{request.student_id}</p>
                       </div>
-                      <span className="px-2 py-1 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-900">Pending</span>
+                      <span className={`px-2 py-1 rounded-full text-[10px] font-bold border ${request.duplicate_candidate_student_id ? 'bg-orange-100 dark:bg-orange-950 text-orange-800 dark:text-orange-300 border-orange-200 dark:border-orange-900' : 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-900'}`}>
+                        {request.duplicate_candidate_student_id ? 'Possible match' : 'Pending'}
+                      </span>
                     </div>
+                    {request.duplicate_candidate_student_id && (
+                      <div className="p-3 rounded-xl bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-900 text-[11px] leading-relaxed text-orange-900 dark:text-orange-200">
+                        <div className="flex items-center gap-2 font-extrabold mb-1"><AlertTriangle className="w-4 h-4 shrink-0" /> Possible face match — not a confirmed duplicate</div>
+                        <p>Closest existing roster entry: <strong>{request.duplicate_candidate_name}</strong> ({request.duplicate_candidate_student_id}). Verify the student's official university ID in person before deciding. Do not rely on the automated match alone. If unrelated students repeatedly match this same roster entry, pause and ask an administrator to investigate the existing template before approving more overrides.</p>
+                      </div>
+                    )}
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div><span className="block text-slate-400">Department</span><strong className="text-slate-700 dark:text-slate-200">{request.dept}</strong></div>
                       <div><span className="block text-slate-400">Level</span><strong className="text-slate-700 dark:text-slate-200">{request.level} Level</strong></div>
                     </div>
                     <div className="text-[11px] text-slate-500 flex items-center justify-between gap-2"><span className="truncate">{request.course}</span><span className="shrink-0">{new Date(request.created_at).toLocaleDateString()}</span></div>
-                    <div className="flex gap-2 pt-1">
-                      <button disabled={reviewingRequestId === request.id} onClick={() => handleReviewEnrollment(request, 'approve')} className="flex-1 py-2.5 rounded-xl bg-emerald-900 hover:bg-emerald-800 disabled:opacity-50 text-amber-300 font-extrabold text-xs inline-flex items-center justify-center gap-1.5 transition-colors"><Check className="w-4 h-4" /> Approve & enrol</button>
+                    <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                      <button disabled={reviewingRequestId === request.id} onClick={() => handleReviewEnrollment(request, 'approve', Boolean(request.duplicate_candidate_student_id))} className="flex-1 py-2.5 rounded-xl bg-emerald-900 hover:bg-emerald-800 disabled:opacity-50 text-amber-300 font-extrabold text-xs inline-flex items-center justify-center gap-1.5 transition-colors">
+                        <Check className="w-4 h-4" /> {request.duplicate_candidate_student_id ? 'Confirm different person & approve' : 'Approve & enrol'}
+                      </button>
                       <button disabled={reviewingRequestId === request.id} onClick={() => handleReviewEnrollment(request, 'reject')} className="px-4 py-2.5 rounded-xl border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950 disabled:opacity-50 font-bold text-xs inline-flex items-center justify-center gap-1.5"><X className="w-4 h-4" /> Reject</button>
                     </div>
                   </article>

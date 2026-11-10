@@ -11,7 +11,8 @@ const MESSAGES: Record<string, string> = {
   not_enrolled: 'No face is enrolled for this student yet. Ask the lecturer to enroll you first.',
   bad_descriptor: 'The face scan was unreadable. Please try again.',
   not_verified: 'Your account is awaiting verification by the administrator.',
-  duplicate_face: 'This face is already enrolled for another student on this course. One person cannot be enrolled under two IDs.',
+  duplicate_face: 'This face may match another student on this course. The lecturer must review the possible match before approval.',
+  duplicate_override_reason_required: 'Please enter at least 15 characters explaining how you verified that these are two different students.',
   invalid_student_id: 'Enter a valid student ID (at least 3 characters).',
   invalid_student_name: 'Enter your full registered name (at least 3 characters).',
   invalid_department: 'Enter your department.',
@@ -154,10 +155,17 @@ export async function loadEnrollmentRequests() {
   return unwrap<any[]>(await supabase.rpc('list_my_enrollment_requests'));
 }
 
-export async function reviewEnrollmentRequest(requestId: string, decision: 'approve' | 'reject') {
+export async function reviewEnrollmentRequest(
+  requestId: string,
+  decision: 'approve' | 'reject',
+  overrideDuplicate = false,
+  overrideReason = ''
+) {
   return unwrap<any>(await supabase.rpc('review_student_enrollment', {
     p_request: requestId,
     p_decision: decision,
+    p_override_duplicate: overrideDuplicate,
+    p_override_reason: overrideReason,
   }));
 }
 
