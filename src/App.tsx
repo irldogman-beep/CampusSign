@@ -36,7 +36,7 @@ import {
   Sun,
   Moon
 } from 'lucide-react';
-import { buildCheckin, parseCheckin, currentSlot, secondsUntilNextSlot, DEFAULT_QR_INTERVAL_SECONDS, QR_GRACE_SECONDS } from './checkin';
+import { buildCheckin, parseCheckin, currentSlot, secondsUntilNextSlot, DEFAULT_QR_INTERVAL_SECONDS, QR_CLOCK_DRIFT_SECONDS } from './checkin';
 import { downloadCsv } from './auth';
 import { supabase } from './supabase';
 import { QRCodeImage, QRScanner, FaceCapture } from './CameraParts';
@@ -44,6 +44,7 @@ import * as db from './db';
 import { getBestFix } from './geo';
 import { QR_DISPLAY_CHANNEL } from './QRDisplayWindow';
 import AdminWorkspace, { NotificationBell } from './AdminWorkspace';
+import { FeedbackLayer, showToast, confirmAction } from './feedback';
 
 /* ==========================================================================
    LOGO COMPONENT (Matching Forest Green & Academic Gold Emblem)
@@ -163,6 +164,7 @@ export default function App() {
   // Remember the user's theme preference between visits.
   useEffect(() => {
     try { localStorage.setItem('campussign-theme', isDarkMode ? 'dark' : 'light'); } catch { /* storage may be unavailable */ }
+    document.documentElement.classList.toggle('dark', isDarkMode);
   }, [isDarkMode]);
 
   // System Core State
@@ -415,7 +417,7 @@ export default function App() {
           <p>© 2026 CampusSign · QR attendance and biometric verification</p>
         </div>
       </footer>
-
+      <FeedbackLayer />
     </div>
   );
 }
@@ -549,7 +551,7 @@ function AdminPortal({
       await refreshSessions();
       return true;
     } catch (e) {
-      alert('Could not start the session: ' + db.friendly(e));
+      showToast('Could not start the session: ' + db.friendly(e), 'error');
       return false;
     }
   };
@@ -722,9 +724,9 @@ function AdminPortal({
   const handleRegisterStaff = async (e) => {
     e.preventDefault();
     if (!newStaffForm.email.trim() || !newStaffForm.name.trim()) return;
-    if (!newStaffCourses.length) { alert('Select at least one course you teach.'); return; }
+    if (!newStaffCourses.length) { showToast('Select at least one course you teach.', 'error'); return; }
     if (newStaffForm.password.length < 8) {
-      alert('Password must be at least 8 characters.');
+      showToast('Password must be at least 8 characters.', 'error');
       return;
     }
     const { data, error } = await supabase.auth.signUp({
@@ -740,17 +742,17 @@ function AdminPortal({
       }
     });
     if (error) {
-      alert(error.message);
+      showToast(error.message, 'error');
       return;
     }
     setNewStaffForm({ name: '', email: '', password: '', dept: '', course: '' });
     setNewStaffCourses([]);
     setIsAddStaffOpen(false);
     if (data.session) {
-      try { startStaffSession(await loadProfile(data.user.id)); } catch (err) { alert(err.message); }
-      alert('Account created. It is PENDING VERIFICATION by the administrator.');
+      try { startStaffSession(await loadProfile(data.user.id)); } catch (err) { showToast(err.message, 'error'); }
+      showToast('Account created. It is pending verification by the administrator.', 'success');
     } else {
-      alert('Account created. Check your email to confirm it, then sign in.');
+      showToast('Account created. Check your email to confirm it, then sign in.', 'success');
     }
   };
 
@@ -776,7 +778,7 @@ function AdminPortal({
   const handleCreateSession = async (e) => {
     e.preventDefault();
     if (!sessionForm.title.trim()) {
-      alert('Give the session a name, for example "Test attendance".');
+      showToast('Give the session a name, for example "Test attendance".', 'error');
       return;
     }
     const ok = await beginSession(activeStaff, {
@@ -808,7 +810,7 @@ function AdminPortal({
         level: newStudentForm.level
       });
     } catch (err) {
-      alert(db.friendly(err));
+      showToast(db.friendly(err), 'error');
       return;
     }
     await refreshRegistry();
@@ -817,24 +819,24 @@ function AdminPortal({
   };
 
   const handleDeleteStudent = async (rowId, studentId, studentName) => {
-    if (!window.confirm(`Delete ${studentName} (${studentId}) from this roster? Their enrolled face is deleted too.`)) return;
+    if (!(await confirmAction(`Delete ${studentName} (${studentId}) from this roster? Their enrolled face is deleted too.`))) return;
     try {
       await db.deleteStudent(rowId);
       await refreshRegistry();
     } catch (err) {
-      alert(db.friendly(err));
+      showToast(db.friendly(err), 'error');
     }
   };
 
   const handleReviewEnrollment = async (request, decision, overrideDuplicate = false) => {
     const action = decision === 'approve' ? 'approve' : 'reject';
-    if (action === 'reject' && !window.confirm(`Reject ${request.student_name}'s request for ${request.course}? The submitted face template will be deleted.`)) return;
+    if (action === 'reject' && !(await confirmAction(`Reject ${request.student_name}'s request for ${request.course}? The submitted face template will be deleted.`))) return;
 
     let overrideReason = '';
     if (action === 'approve' && overrideDuplicate) {
       const candidateName = request.duplicate_candidate_name || 'an existing student';
       const candidateId = request.duplicate_candidate_student_id || 'unknown ID';
-      const confirmed = window.confirm(
+      const confirmed = await confirmAction(
         `CampusSign found a POSSIBLE face match with ${candidateName} (${candidateId}). This is not proof that the students are the same person.
 
 Before continuing, verify the student's official university ID in person. Only proceed if you have confirmed that these are two different people.
@@ -844,7 +846,7 @@ Continue to record a reviewed override?`
       if (!confirmed) return;
       overrideReason = window.prompt('Record how you verified that these are two different students (at least 15 characters). Do not enter sensitive ID numbers:') || '';
       if (overrideReason.trim().length < 15) {
-        alert('Please provide a brief verification reason of at least 15 characters. No enrolment changes were made.');
+        showToast('Please provide a brief verification reason of at least 15 characters. No enrolment changes were made.', 'error');
         return;
       }
     }
@@ -854,16 +856,16 @@ Continue to record a reviewed override?`
       const result = await db.reviewEnrollmentRequest(request.id, action, overrideDuplicate, overrideReason.trim());
       if (result?.status === 'possible_duplicate') {
         await refreshEnrollmentRequests();
-        alert(
+        showToast(
           `CampusSign found a possible face match with ${result.candidate_name} (${result.candidate_student_id}).
 
 The request has NOT been rejected or approved. Check the student's official university ID in person. If they are different people, use the "Confirm different person & approve" button. If you cannot confidently establish their identity, reject the request and ask the student to enrol again in good lighting with nobody else in the camera frame.`
-        );
+        , 'info');
         return;
       }
       await Promise.all([refreshEnrollmentRequests(), refreshRegistry()]);
     } catch (err) {
-      alert('Could not review this request: ' + db.friendly(err));
+      showToast('Could not review this request: ' + db.friendly(err), 'error');
     } finally {
       setReviewingRequestId('');
     }
@@ -882,17 +884,17 @@ The request has NOT been rejected or approved. Check the student's official univ
       setEditingLog(null);
       await refreshLogs();
     } catch (err) {
-      alert('Could not update attendance: ' + db.friendly(err));
+      showToast('Could not update attendance: ' + db.friendly(err), 'error');
     }
   };
 
   const handleDeleteAttendance = async (log) => {
-    if (!log.id || !window.confirm(`Permanently delete ${log.registeredName}'s attendance record (${log.receiptNo})?`)) return;
+    if (!log.id || !(await confirmAction(`Permanently delete ${log.registeredName}'s attendance record (${log.receiptNo})?`))) return;
     try {
       await db.deleteAttendance(log.id);
       await refreshLogs();
     } catch (err) {
-      alert('Could not delete attendance: ' + db.friendly(err));
+      showToast('Could not delete attendance: ' + db.friendly(err), 'error');
     }
   };
 
@@ -902,27 +904,27 @@ The request has NOT been rejected or approved. Check the student's official univ
     const fix = await getBestFix(12000, 10);
     if (!fix) {
       setLocBusy(false);
-      alert('Could not get your location. Allow location access for this site in your browser, then try again.');
+      showToast('Could not get your location. Allow location access for this site in your browser, then try again.', 'error');
       return;
     }
     try {
       await db.setAnchor(activeSession.id, fix);
       setActiveSession(prev => ({ ...prev, anchorAcc: fix.acc, anchorSetAt: Date.now() }));
     } catch (e) {
-      alert(db.friendly(e));
+      showToast(db.friendly(e), 'error');
     }
     setLocBusy(false);
   };
 
   const handleEndSession = async () => {
-    if (!window.confirm('End this session? Students will no longer be able to check in. To take attendance again, start a new session (it gets a fresh list).')) return;
+    if (!(await confirmAction('End this session? Students will no longer be able to check in. To take attendance again, start a new session (it gets a fresh list).'))) return;
     try {
       await db.setRevoked(activeSession.id, true);
       setActiveSession(prev => ({ ...prev, isRevoked: true }));
       setShowSessionForm(false);
       await refreshSessions();
     } catch (e) {
-      alert(db.friendly(e));
+      showToast(db.friendly(e), 'error');
     }
   };
 
@@ -967,7 +969,7 @@ The request has NOT been rejected or approved. Check the student's official univ
 
   const openQrDisplay = () => {
     if (!('BroadcastChannel' in window)) {
-      alert('This browser does not support the separate projector display. Please use a recent version of Chrome, Edge, Firefox or Safari.');
+      showToast('This browser does not support the separate projector display. Please use a recent version of Chrome, Edge, Firefox or Safari.', 'error');
       return;
     }
     const displayUrl = new URL(window.location.href);
@@ -975,7 +977,7 @@ The request has NOT been rejected or approved. Check the student's official univ
     displayUrl.searchParams.set('display', 'qr');
     const popup = window.open(displayUrl.toString(), 'campussign-qr-display', 'popup=yes,width=1200,height=900');
     if (!popup) {
-      alert('The projector window was blocked. Allow pop-ups for CampusSign, then click Open projector view again.');
+      showToast('The projector window was blocked. Allow pop-ups for CampusSign, then click Open projector view again.', 'error');
       return;
     }
     setDisplayWindowOpen(true);
@@ -998,11 +1000,11 @@ The request has NOT been rejected or approved. Check the student's official univ
 
   const handleDeleteSession = async () => {
     if (!selectedSession) {
-      alert('Select an attendance list first.');
+      showToast('Select an attendance list first.', 'error');
       return;
     }
     if (selectedSessionIsLive) {
-      alert('End the live attendance session before deleting its list.');
+      showToast('End the live attendance session before deleting its list.', 'error');
       return;
     }
 
@@ -1010,7 +1012,7 @@ The request has NOT been rejected or approved. Check the student's official univ
     const sessionDate = new Date(selectedSession.created_at).toLocaleString();
     const sessionName = selectedSession.title || selectedSession.course || 'Untitled session';
     const detail = recordCount === 1 ? '1 student attendance record' : `${recordCount} student attendance records`;
-    const confirmed = window.confirm(
+    const confirmed = await confirmAction(
       `Permanently delete the entire attendance list?\n\n${sessionName}\n${sessionDate}\n${detail} will also be permanently deleted.\n\nThis cannot be undone.`
     );
     if (!confirmed) return;
@@ -1024,7 +1026,7 @@ The request has NOT been rejected or approved. Check the student's official univ
         setActiveSession(prev => ({ ...prev, id: '', secret: '', title: '', isRevoked: false, endsAt: null }));
       }
     } catch (err) {
-      alert('Could not delete the attendance list: ' + db.friendly(err));
+      showToast('Could not delete the attendance list: ' + db.friendly(err), 'error');
     }
   };
 
@@ -1489,7 +1491,7 @@ The request has NOT been rejected or approved. Check the student's official univ
                           <option value="0">Never rotate — until session closes</option>
                         </select>
                         <p className="text-[11px] text-slate-500 mt-1.5 leading-relaxed">
-                          A recently expired QR gets a {QR_GRACE_SECONDS}-second grace period for slow scans. A static QR remains valid only while this attendance session is open, so avoid it if students may share screenshots outside the classroom.
+                          The server allows ±{QR_CLOCK_DRIFT_SECONDS}s around a signed QR slot to tolerate small device-clock differences. A static QR remains valid only while this attendance session is open, so avoid it if students may share screenshots outside the classroom.
                         </p>
                       </div>
 
@@ -1577,7 +1579,7 @@ The request has NOT been rejected or approved. Check the student's official univ
                   <ShieldAlert className="w-14 h-14 text-rose-400 mx-auto mb-3" />
                   <h3 className="text-base font-extrabold text-white">Session ended</h3>
                   <p className="text-xs text-rose-200 mt-1">
-                    {attendanceLogs.filter(l => l.sessionId === activeSession.id).length} student(s) checked in. Start a new session for a new attendance list.
+                    <span key={attendanceLogs.filter(l => l.sessionId === activeSession.id).length} className="inline-block animate-count-pop font-extrabold text-amber-300 tabular-nums">{attendanceLogs.filter(l => l.sessionId === activeSession.id).length}</span> student(s) checked in. Start a new session for a new attendance list.
                   </p>
                 </div>
               ) : (
@@ -1599,6 +1601,10 @@ The request has NOT been rejected or approved. Check the student's official univ
                   >
                     <ExternalLink className="w-4 h-4" /> Test check-in on this device
                   </button>
+                  <div className="mt-4 inline-flex items-center gap-2 rounded-xl border border-emerald-700/70 bg-emerald-950/70 px-4 py-2 text-xs text-emerald-100">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span><strong key={attendanceLogs.filter(l => l.sessionId === activeSession.id).length} className="inline-block animate-count-pop text-amber-300 tabular-nums">{attendanceLogs.filter(l => l.sessionId === activeSession.id).length}</strong> checked in to this session</span>
+                  </div>
                 </>
               )}
             </div>
@@ -1608,7 +1614,7 @@ The request has NOT been rejected or approved. Check the student's official univ
                 <Key className="w-3.5 h-3.5 text-amber-400" />
                 <span>Token: <strong className="text-white">{qrToken}</strong></span>
               </div>
-              <span>{Number(activeSession.qrIntervalSeconds ?? DEFAULT_QR_INTERVAL_SECONDS) === 0 ? 'Static until session closes' : `Rotates every ${formatQrInterval(Number(activeSession.qrIntervalSeconds ?? DEFAULT_QR_INTERVAL_SECONDS))} · ${QR_GRACE_SECONDS}s scan grace`}</span>
+              <span>{Number(activeSession.qrIntervalSeconds ?? DEFAULT_QR_INTERVAL_SECONDS) === 0 ? 'Static until session closes' : `Rotates every ${formatQrInterval(Number(activeSession.qrIntervalSeconds ?? DEFAULT_QR_INTERVAL_SECONDS))} · ±${QR_CLOCK_DRIFT_SECONDS}s clock tolerance`}</span>
             </div>
           </div>
         </div>
@@ -2029,7 +2035,7 @@ The request has NOT been rejected or approved. Check the student's official univ
                       await refreshRegistry();
                       setEnrollSaved(true);
                     } catch (err) {
-                      alert('Could not save the face template: ' + db.friendly(err));
+                      showToast('Could not save the face template: ' + db.friendly(err), 'error');
                       setEnrollTarget(null);
                     }
                   }}
@@ -2455,6 +2461,7 @@ function StudentPortal({
   };
 
   const finishVerification = (r, photoUrl) => {
+    try { if (typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate(70); } catch { /* vibration is optional */ }
     setReceiptData({
       sessionId: session.id,
       course: session.course,
@@ -2779,7 +2786,7 @@ function StudentPortal({
 
       {/* STEP 5: DIGITAL VERIFICATION RECEIPT */}
       {step === 5 && receiptData && (
-        <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-xl space-y-6">
+        <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-xl space-y-6 animate-success-pulse">
           <div className="text-center space-y-2">
             <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-950 text-emerald-600 rounded-full flex items-center justify-center mx-auto border border-emerald-300 dark:border-emerald-800">
               <Award className="w-8 h-8 text-emerald-600" />

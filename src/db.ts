@@ -21,6 +21,7 @@ const MESSAGES: Record<string, string> = {
   course_unavailable: 'One of the selected courses is no longer available. Refresh the course list and try again.',
   already_enrolled: 'This student ID is already enrolled in one or more of the selected courses.',
   enrollment_request_exists: 'An enrolment request already exists for this student ID and course.',
+  enrollment_rate_limited: 'Too many enrolment attempts were made. Please wait an hour before trying again.',
   request_not_found: 'This enrolment request is no longer available.',
   request_already_reviewed: 'This enrolment request has already been reviewed.',
   missing_face_template: 'This request has no saved face template. Ask the student to enrol again.',
@@ -225,6 +226,15 @@ export async function setLecturerVerification(lecturerId: string, verified: bool
 export async function loadAdminAudit(limit = 50) {
   return unwrap<any[]>(await supabase.rpc('admin_recent_audit', { p_limit: limit }));
 }
+export async function loadAdminEnrolments(limit = 150) {
+  return unwrap<any[]>(await supabase.rpc('admin_list_student_enrolments', { p_limit: limit }));
+}
+export async function loadAdminAttendance(limit = 150) {
+  return unwrap<any[]>(await supabase.rpc('admin_recent_attendance', { p_limit: limit }));
+}
+export async function loadAdminSessions(limit = 75) {
+  return unwrap<any[]>(await supabase.rpc('admin_recent_sessions', { p_limit: limit }));
+}
 
 // ---- centrally managed academic catalogue ----
 export async function loadCatalogDepartments(): Promise<any[]> {
@@ -248,6 +258,9 @@ export async function assignLecturerCourse(lecturerId: string, courseId: string,
   unwrap(await supabase.rpc('admin_assign_lecturer_course', {
     p_lecturer: lecturerId, p_course: courseId, p_assigned: assigned, p_primary: primary,
   }));
+}
+export async function loadLecturerCourseAssignments(lecturerId: string): Promise<any[]> {
+  return unwrap<any[]>(await supabase.rpc('admin_lecturer_courses', { p_lecturer: lecturerId }));
 }
 export async function loadDepartmentCourses(departmentName: string): Promise<any[]> {
   return unwrap<any[]>(await supabase.rpc('list_department_courses', { p_department_name: departmentName }));

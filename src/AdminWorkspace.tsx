@@ -1,35 +1,68 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   AlertCircle, BarChart3, BadgeCheck, Bell, BookOpen, CheckCheck,
   ClipboardList, History, LogOut, QrCode, RefreshCw, Search, ShieldAlert,
-  ShieldCheck, TrendingUp, UserCog, Users, Building2, Plus, Pencil, BookMarked, Power
+  ShieldCheck, TrendingUp, UserCog, Users, Building2, Plus, Pencil, BookMarked
 } from 'lucide-react';
 import * as db from './db';
+import { confirmAction, showToast } from './feedback';
 
 export function NotificationBell({ notifications = [], onRead, onReadAll }: any) {
   const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState({ top: 0, right: 16 });
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
   const unread = notifications.filter((item: any) => !item.read_at).length;
-  return (
-    <div className="relative shrink-0">
-      <button type="button" onClick={() => setOpen((value) => !value)}
-        className="relative p-2.5 rounded-xl border border-emerald-700 bg-emerald-950/70 text-emerald-100 hover:text-amber-300"
-        aria-label={`Notifications${unread ? `, ${unread} unread` : ''}`} aria-expanded={open}>
-        <Bell className="w-4 h-4" />
-        {unread > 0 && <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black grid place-items-center">{unread > 9 ? '9+' : unread}</span>}
-      </button>
-      {open && <div className="absolute right-0 top-full mt-2 z-50 w-[min(22rem,calc(100vw-2rem))] rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl overflow-hidden text-left">
+
+  useEffect(() => {
+    if (!open) return;
+    const placePanel = () => {
+      const rect = buttonRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      setPosition({ top: Math.max(8, Math.min(rect.bottom + 10, window.innerHeight - Math.min(640, window.innerHeight - 16))), right: Math.max(16, window.innerWidth - rect.right) });
+    };
+    const closeOutside = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (!buttonRef.current?.contains(target) && !panelRef.current?.contains(target)) setOpen(false);
+    };
+    const closeEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') setOpen(false); };
+    placePanel();
+    window.addEventListener('resize', placePanel);
+    window.addEventListener('scroll', placePanel, true);
+    document.addEventListener('pointerdown', closeOutside);
+    document.addEventListener('keydown', closeEscape);
+    return () => {
+      window.removeEventListener('resize', placePanel);
+      window.removeEventListener('scroll', placePanel, true);
+      document.removeEventListener('pointerdown', closeOutside);
+      document.removeEventListener('keydown', closeEscape);
+    };
+  }, [open]);
+
+  return <>
+    <button ref={buttonRef} type="button" onClick={() => setOpen(value => !value)}
+      className="relative p-2.5 rounded-xl border border-emerald-700 bg-emerald-950/70 text-emerald-100 hover:text-amber-300"
+      aria-label={`Notifications${unread ? `, ${unread} unread` : ''}`} aria-expanded={open} aria-haspopup="dialog">
+      <Bell className="w-4 h-4" />
+      {unread > 0 && <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black grid place-items-center">{unread > 9 ? '9+' : unread}</span>}
+    </button>
+    {open && typeof document !== 'undefined' && createPortal(
+      <div ref={panelRef} role="dialog" aria-label="Notifications"
+        style={{ position: 'fixed', top: position.top, right: position.right, width: 'min(22rem, calc(100vw - 2rem))', zIndex: 9990, maxHeight: 'calc(100dvh - 1rem)' }}
+        className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl overflow-hidden text-left">
         <div className="p-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
           <div><p className="text-sm font-extrabold text-slate-900 dark:text-white">Notifications</p><p className="text-[10px] text-slate-500">{unread} unread</p></div>
           <button type="button" onClick={onReadAll} disabled={!unread} className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 disabled:opacity-40 inline-flex items-center gap-1"><CheckCheck className="w-3.5 h-3.5" /> Mark all read</button>
         </div>
-        <div className="max-h-80 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
+        <div className="max-h-[calc(80dvh-3.5rem)] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
           {notifications.length === 0 ? <p className="p-5 text-center text-xs text-slate-500">You're all caught up.</p> : notifications.map((item: any) => <button key={item.id} type="button" onClick={() => !item.read_at && onRead(item.id)} className={`w-full text-left p-3 hover:bg-slate-50 dark:hover:bg-slate-800/70 ${!item.read_at ? 'bg-emerald-50/70 dark:bg-emerald-950/20' : ''}`}>
             <div className="flex items-start gap-2"><span className={`mt-1 w-2 h-2 rounded-full shrink-0 ${item.read_at ? 'bg-slate-300' : 'bg-emerald-500'}`} /><span className="min-w-0"><strong className="block text-xs text-slate-800 dark:text-slate-100">{item.title}</strong><span className="block mt-0.5 text-[11px] leading-relaxed text-slate-600 dark:text-slate-300">{item.message}</span><span className="block mt-1 text-[10px] text-slate-400">{new Date(item.created_at).toLocaleString()}</span></span></div>
           </button>)}
         </div>
-      </div>}
-    </div>
-  );
+      </div>, document.body
+    )}
+  </>;
 }
 
 export default function AdminWorkspace({ activeStaff, onLogout }: any) {
@@ -37,13 +70,18 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
   const [overview, setOverview] = useState<any>(null);
   const [lecturers, setLecturers] = useState<any[]>([]);
   const [audit, setAudit] = useState<any[]>([]);
+  const [enrolments, setEnrolments] = useState<any[]>([]);
+  const [recentAttendance, setRecentAttendance] = useState<any[]>([]);
+  const [recentSessions, setRecentSessions] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [catalogCourses, setCatalogCourses] = useState<any[]>([]);
-  const [catalogLoading, setCatalogLoading] = useState(false);
   const [deptForm, setDeptForm] = useState({ id: '', code: '', name: '', active: true });
   const [courseForm, setCourseForm] = useState({ id: '', departmentId: '', code: '', title: '', level: '', active: true });
   const [catalogMessage, setCatalogMessage] = useState('');
+  const [editingLecturer, setEditingLecturer] = useState<any>(null);
+  const [lecturerCourseIds, setLecturerCourseIds] = useState<string[]>([]);
+  const [savingAssignments, setSavingAssignments] = useState(false);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [workingId, setWorkingId] = useState('');
@@ -54,12 +92,16 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
     if (showLoader) setLoading(true);
     setError('');
     try {
-      const [stats, staff, events, notices, depts, catalog] = await Promise.all([
-        db.loadAdminOverview(), db.loadAdminLecturers(), db.loadAdminAudit(60), db.loadNotifications(20), db.loadCatalogDepartments(), db.loadCatalogCourses(null)
+      const [stats, staff, events, notices, depts, catalog, studentRows, attendanceRows, sessionRows] = await Promise.all([
+        db.loadAdminOverview(), db.loadAdminLecturers(), db.loadAdminAudit(60), db.loadNotifications(20), db.loadCatalogDepartments(), db.loadCatalogCourses(null),
+        db.loadAdminEnrolments(150), db.loadAdminAttendance(150), db.loadAdminSessions(75)
       ]);
       setOverview(stats);
       setLecturers(staff);
       setAudit(events);
+      setEnrolments(studentRows);
+      setRecentAttendance(attendanceRows);
+      setRecentSessions(sessionRows);
       setNotifications(notices);
       setDepartments(depts);
       setCatalogCourses(catalog);
@@ -87,11 +129,11 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
     const prompt = next
       ? `Verify ${lecturer.name}? They will be able to create attendance sessions and manage their course roster.`
       : `Withdraw verification for ${lecturer.name}? Their lecturer tools will be blocked until verified again.`;
-    if (!window.confirm(prompt)) return;
+    if (!(await confirmAction(prompt))) return;
     setWorkingId(lecturer.lecturer_id);
     try {
       await db.setLecturerVerification(lecturer.lecturer_id, next);
-      setMessage(`${lecturer.name} ${next ? 'verified' : 'unverified'} successfully.`);
+      setMessage(`${lecturer.name} ${next ? 'verified' : 'unverified'} successfully.`); showToast(`${lecturer.name} ${next ? 'verified' : 'unverified'} successfully.`, 'success');
       await refresh(false);
     } catch (e) {
       setError(db.friendly(e));
@@ -113,6 +155,35 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
       await db.saveCatalogCourse({ id: courseForm.id || null, departmentId: courseForm.departmentId, code: courseForm.code, title: courseForm.title, level: courseForm.level, active: courseForm.active });
       setCourseForm({ id: '', departmentId: courseForm.departmentId, code: '', title: '', level: '', active: true }); setCatalogMessage('Course saved successfully.'); await refresh(false);
     } catch (e) { setError(db.friendly(e)); } finally { setWorkingId(''); }
+  };
+
+  const openLecturerCourses = async (lecturer: any) => {
+    setLecturerCourseIds([]);
+    setEditingLecturer(lecturer);
+    setWorkingId(`courses:${lecturer.lecturer_id}`);
+    try {
+      const assigned = await db.loadLecturerCourseAssignments(lecturer.lecturer_id);
+      setLecturerCourseIds(assigned.map((item: any) => item.course_id));
+    } catch (e) {
+      setEditingLecturer(null);
+      setError(db.friendly(e));
+    } finally { setWorkingId(''); }
+  };
+
+  const saveLecturerCourses = async () => {
+    if (!editingLecturer) return;
+    setSavingAssignments(true);
+    try {
+      const coursesForDepartment = catalogCourses.filter(c => String(c.department_name || '').trim().toLowerCase() === String(editingLecturer.dept || '').trim().toLowerCase());
+      for (const course of coursesForDepartment) {
+        const assigned = lecturerCourseIds.includes(course.id);
+        await db.assignLecturerCourse(editingLecturer.lecturer_id, course.id, assigned, assigned && course.id === lecturerCourseIds[0]);
+      }
+      showToast(`Course assignments updated for ${editingLecturer.name}.`, 'success');
+      setEditingLecturer(null);
+      await refresh(false);
+    } catch (e) { setError(db.friendly(e)); }
+    finally { setSavingAssignments(false); }
   };
 
   const readOne = async (id: string) => {
@@ -152,14 +223,20 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
       {error && <div role="alert" className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-200 text-xs">{error}</div>}
 
       <div className="flex gap-2 overflow-x-auto p-1 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-fit max-w-full">
-        {[['overview', 'Overview', BarChart3], ['academic', 'Departments & courses', BookMarked], ['lecturers', 'Lecturers', UserCog], ['audit', 'Audit history', History]].map(([key, label, Icon]: any) => <button key={key} onClick={() => setTab(key)} className={`px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap inline-flex items-center gap-2 ${tab === key ? 'bg-emerald-900 text-amber-300 shadow' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}><Icon className="w-4 h-4" />{label}</button>)}
+        {[['overview', 'Overview', BarChart3], ['academic', 'Departments & courses', BookMarked], ['lecturers', 'Lecturers', UserCog], ['enrolments', 'Student enrolments', Users], ['records', 'Attendance & sessions', ClipboardList], ['audit', 'Audit history', History]].map(([key, label, Icon]: any) => <button key={key} onClick={() => setTab(key)} className={`px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap inline-flex items-center gap-2 ${tab === key ? 'bg-emerald-900 text-amber-300 shadow' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}><Icon className="w-4 h-4" />{label}</button>)}
       </div>
 
       {loading ? <div className="py-16 text-center text-sm text-slate-500"><RefreshCw className="w-6 h-6 mx-auto mb-2 animate-spin" />Loading system overview…</div> : tab === 'overview' ? (
         <div className="space-y-5">
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">{statCards.map((card) => <article key={card.label} className="interactive-card rounded-2xl p-4 sm:p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm"><div className="flex items-center justify-between gap-2"><span className="text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400">{card.label}</span><span className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 grid place-items-center"><card.icon className="w-4 h-4" /></span></div><p className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white mt-3 tabular-nums">{card.value}</p><p className="text-[10px] text-slate-500 mt-1">{card.detail}</p></article>)}</div>
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">{statCards.map((card) => {
+            const destination = card.label === 'Courses' ? 'academic' : ['Lecturers', 'Awaiting verification'].includes(card.label) ? 'lecturers' : card.label === 'Student-course enrolments' ? 'enrolments' : ['Attendance records', 'Sessions'].includes(card.label) ? 'records' : 'audit';
+            return <button key={card.label} type="button" onClick={() => setTab(destination)} aria-label={`Open ${destination === 'academic' ? 'academic catalogue' : destination === 'lecturers' ? 'lecturer accounts' : destination === 'enrolments' ? 'student enrolments' : destination === 'records' ? 'attendance and sessions' : 'audit history'} from ${card.label}`} className="interactive-card text-left rounded-2xl p-4 sm:p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:border-emerald-400 focus-visible:outline-2 focus-visible:outline-emerald-500">
+              <div className="flex items-center justify-between gap-2"><span className="text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400">{card.label}</span><span className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 grid place-items-center"><card.icon className="w-4 h-4" /></span></div>
+              <p className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white mt-3 tabular-nums">{card.value}</p><p className="text-[10px] text-slate-500 mt-1">{card.detail}</p><span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 mt-3">View details <span aria-hidden="true">→</span></span>
+            </button>;
+          })}</div>
           <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm"><div className="flex items-center justify-between gap-2 mb-4"><div><h2 className="font-extrabold text-slate-900 dark:text-white">Course activity</h2><p className="text-[11px] text-slate-500 mt-1">Attendance records created in the last 30 days</p></div><TrendingUp className="w-5 h-5 text-emerald-600" /></div>
-            {courses.length === 0 ? <p className="py-8 text-center text-xs text-slate-500">No courses have been registered yet.</p> : <div className="space-y-4">{courses.map((course: any) => <div key={course.course} className="space-y-1.5"><div className="flex items-center justify-between gap-3 text-xs"><strong className="text-slate-800 dark:text-slate-100 truncate">{course.course}</strong><span className="text-slate-500 shrink-0 tabular-nums">{course.attendance_30d} check-ins</span></div><div className="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-emerald-700 to-amber-400 transition-all duration-700" style={{ width: `${Math.max(2, Number(course.attendance_30d || 0) / maxAttendance * 100)}%` }} /></div><div className="flex flex-wrap gap-x-4 text-[10px] text-slate-500"><span>{course.lecturers} lecturers</span><span>{course.students} roster entries</span><span>{course.sessions} sessions</span></div></div>)}</div>}
+            {courses.length === 0 ? <p className="py-8 text-center text-xs text-slate-500">No courses have been registered yet.</p> : <div className="space-y-4">{courses.map((course: any) => <button type="button" key={course.course} onClick={() => setTab('academic')} className="block w-full text-left space-y-1.5 rounded-xl p-2 -m-2 hover:bg-slate-50 dark:hover:bg-slate-800/60"><div className="flex items-center justify-between gap-3 text-xs"><strong className="text-slate-800 dark:text-slate-100 truncate">{course.course}</strong><span className="text-slate-500 shrink-0 tabular-nums">{course.attendance_30d} check-ins</span></div><div className="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-emerald-700 to-amber-400 transition-all duration-700" style={{ width: `${Math.max(2, Number(course.attendance_30d || 0) / maxAttendance * 100)}%` }} /></div><div className="flex flex-wrap gap-x-4 text-[10px] text-slate-500"><span>{course.lecturers} lecturers</span><span>{course.students} roster entries</span><span>{course.sessions} sessions</span></div></button>)}</div>}
           </section>
         </div>
       ) : tab === 'academic' ? (
@@ -187,13 +264,32 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
         </div>
       ) : tab === 'lecturers' ? (
         <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4"><div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><h2 className="font-extrabold text-slate-900 dark:text-white">Lecturer accounts</h2><p className="text-[11px] text-slate-500 mt-1">Verify academic staff before they can use lecturer tools.</p></div><div className="relative w-full sm:max-w-xs"><Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, email or course" className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs" /></div></div>
-          <div className="overflow-x-auto"><table className="w-full text-left min-w-[680px]"><thead><tr className="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-100 dark:border-slate-800"><th className="p-3">Lecturer</th><th className="p-3">Department</th><th className="p-3">Course</th><th className="p-3">Status</th><th className="p-3 text-right">Action</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{visibleLecturers.map((lecturer) => <tr key={lecturer.lecturer_id}><td className="p-3"><strong className="block text-xs text-slate-800 dark:text-white">{lecturer.name}</strong><span className="text-[10px] text-slate-500">{lecturer.email}</span></td><td className="p-3 text-xs text-slate-600 dark:text-slate-300">{lecturer.dept}</td><td className="p-3 text-xs text-slate-600 dark:text-slate-300">{lecturer.course}</td><td className="p-3">{lecturer.is_verified ? <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 inline-flex items-center gap-1"><BadgeCheck className="w-4 h-4" />Verified</span> : <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300 inline-flex items-center gap-1"><AlertCircle className="w-4 h-4" />Pending</span>}</td><td className="p-3 text-right"><button disabled={workingId === lecturer.lecturer_id} onClick={() => changeVerification(lecturer)} className={`px-3 py-2 rounded-lg text-[10px] font-extrabold disabled:opacity-50 ${lecturer.is_verified ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900' : 'bg-emerald-900 text-amber-300 border border-emerald-700'}`}>{workingId === lecturer.lecturer_id ? 'Saving…' : lecturer.is_verified ? 'Withdraw access' : 'Verify lecturer'}</button></td></tr>)}</tbody></table>{visibleLecturers.length === 0 && <p className="py-8 text-center text-xs text-slate-500">No lecturer accounts match that search.</p>}</div>
+          <div className="overflow-x-auto"><table className="w-full text-left min-w-[680px]"><thead><tr className="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-100 dark:border-slate-800"><th className="p-3">Lecturer</th><th className="p-3">Department</th><th className="p-3">Course</th><th className="p-3">Status</th><th className="p-3 text-right">Action</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{visibleLecturers.map((lecturer) => <tr key={lecturer.lecturer_id}><td className="p-3"><strong className="block text-xs text-slate-800 dark:text-white">{lecturer.name}</strong><span className="text-[10px] text-slate-500">{lecturer.email}</span></td><td className="p-3 text-xs text-slate-600 dark:text-slate-300">{lecturer.dept}</td><td className="p-3 text-xs text-slate-600 dark:text-slate-300">{lecturer.course}</td><td className="p-3">{lecturer.is_verified ? <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 inline-flex items-center gap-1"><BadgeCheck className="w-4 h-4" />Verified</span> : <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300 inline-flex items-center gap-1"><AlertCircle className="w-4 h-4" />Pending</span>}</td><td className="p-3 text-right"><div className="flex flex-col items-end gap-1.5"><button type="button" disabled={workingId === `courses:${lecturer.lecturer_id}`} onClick={() => openLecturerCourses(lecturer)} className="px-3 py-2 rounded-lg text-[10px] font-bold border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:border-emerald-500">Manage courses</button><button type="button" disabled={workingId === lecturer.lecturer_id} onClick={() => changeVerification(lecturer)} className={`px-3 py-2 rounded-lg text-[10px] font-extrabold disabled:opacity-50 ${lecturer.is_verified ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900' : 'bg-emerald-900 text-amber-300 border border-emerald-700'}`}>{workingId === lecturer.lecturer_id ? 'Saving…' : lecturer.is_verified ? 'Withdraw access' : 'Verify lecturer'}</button></div></td></tr>)}</tbody></table>{visibleLecturers.length === 0 && <p className="py-8 text-center text-xs text-slate-500">No lecturer accounts match that search.</p>}</div>
         </section>
+      ) : tab === 'enrolments' ? (
+        <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+          <div><h2 className="font-extrabold text-slate-900 dark:text-white">Student-course enrolments</h2><p className="text-[11px] text-slate-500 mt-1">Recent roster entries across departments and courses. Biometric data is not displayed here.</p></div>
+          <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left"><thead><tr className="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-100 dark:border-slate-800"><th className="p-3">Student</th><th className="p-3">Department / Level</th><th className="p-3">Course</th><th className="p-3">Lecturer</th><th className="p-3">Face</th><th className="p-3">Date added</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{enrolments.map(row=><tr key={row.enrolment_id}><td className="p-3"><strong className="block text-xs text-slate-800 dark:text-white">{row.student_name}</strong><span className="text-[10px] text-slate-500">{row.student_id}</span></td><td className="p-3 text-xs text-slate-600 dark:text-slate-300">{row.department} · {row.level || '—'}</td><td className="p-3 text-xs text-slate-600 dark:text-slate-300">{row.course}</td><td className="p-3 text-xs text-slate-600 dark:text-slate-300">{row.lecturer_name}</td><td className="p-3 text-xs">{row.face_enrolled ? <span className="text-emerald-700 dark:text-emerald-300">Enrolled</span> : <span className="text-amber-700 dark:text-amber-300">Pending</span>}</td><td className="p-3 text-[10px] text-slate-500">{new Date(row.created_at).toLocaleDateString()}</td></tr>)}</tbody></table>{enrolments.length===0&&<p className="py-8 text-center text-xs text-slate-500">No student-course enrolments found.</p>}</div>
+        </section>
+      ) : tab === 'records' ? (
+        <div className="space-y-4">
+          <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3"><div><h2 className="font-extrabold text-slate-900 dark:text-white">Recent attendance</h2><p className="text-[11px] text-slate-500 mt-1">Latest attendance records, with no face images or raw location coordinates.</p></div><div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left"><thead><tr className="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-100 dark:border-slate-800"><th className="p-3">Student</th><th className="p-3">Course</th><th className="p-3">Session</th><th className="p-3">Lecturer</th><th className="p-3">Status</th><th className="p-3">Time</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{recentAttendance.map(row=><tr key={row.attendance_id}><td className="p-3"><strong className="block text-xs text-slate-800 dark:text-white">{row.student_name}</strong><span className="text-[10px] text-slate-500">{row.student_id}</span></td><td className="p-3 text-xs text-slate-600 dark:text-slate-300">{row.course}</td><td className="p-3 text-xs text-slate-600 dark:text-slate-300">{row.session_title || row.session_id}</td><td className="p-3 text-xs text-slate-600 dark:text-slate-300">{row.lecturer_name || '—'}</td><td className="p-3 text-xs">{row.status}</td><td className="p-3 text-[10px] text-slate-500">{new Date(row.created_at).toLocaleString()}</td></tr>)}</tbody></table>{recentAttendance.length===0&&<p className="py-8 text-center text-xs text-slate-500">No attendance records found.</p>}</div></section>
+          <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3"><div><h2 className="font-extrabold text-slate-900 dark:text-white">Recent sessions</h2><p className="text-[11px] text-slate-500 mt-1">Session status and check-in totals.</p></div><div className="overflow-x-auto"><table className="w-full min-w-[620px] text-left"><thead><tr className="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-100 dark:border-slate-800"><th className="p-3">Session</th><th className="p-3">Course</th><th className="p-3">Lecturer</th><th className="p-3">Check-ins</th><th className="p-3">Status</th><th className="p-3">Created</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{recentSessions.map(row=><tr key={row.session_id}><td className="p-3 text-xs text-slate-800 dark:text-white">{row.title || row.session_id}</td><td className="p-3 text-xs text-slate-600 dark:text-slate-300">{row.course}</td><td className="p-3 text-xs text-slate-600 dark:text-slate-300">{row.lecturer_name || '—'}</td><td className="p-3 text-xs tabular-nums">{row.attendance_count}</td><td className="p-3 text-xs">{row.revoked ? 'Ended' : row.ends_at && new Date(row.ends_at) < new Date() ? 'Expired' : 'Active'}</td><td className="p-3 text-[10px] text-slate-500">{new Date(row.created_at).toLocaleString()}</td></tr>)}</tbody></table>{recentSessions.length===0&&<p className="py-8 text-center text-xs text-slate-500">No sessions found.</p>}</div></section>
+        </div>
       ) : (
         <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm"><div className="mb-4"><h2 className="font-extrabold text-slate-900 dark:text-white">Audit history</h2><p className="text-[11px] text-slate-500 mt-1">Recent enrolment, verification and attendance changes. Biometric descriptors and photos are never included.</p></div>
           {audit.length === 0 ? <p className="py-10 text-center text-xs text-slate-500">No audit events recorded yet. New sensitive actions will appear here.</p> : <div className="space-y-2">{audit.map((event) => <article key={event.id} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700"><div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1"><strong className="text-xs text-slate-800 dark:text-slate-100">{String(event.action).replace(/\./g, ' ')}</strong><time className="text-[10px] text-slate-500">{new Date(event.created_at).toLocaleString()}</time></div><p className="text-[11px] text-slate-600 dark:text-slate-300 mt-1">{event.entity_type}{event.course ? ` · ${event.course}` : ''}{event.actor_email ? ` · by ${event.actor_email}` : ''}</p><pre className="mt-2 text-[10px] text-slate-500 whitespace-pre-wrap break-words">{JSON.stringify(event.details, null, 2)}</pre></article>)}</div>}
         </section>
       )}
+      {editingLecturer && <div className="fixed inset-0 z-[90] bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4" role="presentation">
+        <section role="dialog" aria-modal="true" aria-label={`Manage courses for ${editingLecturer.name}`} className="w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-2xl p-5 space-y-4">
+          <div><h2 className="font-extrabold text-slate-900 dark:text-white">Manage lecturer courses</h2><p className="text-xs text-slate-500 mt-1">{editingLecturer.name} · {editingLecturer.dept}. The first selected course becomes the default.</p></div>
+          <div className="space-y-2">{catalogCourses.filter(c => String(c.department_name || '').trim().toLowerCase() === String(editingLecturer.dept || '').trim().toLowerCase()).map(course => <label key={course.id} className="flex items-start gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-emerald-400 cursor-pointer"><input type="checkbox" className="mt-0.5" checked={lecturerCourseIds.includes(course.id)} onChange={e => setLecturerCourseIds(current => e.target.checked ? [...current, course.id] : current.filter(id => id !== course.id))} /><span className="min-w-0"><strong className="block text-xs text-slate-800 dark:text-white">{course.code} · {course.title}</strong><span className="text-[10px] text-slate-500">{course.level ? `${course.level} Level` : 'All levels'}{course.is_active ? '' : ' · Inactive'}</span></span></label>)}
+            {!catalogCourses.some(c => String(c.department_name || '').trim().toLowerCase() === String(editingLecturer.dept || '').trim().toLowerCase()) && <p className="text-xs text-amber-700 dark:text-amber-300">No catalogue courses are registered for this department yet.</p>}
+          </div>
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-2"><button type="button" onClick={() => setEditingLecturer(null)} className="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200">Cancel</button><button type="button" disabled={savingAssignments || !lecturerCourseIds.length} onClick={saveLecturerCourses} className="px-4 py-2.5 rounded-xl bg-emerald-900 text-amber-300 text-xs font-bold disabled:opacity-50">{savingAssignments ? 'Saving…' : 'Save assignments'}</button></div>
+        </section>
+      </div>}
       <p className="text-[10px] text-slate-400 text-center">Administrator actions are enforced by Supabase policies and server-side functions, not by this interface alone.</p>
     </div>
   );

@@ -93,3 +93,17 @@ main div.fixed.inset-0 > div, main div.fixed.inset-0 > form {
     transition-duration: .01ms !important;
   }
 }
+
+
+@keyframes campus-count-pop {
+  0% { transform: scale(.82); opacity: .55; }
+  65% { transform: scale(1.16); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes campus-success-pulse {
+  0% { box-shadow: 0 0 0 0 rgb(16 185 129 / 0%); }
+  35% { box-shadow: 0 0 0 8px rgb(16 185 129 / 18%); }
+  100% { box-shadow: 0 0 0 0 rgb(16 185 129 / 0%); }
+}
+.animate-count-pop { animation: campus-count-pop 360ms cubic-bezier(.2,.75,.25,1) both; }
+.animate-success-pulse { animation: campus-success-pulse 850ms ease-out both; }
