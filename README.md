@@ -108,3 +108,8 @@ The interface has received a UI polish pass: theme preference persistence, tab t
 Apply `supabase-step10-admin-notifications-analytics-audit.sql` after Step 9, then follow `ADMIN-SETUP-STEP10.md` to promote a trusted existing lecturer account. The app does not expose public administrator registration. The admin workspace is rendered for authenticated profiles whose database role is `admin` and whose account is verified.
 
 Notifications are in-app only and are refreshed periodically; no email/SMS/push channel is configured. Analytics are aggregate operational counts and should not be interpreted as student attendance percentages. Audit history begins after Step 10 is installed and excludes face descriptors, face photos and raw location coordinates.
+
+
+## Academic catalogue redesign (Step 11)
+
+See `ACADEMIC-CATALOG-STEP11.md` and `RELEASE-NOTES-ACADEMIC-REDESIGN.md`. Apply `supabase-step11-academic-catalog.sql` after migrations 1–10. The admin workspace now manages departments and courses; lecturer registration selects one or more courses from the catalogue; student self-enrolment selects a department and a subset of its available courses. Test on a preview deployment before merging to production.
