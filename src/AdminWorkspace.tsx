@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   AlertCircle, BarChart3, BadgeCheck, Bell, BookOpen, CheckCheck,
   ClipboardList, History, LogOut, QrCode, RefreshCw, Search, ShieldAlert,
-  ShieldCheck, TrendingUp, UserCog, Users
+  ShieldCheck, TrendingUp, UserCog, Users, Building2, Plus, Pencil, BookMarked, Power
 } from 'lucide-react';
 import * as db from './db';
 
@@ -38,6 +38,12 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
   const [lecturers, setLecturers] = useState<any[]>([]);
   const [audit, setAudit] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [catalogCourses, setCatalogCourses] = useState<any[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [deptForm, setDeptForm] = useState({ id: '', code: '', name: '', active: true });
+  const [courseForm, setCourseForm] = useState({ id: '', departmentId: '', code: '', title: '', level: '', active: true });
+  const [catalogMessage, setCatalogMessage] = useState('');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [workingId, setWorkingId] = useState('');
@@ -48,13 +54,15 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
     if (showLoader) setLoading(true);
     setError('');
     try {
-      const [stats, staff, events, notices] = await Promise.all([
-        db.loadAdminOverview(), db.loadAdminLecturers(), db.loadAdminAudit(60), db.loadNotifications(20)
+      const [stats, staff, events, notices, depts, catalog] = await Promise.all([
+        db.loadAdminOverview(), db.loadAdminLecturers(), db.loadAdminAudit(60), db.loadNotifications(20), db.loadCatalogDepartments(), db.loadCatalogCourses(null)
       ]);
       setOverview(stats);
       setLecturers(staff);
       setAudit(events);
       setNotifications(notices);
+      setDepartments(depts);
+      setCatalogCourses(catalog);
     } catch (e) {
       setError(db.friendly(e));
     } finally {
@@ -90,6 +98,21 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
     } finally {
       setWorkingId('');
     }
+  };
+
+  const saveDepartment = async (event: React.FormEvent) => {
+    event.preventDefault(); setWorkingId('department'); setCatalogMessage('');
+    try {
+      await db.saveCatalogDepartment({ id: deptForm.id || null, code: deptForm.code, name: deptForm.name, active: deptForm.active });
+      setDeptForm({ id: '', code: '', name: '', active: true }); setCatalogMessage('Department saved successfully.'); await refresh(false);
+    } catch (e) { setError(db.friendly(e)); } finally { setWorkingId(''); }
+  };
+  const saveCourse = async (event: React.FormEvent) => {
+    event.preventDefault(); setWorkingId('course'); setCatalogMessage('');
+    try {
+      await db.saveCatalogCourse({ id: courseForm.id || null, departmentId: courseForm.departmentId, code: courseForm.code, title: courseForm.title, level: courseForm.level, active: courseForm.active });
+      setCourseForm({ id: '', departmentId: courseForm.departmentId, code: '', title: '', level: '', active: true }); setCatalogMessage('Course saved successfully.'); await refresh(false);
+    } catch (e) { setError(db.friendly(e)); } finally { setWorkingId(''); }
   };
 
   const readOne = async (id: string) => {
@@ -129,7 +152,7 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
       {error && <div role="alert" className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-200 text-xs">{error}</div>}
 
       <div className="flex gap-2 overflow-x-auto p-1 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-fit max-w-full">
-        {[['overview', 'Overview', BarChart3], ['lecturers', 'Lecturers', UserCog], ['audit', 'Audit history', History]].map(([key, label, Icon]: any) => <button key={key} onClick={() => setTab(key)} className={`px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap inline-flex items-center gap-2 ${tab === key ? 'bg-emerald-900 text-amber-300 shadow' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}><Icon className="w-4 h-4" />{label}</button>)}
+        {[['overview', 'Overview', BarChart3], ['academic', 'Departments & courses', BookMarked], ['lecturers', 'Lecturers', UserCog], ['audit', 'Audit history', History]].map(([key, label, Icon]: any) => <button key={key} onClick={() => setTab(key)} className={`px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap inline-flex items-center gap-2 ${tab === key ? 'bg-emerald-900 text-amber-300 shadow' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}><Icon className="w-4 h-4" />{label}</button>)}
       </div>
 
       {loading ? <div className="py-16 text-center text-sm text-slate-500"><RefreshCw className="w-6 h-6 mx-auto mb-2 animate-spin" />Loading system overview…</div> : tab === 'overview' ? (
@@ -137,6 +160,29 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">{statCards.map((card) => <article key={card.label} className="interactive-card rounded-2xl p-4 sm:p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm"><div className="flex items-center justify-between gap-2"><span className="text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400">{card.label}</span><span className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 grid place-items-center"><card.icon className="w-4 h-4" /></span></div><p className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white mt-3 tabular-nums">{card.value}</p><p className="text-[10px] text-slate-500 mt-1">{card.detail}</p></article>)}</div>
           <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm"><div className="flex items-center justify-between gap-2 mb-4"><div><h2 className="font-extrabold text-slate-900 dark:text-white">Course activity</h2><p className="text-[11px] text-slate-500 mt-1">Attendance records created in the last 30 days</p></div><TrendingUp className="w-5 h-5 text-emerald-600" /></div>
             {courses.length === 0 ? <p className="py-8 text-center text-xs text-slate-500">No courses have been registered yet.</p> : <div className="space-y-4">{courses.map((course: any) => <div key={course.course} className="space-y-1.5"><div className="flex items-center justify-between gap-3 text-xs"><strong className="text-slate-800 dark:text-slate-100 truncate">{course.course}</strong><span className="text-slate-500 shrink-0 tabular-nums">{course.attendance_30d} check-ins</span></div><div className="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-emerald-700 to-amber-400 transition-all duration-700" style={{ width: `${Math.max(2, Number(course.attendance_30d || 0) / maxAttendance * 100)}%` }} /></div><div className="flex flex-wrap gap-x-4 text-[10px] text-slate-500"><span>{course.lecturers} lecturers</span><span>{course.students} roster entries</span><span>{course.sessions} sessions</span></div></div>)}</div>}
+          </section>
+        </div>
+      ) : tab === 'academic' ? (
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+            <div className="flex items-center justify-between"><div><h2 className="font-extrabold text-slate-900 dark:text-white">Departments</h2><p className="text-[11px] text-slate-500 mt-1">Create and maintain the university's academic departments.</p></div><Building2 className="w-5 h-5 text-emerald-600" /></div>
+            {catalogMessage && <p role="status" className="text-xs text-emerald-700 dark:text-emerald-300">{catalogMessage}</p>}
+            <form onSubmit={saveDepartment} className="grid grid-cols-1 sm:grid-cols-[110px_1fr_auto] gap-2">
+              <input required maxLength={12} value={deptForm.code} onChange={e=>setDeptForm({...deptForm,code:e.target.value.toUpperCase()})} placeholder="Code e.g. CSC" className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-xs" />
+              <input required value={deptForm.name} onChange={e=>setDeptForm({...deptForm,name:e.target.value})} placeholder="Department name" className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-xs" />
+              <label className="col-span-full flex items-center gap-2 text-[11px] text-slate-600 dark:text-slate-300"><input type="checkbox" checked={deptForm.active} onChange={e=>setDeptForm({...deptForm,active:e.target.checked})}/> Department is active and available for selection</label><button disabled={workingId==='department'} className="px-4 py-2.5 rounded-xl bg-emerald-900 text-amber-300 text-xs font-bold disabled:opacity-50"><Plus className="w-4 h-4 inline mr-1"/>Save</button>
+            </form>
+            <div className="divide-y divide-slate-100 dark:divide-slate-800">{departments.map(d=><div key={d.id} className="py-3 flex items-center justify-between gap-3"><div><strong className="block text-xs text-slate-800 dark:text-white">{d.name}</strong><span className="text-[10px] text-slate-500">{d.code}</span></div><button type="button" onClick={()=>setDeptForm({id:d.id,code:d.code,name:d.name,active:d.is_active})} className="text-xs text-emerald-700 dark:text-emerald-300 font-bold"><Pencil className="w-3.5 h-3.5 inline mr-1"/>Edit</button></div>)}</div>
+          </section>
+          <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+            <div className="flex items-center justify-between"><div><h2 className="font-extrabold text-slate-900 dark:text-white">Course catalogue</h2><p className="text-[11px] text-slate-500 mt-1">Register courses and assign them to departments.</p></div><BookOpen className="w-5 h-5 text-emerald-600" /></div>
+            <form onSubmit={saveCourse} className="space-y-2">
+              <select required value={courseForm.departmentId} onChange={e=>setCourseForm({...courseForm,departmentId:e.target.value})} className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-xs"><option value="">Choose department</option>{departments.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</select>
+              <div className="grid grid-cols-2 gap-2"><input required value={courseForm.code} onChange={e=>setCourseForm({...courseForm,code:e.target.value.toUpperCase()})} placeholder="Course code" className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-xs"/><input value={courseForm.level} onChange={e=>setCourseForm({...courseForm,level:e.target.value})} placeholder="Level (optional)" className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-xs"/></div>
+              <input required value={courseForm.title} onChange={e=>setCourseForm({...courseForm,title:e.target.value})} placeholder="Course title" className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-xs"/>
+              <label className="flex items-center gap-2 text-[11px] text-slate-600 dark:text-slate-300"><input type="checkbox" checked={courseForm.active} onChange={e=>setCourseForm({...courseForm,active:e.target.checked})}/> Course is active and available for selection</label><button disabled={workingId==='course'||!departments.length} className="w-full px-4 py-2.5 rounded-xl bg-emerald-900 text-amber-300 text-xs font-bold disabled:opacity-50"><Plus className="w-4 h-4 inline mr-1"/>Save course</button>
+            </form>
+            <div className="max-h-[430px] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">{catalogCourses.map(c=><div key={c.id} className="py-3 flex items-center justify-between gap-3"><div className="min-w-0"><strong className="block text-xs text-slate-800 dark:text-white">{c.code} · {c.title}</strong><span className="text-[10px] text-slate-500">{c.department_name}{c.level ? ` · ${c.level} Level` : ''}</span></div><button type="button" onClick={()=>setCourseForm({id:c.id,departmentId:c.department_id,code:c.code,title:c.title,level:c.level||'',active:c.is_active})} className="text-xs text-emerald-700 dark:text-emerald-300 font-bold shrink-0"><Pencil className="w-3.5 h-3.5 inline mr-1"/>Edit</button></div>)}</div>
           </section>
         </div>
       ) : tab === 'lecturers' ? (

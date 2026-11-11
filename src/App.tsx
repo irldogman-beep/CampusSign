@@ -447,6 +447,7 @@ function AdminPortal({
   const [failedLogins, setFailedLogins] = useState(0);
   const [lockedUntil, setLockedUntil] = useState(0);
   const [loginError, setLoginError] = useState('');
+  const [assignedCourses, setAssignedCourses] = useState<any[]>([]);
   const [isFullscreenQR, setIsFullscreenQR] = useState(false);
   const [displayWindowOpen, setDisplayWindowOpen] = useState(false);
   const displayChannelRef = useRef<BroadcastChannel | null>(null);
@@ -488,6 +489,17 @@ function AdminPortal({
     dept: 'Computer Science',
     course: 'CSC302 - Data Structures'
   });
+  const [academicDepartments, setAcademicDepartments] = useState<any[]>([]);
+  const [academicCourses, setAcademicCourses] = useState<any[]>([]);
+  const [newStaffCourses, setNewStaffCourses] = useState<string[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([db.loadCatalogDepartments(), db.loadCatalogCourses(null)])
+      .then(([departments, courses]) => { if (!cancelled) { setAcademicDepartments(departments); setAcademicCourses(courses); } })
+      .catch(() => { /* The legacy sign-in flow remains usable if catalogue is unavailable. */ });
+    return () => { cancelled = true; };
+  }, []);
 
   const [sessionForm, setSessionForm] = useState({
     title: '',
@@ -576,6 +588,25 @@ function AdminPortal({
     return () => { clearInterval(t); clearInterval(n); };
     // eslint-disable-next-line
   }, [isAuthenticated, activeStaff?.isVerified]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !activeStaff?.isVerified || activeStaff?.role === 'admin') { setAssignedCourses([]); return; }
+    let cancelled = false;
+    db.loadMyAssignedCourses().then(rows => { if (!cancelled) setAssignedCourses(rows); }).catch(err => console.warn('Could not load assigned courses', err));
+    return () => { cancelled = true; };
+  }, [isAuthenticated, activeStaff?.id, activeStaff?.isVerified, activeStaff?.role]);
+
+  const switchLecturerCourse = async (course: string) => {
+    if (!course || !activeStaff || course === activeStaff.course) return;
+    setActiveStaff({ ...activeStaff, course });
+    setActiveSession(prev => ({ ...prev, id: '', secret: '', title: '', course, teacher: activeStaff.name, teacherId: activeStaff.id, teacherEmail: activeStaff.email, isRevoked: false, endsAt: null }));
+    try {
+      const last = await db.latestSession(course);
+      const live = last && !last.revoked && (!last.ends_at || new Date(last.ends_at).getTime() > Date.now());
+      if (live) setActiveSession(prev => ({ ...prev, id:last.id, secret:last.secret, title:last.title, course, venue:last.venue, teacher:activeStaff.name, teacherId:activeStaff.id, teacherEmail:activeStaff.email, isRevoked:false, anchorAcc:last.anchor_acc, anchorSetAt:last.anchor_set_at ? new Date(last.anchor_set_at).getTime() : null, locationMode:last.location_mode, radius:last.radius_m, faceRequired:last.face_required, qrIntervalSeconds:Number(last.qr_interval_seconds ?? DEFAULT_QR_INTERVAL_SECONDS), endsAt:last.ends_at ? new Date(last.ends_at).getTime() : null, tokenCreatedAt:Date.now() }));
+    } catch (err) { console.warn('Could not resume course session', err); }
+    await refreshRegistry(); await refreshLogs(); await refreshSessions(); await refreshEnrollmentRequests();
+  };
 
   // Turn a Supabase profile row into the staff object the dashboard uses
   const startStaffSession = async (profile) => {
@@ -691,6 +722,7 @@ function AdminPortal({
   const handleRegisterStaff = async (e) => {
     e.preventDefault();
     if (!newStaffForm.email.trim() || !newStaffForm.name.trim()) return;
+    if (!newStaffCourses.length) { alert('Select at least one course you teach.'); return; }
     if (newStaffForm.password.length < 8) {
       alert('Password must be at least 8 characters.');
       return;
@@ -702,7 +734,8 @@ function AdminPortal({
         data: {
           name: newStaffForm.name.trim(),
           dept: newStaffForm.dept.trim(),
-          course: newStaffForm.course.trim()
+          course: newStaffCourses[0],
+          courses: newStaffCourses
         }
       }
     });
@@ -710,7 +743,8 @@ function AdminPortal({
       alert(error.message);
       return;
     }
-    setNewStaffForm({ name: '', email: '', password: '', dept: 'Computer Science', course: '' });
+    setNewStaffForm({ name: '', email: '', password: '', dept: '', course: '' });
+    setNewStaffCourses([]);
     setIsAddStaffOpen(false);
     if (data.session) {
       try { startStaffSession(await loadProfile(data.user.id)); } catch (err) { alert(err.message); }
@@ -1175,24 +1209,11 @@ The request has NOT been rejected or approved. Check the student's official univ
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">Department</label>
-                    <input 
-                      type="text" 
-                      required
-                      value={newStaffForm.dept}
-                      onChange={e => setNewStaffForm({ ...newStaffForm, dept: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold focus:ring-2 focus:ring-emerald-600 outline-none"
-                    />
+                    <select required value={newStaffForm.dept} onChange={e => { const dept=e.target.value; const first=academicCourses.find(c=>c.department_name===dept); setNewStaffForm({ ...newStaffForm, dept, course:first ? `${first.code} - ${first.title}` : '' }); setNewStaffCourses(first ? [`${first.code} - ${first.title}`] : []); }} className="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold focus:ring-2 focus:ring-emerald-600 outline-none"><option value="">Choose department</option>{academicDepartments.map(d=><option key={d.id} value={d.name}>{d.name}</option>)}</select>
                   </div>
                   <div>
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">Assigned Course Code</label>
-                    <input 
-                      type="text" 
-                      required
-                      placeholder="e.g. CSC302"
-                      value={newStaffForm.course}
-                      onChange={e => setNewStaffForm({ ...newStaffForm, course: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-bold focus:ring-2 focus:ring-emerald-600 outline-none"
-                    />
+                    <div className="max-h-36 overflow-y-auto rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-2 space-y-1">{academicCourses.filter(c=>c.department_name===newStaffForm.dept && c.is_active).map(c=>{const value=`${c.code} - ${c.title}`;const checked=newStaffCourses.includes(value);return <label key={c.id} className="flex items-center gap-2 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 text-[11px] cursor-pointer"><input type="checkbox" checked={checked} onChange={e=>{const next=e.target.checked?[...newStaffCourses,value]:newStaffCourses.filter(x=>x!==value);setNewStaffCourses(next);setNewStaffForm({...newStaffForm,course:next[0]||''});}}/><span>{c.code} · {c.title}</span></label>;})}{!academicCourses.some(c=>c.department_name===newStaffForm.dept && c.is_active)&&<p className="p-2 text-[10px] text-amber-700">No active courses in this department yet.</p>}</div><p className="mt-1 text-[10px] text-slate-500">Select every course you teach. Your first selection is your default course.</p>
                   </div>
                 </div>
 
@@ -1244,7 +1265,7 @@ The request has NOT been rejected or approved. Check the student's official univ
           <div className="min-w-0">
             <div className="font-extrabold text-amber-400 text-sm truncate">{activeStaff ? activeStaff.name : 'Staff'}</div>
             <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-              <span className="px-2 py-0.5 bg-amber-500/20 border border-amber-500/40 text-amber-300 rounded text-[10px] font-bold">{activeStaff ? activeStaff.course : ''}</span>
+              {assignedCourses.length > 1 ? <select aria-label="Active teaching course" value={activeStaff?.course || ''} onChange={e=>switchLecturerCourse(e.target.value)} className="max-w-[230px] px-2 py-1 bg-amber-500/20 border border-amber-500/40 text-amber-200 rounded text-[10px] font-bold"><option value="">Choose active course</option>{assignedCourses.map(item=><option key={item.course} value={item.course} className="text-slate-900">{item.course}{item.is_primary ? ' · Default' : ''}</option>)}</select> : <span className="px-2 py-0.5 bg-amber-500/20 border border-amber-500/40 text-amber-300 rounded text-[10px] font-bold">{activeStaff ? activeStaff.course : ''}</span>}
               {activeStaff && !activeStaff.isVerified && (
                 <span className="px-2 py-0.5 bg-rose-500/20 border border-rose-400/40 text-rose-300 rounded text-[10px] font-bold">PENDING APPROVAL</span>
               )}
@@ -2067,24 +2088,11 @@ The request has NOT been rejected or approved. Check the student's official univ
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">Department</label>
-                  <input 
-                    type="text" 
-                    required
-                    value={newStaffForm.dept}
-                    onChange={e => setNewStaffForm({ ...newStaffForm, dept: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold focus:ring-2 focus:ring-emerald-600 outline-none"
-                  />
+                  <select required value={newStaffForm.dept} onChange={e => { const dept=e.target.value; const first=academicCourses.find(c=>c.department_name===dept); setNewStaffForm({ ...newStaffForm, dept, course:first ? `${first.code} - ${first.title}` : '' }); setNewStaffCourses(first ? [`${first.code} - ${first.title}`] : []); }} className="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-semibold focus:ring-2 focus:ring-emerald-600 outline-none"><option value="">Choose department</option>{academicDepartments.map(d=><option key={d.id} value={d.name}>{d.name}</option>)}</select>
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1">Assigned Course Code</label>
-                  <input 
-                    type="text" 
-                    required
-                    placeholder="e.g. CSC302"
-                    value={newStaffForm.course}
-                    onChange={e => setNewStaffForm({ ...newStaffForm, course: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 font-bold focus:ring-2 focus:ring-emerald-600 outline-none"
-                  />
+                  <div className="max-h-36 overflow-y-auto rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 p-2 space-y-1">{academicCourses.filter(c=>c.department_name===newStaffForm.dept && c.is_active).map(c=>{const value=`${c.code} - ${c.title}`;const checked=newStaffCourses.includes(value);return <label key={c.id} className="flex items-center gap-2 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 text-[11px] cursor-pointer"><input type="checkbox" checked={checked} onChange={e=>{const next=e.target.checked?[...newStaffCourses,value]:newStaffCourses.filter(x=>x!==value);setNewStaffCourses(next);setNewStaffForm({...newStaffForm,course:next[0]||''});}}/><span>{c.code} · {c.title}</span></label>;})}{!academicCourses.some(c=>c.department_name===newStaffForm.dept && c.is_active)&&<p className="p-2 text-[10px] text-amber-700">No active courses in this department yet.</p>}</div><p className="mt-1 text-[10px] text-slate-500">Select every course you teach. Your first selection is your default course.</p>
                 </div>
               </div>
 
@@ -2289,6 +2297,7 @@ function StudentPortal({
   const [showEnrollment, setShowEnrollment] = useState(false);
   const [enrollmentStage, setEnrollmentStage] = useState('profile');
   const [availableCourses, setAvailableCourses] = useState([]);
+  const [availableDepartments, setAvailableDepartments] = useState<any[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(false);
   const [selectedCourses, setSelectedCourses] = useState([]);
   const [studentEnrollmentForm, setStudentEnrollmentForm] = useState({
@@ -2376,17 +2385,28 @@ function StudentPortal({
     setEnrollmentStage('profile');
     setEnrollmentError('');
     setEnrollmentResult(null);
-    if (!availableCourses.length) {
+    if (!availableDepartments.length) {
       setCoursesLoading(true);
       try {
-        setAvailableCourses(await db.loadAvailableCourses());
+        setAvailableDepartments(await db.loadCatalogDepartments());
       } catch (err) {
-        setEnrollmentError('Could not load available courses: ' + db.friendly(err));
+        setEnrollmentError('Could not load departments: ' + db.friendly(err));
       } finally {
         setCoursesLoading(false);
       }
     }
   };
+
+  useEffect(() => {
+    if (!showEnrollment || !studentEnrollmentForm.dept) { setAvailableCourses([]); return; }
+    let cancelled = false;
+    setCoursesLoading(true);
+    db.loadDepartmentCourses(studentEnrollmentForm.dept)
+      .then(rows => { if (!cancelled) { setAvailableCourses(rows.map(row => row.course)); setSelectedCourses([]); } })
+      .catch(err => { if (!cancelled) setEnrollmentError('Could not load department courses: ' + db.friendly(err)); })
+      .finally(() => { if (!cancelled) setCoursesLoading(false); });
+    return () => { cancelled = true; };
+  }, [showEnrollment, studentEnrollmentForm.dept]);
 
   const toggleCourseSelection = (course) => {
     setSelectedCourses(prev => prev.includes(course) ? prev.filter(c => c !== course) : [...prev, course]);
@@ -2482,15 +2502,15 @@ function StudentPortal({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div><label className={LABEL}>Matriculation / Student ID *</label><input required value={studentEnrollmentForm.studentId} onChange={e => setStudentEnrollmentForm(prev => ({ ...prev, studentId: e.target.value.toUpperCase() }))} placeholder="e.g. CSC/2024/001" className={FIELD} /></div>
               <div><label className={LABEL}>Full registered name *</label><input required value={studentEnrollmentForm.name} onChange={e => setStudentEnrollmentForm(prev => ({ ...prev, name: e.target.value }))} placeholder="As shown on your student ID" className={FIELD} /></div>
-              <div><label className={LABEL}>Department *</label><input required value={studentEnrollmentForm.dept} onChange={e => setStudentEnrollmentForm(prev => ({ ...prev, dept: e.target.value }))} placeholder="e.g. Computer Science" className={FIELD} /></div>
+              <div><label className={LABEL}>Department *</label><select required value={studentEnrollmentForm.dept} onChange={e => setStudentEnrollmentForm(prev => ({ ...prev, dept: e.target.value }))} className={FIELD}><option value="">Choose your department</option>{availableDepartments.map(dept => <option key={dept.id} value={dept.name}>{dept.name}</option>)}</select></div>
               <div><label className={LABEL}>Academic level *</label><select value={studentEnrollmentForm.level} onChange={e => setStudentEnrollmentForm(prev => ({ ...prev, level: e.target.value }))} className={FIELD}><option value="100">100 Level</option><option value="200">200 Level</option><option value="300">300 Level</option><option value="400">400 Level</option><option value="500">500 Level</option><option value="600">600 Level</option></select></div>
             </div>
             <div className="border-t border-slate-100 dark:border-slate-800 pt-4 space-y-3">
-              <div className="flex items-center justify-between gap-3"><div><h3 className="font-extrabold text-sm text-slate-900 dark:text-white">Choose your courses</h3><p className="text-[11px] text-slate-500 mt-0.5">Select every course you are registered for.</p></div><span className="px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 text-[10px] font-bold">{selectedCourses.length} selected</span></div>
-              {coursesLoading ? <div className="py-8 text-center text-xs text-slate-500"><RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2" />Loading verified courses…</div> : availableCourses.length === 0 ? <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 text-xs text-amber-800 dark:text-amber-300">No courses are currently available. Courses appear here after a lecturer has registered and been verified by an administrator.</div> : <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{availableCourses.map(course => { const selected = selectedCourses.includes(course); return <button key={course} type="button" onClick={() => toggleCourseSelection(course)} className={`text-left p-3.5 rounded-2xl border transition-all ${selected ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/50 shadow-sm' : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 hover:border-emerald-300'}`}><span className="flex items-center gap-2"><span className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 ${selected ? 'bg-emerald-700 border-emerald-700 text-white' : 'border-slate-300 dark:border-slate-600'}`}>{selected && <Check className="w-3.5 h-3.5" />}</span><span className="text-xs font-bold text-slate-800 dark:text-slate-100">{course}</span></span></button>; })}</div>}
+              <div className="flex items-center justify-between gap-3"><div><h3 className="font-extrabold text-sm text-slate-900 dark:text-white">Choose your courses</h3><p className="text-[11px] text-slate-500 mt-0.5">Select only the courses you are actually registered for. You do not have to select every course in your department.</p></div><span className="px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 text-[10px] font-bold">{selectedCourses.length} selected</span></div>
+              {coursesLoading ? <div className="py-8 text-center text-xs text-slate-500"><RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2" />Loading courses for your department…</div> : availableCourses.length === 0 ? <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 text-xs text-amber-800 dark:text-amber-300">No active courses are available for this department yet. Ask your department administrator to publish its courses and assign verified lecturers.</div> : <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{availableCourses.map(course => { const selected = selectedCourses.includes(course); return <button key={course} type="button" onClick={() => toggleCourseSelection(course)} className={`text-left p-3.5 rounded-2xl border transition-all ${selected ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/50 shadow-sm' : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 hover:border-emerald-300'}`}><span className="flex items-center gap-2"><span className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 ${selected ? 'bg-emerald-700 border-emerald-700 text-white' : 'border-slate-300 dark:border-slate-600'}`}>{selected && <Check className="w-3.5 h-3.5" />}</span><span className="text-xs font-bold text-slate-800 dark:text-slate-100">{course}</span></span></button>; })}</div>}
             </div>
             <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] text-slate-500 leading-relaxed"><Lock className="w-4 h-4 inline mr-1.5 text-emerald-700" />Face data is processed into numeric templates for verification. The template is delivered securely to the selected course lecturers' protected review queues and is not visible as a photo.</div>
-            <div className="flex flex-col-reverse sm:flex-row gap-2"><button type="button" onClick={() => setShowEnrollment(false)} className="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold">Back to check-in</button><button type="submit" disabled={coursesLoading || !availableCourses.length} className="flex-1 py-3 rounded-xl bg-emerald-900 hover:bg-emerald-800 disabled:opacity-50 text-amber-300 font-extrabold text-xs shadow-lg">Continue to face enrolment <ArrowRight className="w-4 h-4 inline ml-1" /></button></div>
+            <div className="flex flex-col-reverse sm:flex-row gap-2"><button type="button" onClick={() => setShowEnrollment(false)} className="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold">Back to check-in</button><button type="submit" disabled={coursesLoading || !studentEnrollmentForm.dept || !availableCourses.length} className="flex-1 py-3 rounded-xl bg-emerald-900 hover:bg-emerald-800 disabled:opacity-50 text-amber-300 font-extrabold text-xs shadow-lg">Continue to face enrolment <ArrowRight className="w-4 h-4 inline ml-1" /></button></div>
           </form>
         )}
 

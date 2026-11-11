@@ -225,3 +225,33 @@ export async function setLecturerVerification(lecturerId: string, verified: bool
 export async function loadAdminAudit(limit = 50) {
   return unwrap<any[]>(await supabase.rpc('admin_recent_audit', { p_limit: limit }));
 }
+
+// ---- centrally managed academic catalogue ----
+export async function loadCatalogDepartments(): Promise<any[]> {
+  return unwrap<any[]>(await supabase.rpc('catalog_departments'));
+}
+export async function loadCatalogCourses(departmentId: string | null = null): Promise<any[]> {
+  return unwrap<any[]>(await supabase.rpc('catalog_courses', { p_department: departmentId }));
+}
+export async function saveCatalogDepartment(input: { id?: string | null; code: string; name: string; active: boolean }) {
+  return unwrap<string>(await supabase.rpc('admin_save_department', {
+    p_id: input.id || null, p_code: input.code, p_name: input.name, p_active: input.active,
+  }));
+}
+export async function saveCatalogCourse(input: { id?: string | null; departmentId: string; code: string; title: string; level: string; active: boolean }) {
+  return unwrap<string>(await supabase.rpc('admin_save_course', {
+    p_id: input.id || null, p_department: input.departmentId, p_code: input.code,
+    p_title: input.title, p_level: input.level, p_active: input.active,
+  }));
+}
+export async function assignLecturerCourse(lecturerId: string, courseId: string, assigned: boolean, primary = false) {
+  unwrap(await supabase.rpc('admin_assign_lecturer_course', {
+    p_lecturer: lecturerId, p_course: courseId, p_assigned: assigned, p_primary: primary,
+  }));
+}
+export async function loadDepartmentCourses(departmentName: string): Promise<any[]> {
+  return unwrap<any[]>(await supabase.rpc('list_department_courses', { p_department_name: departmentName }));
+}
+export async function loadMyAssignedCourses(): Promise<any[]> {
+  return unwrap<any[]>(await supabase.rpc('my_assigned_courses'));
+}
