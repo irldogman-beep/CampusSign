@@ -21,7 +21,8 @@ begin
 end $$;
 
 -- Validate the signed QR with the interval saved on that particular session.
--- A previously displayed code has a 10-second grace period after rotation.
+-- Accept a signed slot within 30 seconds of its scheduled validity window to tolerate
+-- small client/server clock differences. The HMAC check above still prevents forgery.
 -- For interval 0, slot 0 is a static signed code; revoking/ending the session
 -- still invalidates it immediately.
 create or replace function public.session_info(p_session text, p_slot bigint, p_k text)
@@ -35,7 +36,7 @@ declare
   l public.lecturers;
   e bigint;
   v_now bigint;
-  v_current_slot bigint;
+  v_slot_start bigint;
 begin
   select * into s from public.sessions where id = p_session;
   if not found then raise exception 'invalid_code'; end if;
@@ -51,16 +52,14 @@ begin
     if p_slot <> 0 then raise exception 'expired_code'; end if;
   else
     v_now := floor(extract(epoch from now()))::bigint;
-    v_current_slot := v_now / s.qr_interval_seconds;
+    v_slot_start := p_slot * s.qr_interval_seconds;
 
-    if p_slot > v_current_slot then
+    -- A QR slot is valid from 30 seconds before its start until 30 seconds
+    -- after its end. This accepts only the current or immediately adjacent
+    -- slot for the configured intervals, while retaining HMAC authenticity.
+    if v_now < (v_slot_start - 30)
+      or v_now > (v_slot_start + s.qr_interval_seconds + 30) then
       raise exception 'expired_code';
-    elsif p_slot < v_current_slot then
-      -- Accept only the immediately previous slot, and only for 10 seconds.
-      if p_slot <> v_current_slot - 1
-        or v_now > ((p_slot + 1) * s.qr_interval_seconds + 10) then
-        raise exception 'expired_code';
-      end if;
     end if;
   end if;
 

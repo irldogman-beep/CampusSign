@@ -12,7 +12,7 @@ CampusSign is a browser-based university attendance application built with React
 - Lecturer review inbox for approving/rejecting enrolment requests.
 - Attendance sessions with signed QR check-in.
 - Lecturer-selectable QR lifetime: 30 seconds by default; 1, 2, 5 or 10 minutes; or static until the session closes.
-- Server validation of QR freshness/signature and a 10-second previous-slot grace period for rotating QR codes.
+- Server validation of QR freshness/signature and a 30-second client/server clock-drift tolerance on either side of a signed QR slot.
 - A QR-only projector window so the lecturer's dashboard and student roster are not projected.
 - Face verification with liveness prompts, optional location checks and duplicate-face review workflow.
 - Attendance record editing/deletion and whole closed-session deletion.
@@ -113,3 +113,7 @@ Notifications are in-app only and are refreshed periodically; no email/SMS/push 
 ## Academic catalogue redesign (Step 11)
 
 See `ACADEMIC-CATALOG-STEP11.md` and `RELEASE-NOTES-ACADEMIC-REDESIGN.md`. Apply `supabase-step11-academic-catalog.sql` after migrations 1–10. The admin workspace now manages departments and courses; lecturer registration selects one or more courses from the catalogue; student self-enrolment selects a department and a subset of its available courses. Test on a preview deployment before merging to production.
+
+## Step 12 — security hardening and admin workspace
+
+After Steps 1–11, run `supabase-step12-security-hardening.sql`. See `STEP12-SECURITY-AND-ADMIN-GUIDE.md` for the exact order, including the revised Step 8 QR clock-drift function. Step 12 restricts attendance update columns, adds enrolment throttling and supplies the admin-only data views used by the redesigned dashboard.

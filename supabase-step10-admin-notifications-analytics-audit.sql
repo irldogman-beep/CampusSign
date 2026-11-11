@@ -117,7 +117,11 @@ begin
   insert into public.audit_events (actor_id, actor_email, action, entity_type, entity_id, course, details)
   values (
     auth.uid(),
-    nullif(current_setting('request.jwt.claim.email', true), ''),
+    coalesce(
+      nullif(current_setting('request.jwt.claim.email', true), ''),
+      nullif(auth.jwt() ->> 'email', ''),
+      (select nullif(u.email, '') from auth.users u where u.id = auth.uid())
+    ),
     p_action, p_entity_type, p_entity_id, p_course, coalesce(p_details, '{}'::jsonb)
   );
 end $$;
