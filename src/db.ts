@@ -21,17 +21,32 @@ const MESSAGES: Record<string, string> = {
   course_unavailable: 'One of the selected courses is no longer available. Refresh the course list and try again.',
   already_enrolled: 'This student ID is already enrolled in one or more of the selected courses.',
   enrollment_request_exists: 'An enrolment request already exists for this student ID and course.',
-  enrollment_rate_limited: 'Too many enrolment attempts were made. Please wait an hour before trying again.',
   request_not_found: 'This enrolment request is no longer available.',
   request_already_reviewed: 'This enrolment request has already been reviewed.',
   missing_face_template: 'This request has no saved face template. Ask the student to enrol again.',
+  department_not_found: 'Department was not found.',
+  invalid_course: 'Enter a valid course code and title.',
+  course_not_found: 'Course was not found.',
+  admin_required: 'Administrator access required.',
+  enrollment_rate_limited: 'Too many enrolment attempts. Please wait a few minutes before trying again.',
 };
 
 export function friendly(e: any): string {
   const m = String(e?.message || '');
   if (MESSAGES[m]) return MESSAGES[m];
   if (m.includes('row-level security')) return 'Your account is awaiting verification by the administrator.';
-  if (m.includes('duplicate key')) return 'That Student ID is already on this roster.';
+  if (m.includes('duplicate key')) {
+    if (m.includes('academic_departments_name_key')) return 'A department with this name already exists.';
+    if (m.includes('academic_departments_code_key')) return 'A department with this code already exists.';
+    if (m.includes('academic_courses_department_id_code_key')) return 'A course with this code already exists in this department.';
+    return 'That Student ID is already on this roster.';
+  }
+  if (m.includes('academic_departments_code_format')) {
+    return 'Department code must be 2 to 12 characters (uppercase letters, numbers, hyphens or underscores).';
+  }
+  if (m.includes('academic_courses_code_format')) {
+    return 'Course code must be 2 to 20 characters (uppercase letters, numbers, hyphens or underscores).';
+  }
   if (m.includes('Failed to fetch')) return 'No connection to the server. Check your internet and try again.';
   return m || 'Something went wrong.';
 }
@@ -226,15 +241,6 @@ export async function setLecturerVerification(lecturerId: string, verified: bool
 export async function loadAdminAudit(limit = 50) {
   return unwrap<any[]>(await supabase.rpc('admin_recent_audit', { p_limit: limit }));
 }
-export async function loadAdminEnrolments(limit = 150) {
-  return unwrap<any[]>(await supabase.rpc('admin_list_student_enrolments', { p_limit: limit }));
-}
-export async function loadAdminAttendance(limit = 150) {
-  return unwrap<any[]>(await supabase.rpc('admin_recent_attendance', { p_limit: limit }));
-}
-export async function loadAdminSessions(limit = 75) {
-  return unwrap<any[]>(await supabase.rpc('admin_recent_sessions', { p_limit: limit }));
-}
 
 // ---- centrally managed academic catalogue ----
 export async function loadCatalogDepartments(): Promise<any[]> {
@@ -258,9 +264,6 @@ export async function assignLecturerCourse(lecturerId: string, courseId: string,
   unwrap(await supabase.rpc('admin_assign_lecturer_course', {
     p_lecturer: lecturerId, p_course: courseId, p_assigned: assigned, p_primary: primary,
   }));
-}
-export async function loadLecturerCourseAssignments(lecturerId: string): Promise<any[]> {
-  return unwrap<any[]>(await supabase.rpc('admin_lecturer_courses', { p_lecturer: lecturerId }));
 }
 export async function loadDepartmentCourses(departmentName: string): Promise<any[]> {
   return unwrap<any[]>(await supabase.rpc('list_department_courses', { p_department_name: departmentName }));

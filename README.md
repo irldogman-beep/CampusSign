@@ -12,7 +12,7 @@ CampusSign is a browser-based university attendance application built with React
 - Lecturer review inbox for approving/rejecting enrolment requests.
 - Attendance sessions with signed QR check-in.
 - Lecturer-selectable QR lifetime: 30 seconds by default; 1, 2, 5 or 10 minutes; or static until the session closes.
-- Server validation of QR freshness/signature and a 30-second client/server clock-drift tolerance on either side of a signed QR slot.
+- Server validation of QR freshness/signature and a 10-second previous-slot grace period for rotating QR codes.
 - A QR-only projector window so the lecturer's dashboard and student roster are not projected.
 - Face verification with liveness prompts, optional location checks and duplicate-face review workflow.
 - Attendance record editing/deletion and whole closed-session deletion.
@@ -74,8 +74,9 @@ Before running migrations against a database that contains real students or atte
 8. `supabase-step8-qr-lifetime-and-display.sql`
 9. `supabase-step9-face-duplicate-review.sql`
 10. `supabase-step10-admin-notifications-analytics-audit.sql`
+11. `supabase-step11-academic-catalog.sql`
 
-Run each file once, in order, and inspect the SQL Editor result before continuing. Do not run Step 6–10 on a brand-new database without first running Steps 1–5. The migration scripts describe database structure and functions; **they are not a backup of actual student, biometric or attendance data.** See `BACKUP-RECOVERY-PLAN.md` for the separate data-backup and restore-drill procedure. For Supabase backup coverage and plan-specific details, see https://supabase.com/docs/guides/platform/backups. Supabase notes that a default CLI schema dump omits data and managed `auth`/`storage` schemas; plan a full backup deliberately and separately back up Storage objects if used: https://supabase.com/docs/reference/cli/supabase-db-dump.
+Run each file once, in order, and inspect the SQL Editor result before continuing. Do not run Step 6–11 on a brand-new database without first running Steps 1–5. The migration scripts describe database structure and functions; **they are not a backup of actual student, biometric or attendance data.** See `BACKUP-RECOVERY-PLAN.md` for the separate data-backup and restore-drill procedure. For Supabase backup coverage and plan-specific details, see https://supabase.com/docs/guides/platform/backups. Supabase notes that a default CLI schema dump omits data and managed `auth`/`storage` schemas; plan a full backup deliberately and separately back up Storage objects if used: https://supabase.com/docs/reference/cli/supabase-db-dump.
 
 After applying Step 10, use `ADMIN-SETUP-STEP10.md` to promote one trusted, confirmed account to `role = 'admin'` using the Supabase SQL Editor. Do not add a public admin sign-up or allow users to edit their own role. The administrator can then verify lecturer accounts inside the app. New lecturer accounts remain unverified by default.
 
@@ -113,7 +114,3 @@ Notifications are in-app only and are refreshed periodically; no email/SMS/push 
 ## Academic catalogue redesign (Step 11)
 
 See `ACADEMIC-CATALOG-STEP11.md` and `RELEASE-NOTES-ACADEMIC-REDESIGN.md`. Apply `supabase-step11-academic-catalog.sql` after migrations 1–10. The admin workspace now manages departments and courses; lecturer registration selects one or more courses from the catalogue; student self-enrolment selects a department and a subset of its available courses. Test on a preview deployment before merging to production.
-
-## Step 12 — security hardening and admin workspace
-
-After Steps 1–11, run `supabase-step12-security-hardening.sql`. See `STEP12-SECURITY-AND-ADMIN-GUIDE.md` for the exact order, including the revised Step 8 QR clock-drift function. Step 12 restricts attendance update columns, adds enrolment throttling and supplies the admin-only data views used by the redesigned dashboard.

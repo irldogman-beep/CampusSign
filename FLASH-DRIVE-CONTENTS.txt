@@ -17,4 +17,6 @@ database passwords in this folder.
 
 - ADMIN-SETUP-STEP10.md — how to securely bootstrap the first administrator.
 - supabase-step10-admin-notifications-analytics-audit.sql — admin workspace, notifications, analytics and audit migration.
+- ACADEMIC-CATALOG-STEP11.md — centrally managed academic catalogue, departments and course assignments guide.
+- supabase-step11-academic-catalog.sql — academic catalogue, departments and course assignment migration.
 - BACKUP-RECOVERY-PLAN.md — separate source/data backup and restore-drill guidance.

@@ -42,26 +42,22 @@ create index if not exists lecturer_course_assignments_course_idx on public.lect
 -- Backfill existing free-text department and course values without deleting or
 -- rewriting the legacy values used by existing attendance/session records.
 insert into public.academic_departments(code, name)
-select
-  'D_' || upper(substr(md5(lower(trim(d))), 1, 10)),
-  min(trim(d))
+select distinct
+  upper(regexp_replace(left(trim(d), 6), '[^A-Za-z0-9_-]', '_', 'g')) || '_' || upper(substr(md5(lower(trim(d))), 1, 4)),
+  trim(d)
 from (
-  select dept as d
-  from public.lecturers
-  where nullif(trim(dept), '') is not null
-
-  union all
-
-  select dept as d
-  from public.students
-  where nullif(trim(dept), '') is not null
+  select dept as d from public.lecturers where nullif(trim(dept), '') is not null
+  union select dept from public.students where nullif(trim(dept), '') is not null
 ) x
-group by lower(trim(d))
 on conflict do nothing;
 
 insert into public.academic_courses(department_id, code, title)
 select distinct d.id,
-  upper(regexp_replace(left(trim(split_part(coalesce(c.course, ''), ' - ', 1)), 20), '[^A-Za-z0-9_-]', '_', 'g')),
+  case
+    when length(upper(regexp_replace(left(trim(split_part(coalesce(c.course, ''), ' - ', 1)), 20), '[^A-Za-z0-9_-]', '_', 'g'))) < 2
+    then rpad(upper(regexp_replace(left(trim(split_part(coalesce(c.course, ''), ' - ', 1)), 20), '[^A-Za-z0-9_-]', '_', 'g')), 2, '0')
+    else upper(regexp_replace(left(trim(split_part(coalesce(c.course, ''), ' - ', 1)), 20), '[^A-Za-z0-9_-]', '_', 'g'))
+  end,
   case when position(' - ' in c.course) > 0 then trim(substring(c.course from position(' - ' in c.course) + 3)) else trim(c.course) end
 from (
   select dept, course from public.lecturers where nullif(trim(dept), '') is not null and nullif(trim(course), '') is not null
@@ -69,7 +65,7 @@ from (
 ) c
 join public.academic_departments d on lower(d.name) = lower(trim(c.dept))
 where nullif(trim(split_part(c.course, ' - ', 1)), '') is not null
-on conflict (department_id, code) do nothing;
+on conflict do nothing;
 
 -- Link existing lecturers to their existing course where the catalogue can be
 -- matched. This does not change their legacy profile/course values.
@@ -78,7 +74,10 @@ select l.id, c.id, true
 from public.lecturers l
 join public.academic_departments d on lower(d.name) = lower(trim(l.dept))
 join public.academic_courses c on c.department_id = d.id
- and c.code = upper(regexp_replace(left(trim(split_part(l.course, ' - ', 1)), 20), '[^A-Za-z0-9_-]', '_', 'g'))
+ and (
+   c.code = upper(regexp_replace(left(trim(split_part(l.course, ' - ', 1)), 20), '[^A-Za-z0-9_-]', '_', 'g'))
+   or c.code = rpad(upper(regexp_replace(left(trim(split_part(l.course, ' - ', 1)), 20), '[^A-Za-z0-9_-]', '_', 'g')), 2, '0')
+ )
 where nullif(trim(l.course), '') is not null
 on conflict do nothing;
 
@@ -184,7 +183,7 @@ language sql stable security definer set search_path = public as $$
   select c.code || ' - ' || c.title, c.code, c.title, c.level
   from public.academic_courses c join public.academic_departments d on d.id=c.department_id
   where d.is_active and c.is_active and lower(d.name)=lower(trim(p_department_name))
-    and exists (select 1 from public.lecturer_course_assignments a join public.lecturers l on l.id=a.lecturer_id where a.course_id=c.id and l.is_verified and l.role='lecturer')
+    and exists (select 1 from public.lecturer_course_assignments a join public.lecturers l on l.id=a.lecturer_id where a.course_id=c.id and l.is_verified and l.role in ('lecturer', 'admin'))
   order by c.code
 $$;
 
@@ -195,11 +194,43 @@ revoke all on function public.admin_save_course(uuid,uuid,text,text,text,boolean
 revoke all on function public.admin_assign_lecturer_course(uuid,uuid,boolean,boolean) from public, anon;
 revoke all on function public.list_department_courses(text) from public;
 grant execute on function public.catalog_departments() to anon, authenticated;
-grant execute on function public.catalog_courses(uuid) to authenticated;
+grant execute on function public.catalog_courses(uuid) to anon, authenticated;
 grant execute on function public.admin_save_department(uuid,text,text,boolean) to authenticated;
 grant execute on function public.admin_save_course(uuid,uuid,text,text,text,boolean) to authenticated;
 grant execute on function public.admin_assign_lecturer_course(uuid,uuid,boolean,boolean) to authenticated;
 grant execute on function public.list_department_courses(text) to anon, authenticated;
+
+-- Rate limiting table and helper for student enrolment submissions
+create table if not exists public.campussign_enrollment_rate_limits (
+  bucket_key text primary key,
+  window_started_at timestamptz not null default now(),
+  request_count integer not null default 1,
+  updated_at timestamptz not null default now()
+);
+alter table public.campussign_enrollment_rate_limits enable row level security;
+revoke all on public.campussign_enrollment_rate_limits from anon, authenticated;
+
+create or replace function public._campussign_consume_enrollment_limit(p_bucket text, p_max integer)
+returns boolean
+language plpgsql security definer set search_path = public as $$
+declare v_count integer;
+begin
+  perform pg_advisory_xact_lock(hashtextextended(p_bucket, 0));
+  insert into public.campussign_enrollment_rate_limits(bucket_key, window_started_at, request_count, updated_at)
+  values (p_bucket, now(), 1, now())
+  on conflict (bucket_key) do update
+    set window_started_at = case
+          when public.campussign_enrollment_rate_limits.window_started_at <= now() - interval '1 hour' then now()
+          else public.campussign_enrollment_rate_limits.window_started_at end,
+        request_count = case
+          when public.campussign_enrollment_rate_limits.window_started_at <= now() - interval '1 hour' then 1
+          else public.campussign_enrollment_rate_limits.request_count + 1 end,
+        updated_at = now()
+  returning request_count into v_count;
+  return v_count <= greatest(1, p_max);
+end;
+$$;
+revoke all on function public._campussign_consume_enrollment_limit(text, integer) from public, anon, authenticated;
 
 -- Route self-enrolment through the centrally managed catalogue and lecturer
 -- assignments. The request table and approval workflow remain unchanged.
@@ -217,9 +248,28 @@ declare
   sent int := 0;
   recipients int := 0;
   request_id uuid;
+  headers jsonb;
+  source_ip text;
+  ip_bucket text;
 begin
   if length(sid) < 3 or length(sid) > 40 then raise exception 'invalid_student_id'; end if;
   if length(nm) < 3 or length(nm) > 120 then raise exception 'invalid_student_name'; end if;
+
+  begin
+    headers := nullif(current_setting('request.headers', true), '')::jsonb;
+  exception when others then
+    headers := null;
+  end;
+  source_ip := coalesce(headers ->> 'cf-connecting-ip', headers ->> 'x-real-ip', split_part(coalesce(headers ->> 'x-forwarded-for', ''), ',', 1));
+  if nullif(trim(source_ip), '') is not null then
+    ip_bucket := 'ip:' || md5(trim(source_ip));
+    if not public._campussign_consume_enrollment_limit(ip_bucket, 120) then
+      raise exception 'enrollment_rate_limited';
+    end if;
+  end if;
+  if not public._campussign_consume_enrollment_limit('student:' || md5(sid), 5) then
+    raise exception 'enrollment_rate_limited';
+  end if;
   if not exists(select 1 from public.academic_departments d where d.is_active and lower(d.name)=lower(trim(coalesce(p_dept,'')))) then raise exception 'invalid_department'; end if;
   if coalesce(array_length(p_courses, 1), 0) < 1 or array_length(p_courses, 1) > 20 then raise exception 'select_at_least_one_course'; end if;
   if p_descriptors is null or jsonb_typeof(p_descriptors) <> 'array' or jsonb_array_length(p_descriptors) not between 1 and 10 then raise exception 'bad_descriptor'; end if;
@@ -241,7 +291,7 @@ begin
       join public.lecturer_course_assignments a on a.lecturer_id=l.id
       join public.academic_courses c on c.id=a.course_id
       join public.academic_departments d on d.id=c.department_id
-      where l.is_verified and l.role='lecturer' and c.is_active and d.is_active
+      where l.is_verified and l.role in ('lecturer', 'admin') and c.is_active and d.is_active
         and (c.code || ' - ' || c.title)=cr and lower(d.name)=lower(trim(p_dept))
     loop
       if exists (select 1 from public.students st where st.lecturer_id=lect.id and st.course=cr and upper(st.student_id)=sid) then continue; end if;
@@ -260,7 +310,13 @@ begin
       sent := sent+1; recipients := recipients+1;
     end loop;
   end loop;
-  if sent=0 then raise exception 'course_unavailable'; end if;
+  if sent=0 then
+    if exists (select 1 from public.students st where upper(st.student_id)=sid and st.course=any(p_courses)) then
+      raise exception 'already_enrolled';
+    else
+      raise exception 'course_unavailable';
+    end if;
+  end if;
   return jsonb_build_object('requests_sent',sent,'lecturers_notified',recipients);
 exception when unique_violation then raise exception 'enrollment_request_exists';
 end $$;
@@ -314,5 +370,29 @@ language sql stable security definer set search_path = public as $$
 $$;
 revoke execute on function public.my_assigned_courses() from public, anon;
 grant execute on function public.my_assigned_courses() to authenticated;
+
+create or replace function public.admin_list_lecturers()
+returns table (
+  lecturer_id uuid, name text, email text, dept text, course text,
+  is_verified boolean, created_at timestamptz
+) language plpgsql stable security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'admin_required'; end if;
+  return query
+    select l.id, l.name, l.email, l.dept,
+      coalesce(
+        (select string_agg(c.code, ', ' order by a.is_primary desc, c.code)
+         from public.lecturer_course_assignments a
+         join public.academic_courses c on c.id = a.course_id
+         where a.lecturer_id = l.id),
+        l.course
+      ) as course,
+      l.is_verified, l.created_at
+    from public.lecturers l
+    where l.role in ('lecturer', 'admin')
+    order by l.is_verified asc, l.created_at desc;
+end $$;
+revoke all on function public.admin_list_lecturers() from public, anon;
+grant execute on function public.admin_list_lecturers() to authenticated;
 
 commit;

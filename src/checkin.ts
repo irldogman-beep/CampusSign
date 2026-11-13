@@ -7,7 +7,7 @@
 // An interval of 0 means a static QR (valid until the session is closed).
 // ---------------------------------------------------------------------------
 export const DEFAULT_QR_INTERVAL_SECONDS = 30;
-export const QR_CLOCK_DRIFT_SECONDS = 30;
+export const QR_GRACE_SECONDS = 10;
 export const currentSlot = (now: number = Date.now(), intervalSeconds: number = DEFAULT_QR_INTERVAL_SECONDS) =>
   intervalSeconds <= 0 ? 0 : Math.floor(now / (intervalSeconds * 1000));
 

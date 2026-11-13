@@ -48,7 +48,7 @@ The source files were syntax-transpiled successfully with the TypeScript compile
 - New session settings allow QR rotation every 30 seconds (default), 1 minute, 2 minutes, 5 minutes, 10 minutes, or never (static until the attendance session is closed).
 - `qr_interval_seconds` is saved per attendance session. Existing sessions receive the 30-second default when the Step 8 migration is applied.
 - The QR continues to be signed with the session secret in the lecturer's browser. The secret is never sent to the projector window or included in the QR payload.
-- The database `session_info` function enforces the saved interval. A signed QR slot is accepted from 30 seconds before its scheduled start until 30 seconds after its scheduled end to tolerate modest client/server clock drift. Static QR mode uses signed slot 0 and is invalidated by ending/revoking the session.
+- The database `session_info` function enforces the saved interval. A QR from the immediately previous interval gets a 10-second grace period; older codes are rejected. Static QR mode uses signed slot 0 and is invalidated by ending/revoking the session.
 - Scanning a QR still issues the existing 10-minute server check-in ticket. The QR's lifetime and the time allowed to complete a check-in after scanning are separate controls.
 - The lecturer can open a dedicated `?display=qr` browser window. It shows only the course/session information, QR image and scan instructions; state is shared from the lecturer portal with `BroadcastChannel`. It receives the signed QR payload but not the lecturer portal, session secret, roster, or attendance data.
 - Apply `supabase-step8-qr-lifetime-and-display.sql` after migrations 1–7 before creating sessions with the new UI.
