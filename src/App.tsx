@@ -2333,6 +2333,8 @@ function StudentPortal({
   const [enrollmentResult, setEnrollmentResult] = useState(null);
   const [enrollmentSubmitting, setEnrollmentSubmitting] = useState(false);
   const [enrollmentFaceAttempt, setEnrollmentFaceAttempt] = useState(0);
+  const [isAdditionalCourseRequest, setIsAdditionalCourseRequest] = useState(false);
+  const [existingCourseNames, setExistingCourseNames] = useState<string[]>([]);
 
   // The session comes from the QR the student actually scanned (signed + time-limited)
   const session = checkin ? checkin.session : null;
@@ -2406,7 +2408,10 @@ function StudentPortal({
 
   const handleFaceCaptured = ({ photo, descriptors }) => submitCheckIn(photo, descriptors);
 
-  const startStudentEnrollment = async (profile: any = null) => {
+  const startStudentEnrollment = async (profile: any = null, existingCourses: any[] = []) => {
+    setIsAdditionalCourseRequest(!!profile);
+    setExistingCourseNames(profile ? existingCourses.map((course: any) => course.course).filter(Boolean) : []);
+    setSelectedCourses([]);
     if (profile) setStudentEnrollmentForm({ studentId: profile.student_id || '', name: profile.full_name || '', dept: profile.department || '', level: profile.level || '100' });
     setShowEnrollment(true);
     setEnrollmentStage('profile');
@@ -2500,7 +2505,7 @@ function StudentPortal({
   };
 
   if (showAccountPortal) {
-    return <StudentAccountPortal onClose={() => setShowAccountPortal(false)} onEnroll={(profile) => { setShowAccountPortal(false); startStudentEnrollment(profile); }} />;
+    return <StudentAccountPortal onClose={() => setShowAccountPortal(false)} onEnroll={(profile, courses) => { setShowAccountPortal(false); startStudentEnrollment(profile, courses); }} />;
   }
 
   if (showEnrollment) {
@@ -2511,8 +2516,8 @@ function StudentPortal({
           <div className="relative flex items-start justify-between gap-4">
             <div>
               <span className="text-[10px] uppercase tracking-[0.22em] font-black text-amber-300">CampusSign · Student onboarding</span>
-              <h2 className="text-2xl sm:text-3xl font-black mt-2">Your courses. Your identity. One enrolment.</h2>
-              <p className="text-xs sm:text-sm text-emerald-100/80 mt-2 max-w-xl">Create your student profile, choose your courses, and securely enrol your face. Each selected course sends an approval request to its lecturer.</p>
+              <h2 className="text-2xl sm:text-3xl font-black mt-2">{isAdditionalCourseRequest ? 'Add courses to your student account.' : 'Your courses. Your identity. One enrolment.'}</h2>
+              <p className="text-xs sm:text-sm text-emerald-100/80 mt-2 max-w-xl">{isAdditionalCourseRequest ? 'Your verified student details are already saved. Choose only the new courses you want to add; you will not need to enter your profile details again.' : 'Create your student profile, choose your courses, and securely enrol your face. Each selected course sends an approval request to its lecturer.'}</p>
             </div>
             <div className="hidden sm:flex w-14 h-14 rounded-2xl bg-amber-400/15 border border-amber-300/30 items-center justify-center shrink-0"><Sparkles className="w-7 h-7 text-amber-300" /></div>
           </div>
@@ -2530,37 +2535,44 @@ function StudentPortal({
         {enrollmentStage === 'profile' && (
           <form onSubmit={continueToFaceEnrollment} className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-lg space-y-5">
             <div><h3 className="text-lg font-extrabold text-slate-900 dark:text-white">Student information</h3><p className="text-xs text-slate-500 mt-1">Enter your details exactly as they appear in your institution's records.</p></div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div><label className={LABEL}>Matriculation / Student ID *</label><input required value={studentEnrollmentForm.studentId} onChange={e => setStudentEnrollmentForm(prev => ({ ...prev, studentId: e.target.value.toUpperCase() }))} placeholder="e.g. CSC/2024/001" className={FIELD} /></div>
-              <div><label className={LABEL}>Full registered name *</label><input required value={studentEnrollmentForm.name} onChange={e => setStudentEnrollmentForm(prev => ({ ...prev, name: e.target.value }))} placeholder="As shown on your student ID" className={FIELD} /></div>
-              <div><label className={LABEL}>Department *</label><select required value={studentEnrollmentForm.dept} onChange={e => setStudentEnrollmentForm(prev => ({ ...prev, dept: e.target.value }))} className={FIELD}><option value="">Choose your department</option>{availableDepartments.map(dept => <option key={dept.id} value={dept.name}>{dept.name}</option>)}</select></div>
-              <div><label className={LABEL}>Academic level *</label><select value={studentEnrollmentForm.level} onChange={e => setStudentEnrollmentForm(prev => ({ ...prev, level: e.target.value }))} className={FIELD}><option value="100">100 Level</option><option value="200">200 Level</option><option value="300">300 Level</option><option value="400">400 Level</option><option value="500">500 Level</option><option value="600">600 Level</option></select></div>
-            </div>
+            {isAdditionalCourseRequest ? (
+              <div className="rounded-2xl border border-emerald-200 dark:border-emerald-900 bg-emerald-50/70 dark:bg-emerald-950/30 p-4">
+                <div className="flex items-center gap-2 mb-3"><ShieldCheck className="w-4 h-4 text-emerald-700 dark:text-emerald-300"/><span className="text-[10px] uppercase tracking-wider font-black text-emerald-800 dark:text-emerald-200">Verified student details · already saved</span></div>
+                <div className="grid grid-cols-2 gap-3"><div><p className="text-[9px] uppercase font-bold text-slate-500">Student ID</p><p className="text-xs font-bold text-slate-900 dark:text-white mt-1">{studentEnrollmentForm.studentId}</p></div><div><p className="text-[9px] uppercase font-bold text-slate-500">Academic level</p><p className="text-xs font-bold text-slate-900 dark:text-white mt-1">{studentEnrollmentForm.level} Level</p></div><div className="col-span-2"><p className="text-[9px] uppercase font-bold text-slate-500">Registered name</p><p className="text-xs font-bold text-slate-900 dark:text-white mt-1">{studentEnrollmentForm.name}</p></div><div className="col-span-2"><p className="text-[9px] uppercase font-bold text-slate-500">Department</p><p className="text-xs font-bold text-slate-900 dark:text-white mt-1">{studentEnrollmentForm.dept}</p></div></div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div><label className={LABEL}>Matriculation / Student ID *</label><input required value={studentEnrollmentForm.studentId} onChange={e => setStudentEnrollmentForm(prev => ({ ...prev, studentId: e.target.value.toUpperCase() }))} placeholder="e.g. CSC/2024/001" className={FIELD} /></div>
+                <div><label className={LABEL}>Full registered name *</label><input required value={studentEnrollmentForm.name} onChange={e => setStudentEnrollmentForm(prev => ({ ...prev, name: e.target.value }))} placeholder="As shown on your student ID" className={FIELD} /></div>
+                <div><label className={LABEL}>Department *</label><select required value={studentEnrollmentForm.dept} onChange={e => setStudentEnrollmentForm(prev => ({ ...prev, dept: e.target.value }))} className={FIELD}><option value="">Choose your department</option>{availableDepartments.map(dept => <option key={dept.id} value={dept.name}>{dept.name}</option>)}</select></div>
+                <div><label className={LABEL}>Academic level *</label><select value={studentEnrollmentForm.level} onChange={e => setStudentEnrollmentForm(prev => ({ ...prev, level: e.target.value }))} className={FIELD}><option value="100">100 Level</option><option value="200">200 Level</option><option value="300">300 Level</option><option value="400">400 Level</option><option value="500">500 Level</option><option value="600">600 Level</option></select></div>
+              </div>
+            )}
             <div className="border-t border-slate-100 dark:border-slate-800 pt-4 space-y-3">
               <div className="flex items-center justify-between gap-3"><div><h3 className="font-extrabold text-sm text-slate-900 dark:text-white">Choose your courses</h3><p className="text-[11px] text-slate-500 mt-0.5">Select only the courses you are actually registered for. You do not have to select every course in your department.</p></div><span className="px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 text-[10px] font-bold">{selectedCourses.length} selected</span></div>
-              {coursesLoading ? <div className="py-8 text-center text-xs text-slate-500"><RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2" />Loading courses for your department…</div> : availableCourses.length === 0 ? <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 text-xs text-amber-800 dark:text-amber-300">No active courses are available for this department yet. Ask your department administrator to publish its courses and assign verified lecturers.</div> : <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{availableCourses.map(course => { const selected = selectedCourses.includes(course); return <button key={course} type="button" onClick={() => toggleCourseSelection(course)} className={`text-left p-3.5 rounded-2xl border transition-all ${selected ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/50 shadow-sm' : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 hover:border-emerald-300'}`}><span className="flex items-center gap-2"><span className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 ${selected ? 'bg-emerald-700 border-emerald-700 text-white' : 'border-slate-300 dark:border-slate-600'}`}>{selected && <Check className="w-3.5 h-3.5" />}</span><span className="text-xs font-bold text-slate-800 dark:text-slate-100">{course}</span></span></button>; })}</div>}
+              {coursesLoading ? <div className="py-8 text-center text-xs text-slate-500"><RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2" />Loading courses for your department…</div> : availableCourses.filter(course => !existingCourseNames.includes(course)).length === 0 ? <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 text-xs text-amber-800 dark:text-amber-300">{isAdditionalCourseRequest && availableCourses.length > 0 ? 'You already have every active course in this department linked to your account.' : 'No active courses are available for this department yet. Ask your department administrator to publish its courses and assign verified lecturers.'}</div> : <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">{availableCourses.filter(course => !existingCourseNames.includes(course)).map(course => { const selected = selectedCourses.includes(course); return <button key={course} type="button" onClick={() => toggleCourseSelection(course)} className={`text-left p-3.5 rounded-2xl border transition-all ${selected ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/50 shadow-sm' : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 hover:border-emerald-300'}`}><span className="flex items-center gap-2"><span className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 ${selected ? 'bg-emerald-700 border-emerald-700 text-white' : 'border-slate-300 dark:border-slate-600'}`}>{selected && <Check className="w-3.5 h-3.5" />}</span><span className="text-xs font-bold text-slate-800 dark:text-slate-100">{course}</span></span></button>; })}</div>}
             </div>
             <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] text-slate-500 leading-relaxed"><Lock className="w-4 h-4 inline mr-1.5 text-emerald-700" />Face data is processed into numeric templates for verification. The template is delivered securely to the selected course lecturers' protected review queues and is not visible as a photo.</div>
-            <div className="flex flex-col-reverse sm:flex-row gap-2"><button type="button" onClick={() => setShowEnrollment(false)} className="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold">Back to check-in</button><button type="submit" disabled={coursesLoading || !studentEnrollmentForm.dept || !availableCourses.length} className="flex-1 py-3 rounded-xl bg-emerald-900 hover:bg-emerald-800 disabled:opacity-50 text-amber-300 font-extrabold text-xs shadow-lg">Continue to face enrolment <ArrowRight className="w-4 h-4 inline ml-1" /></button></div>
+            <div className="flex flex-col-reverse sm:flex-row gap-2"><button type="button" onClick={() => { setShowEnrollment(false); if (isAdditionalCourseRequest) setShowAccountPortal(true); }} className="flex-1 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold">{isAdditionalCourseRequest ? 'Back to student dashboard' : 'Back to check-in'}</button><button type="submit" disabled={coursesLoading || !studentEnrollmentForm.dept || !availableCourses.some(course => !existingCourseNames.includes(course))} className="flex-1 py-3 rounded-xl bg-emerald-900 hover:bg-emerald-800 disabled:opacity-50 text-amber-300 font-extrabold text-xs shadow-lg">Continue to face enrolment <ArrowRight className="w-4 h-4 inline ml-1" /></button></div>
           </form>
         )}
 
         {enrollmentStage === 'face' && (
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-lg space-y-5 text-center">
-            <div><h3 className="text-lg font-extrabold text-slate-900 dark:text-white">Enrol your face</h3><p className="text-xs text-slate-500 mt-1">Position your face in the frame and follow the prompts to capture multiple samples.</p></div>
+            <div><h3 className="text-lg font-extrabold text-slate-900 dark:text-white">{isAdditionalCourseRequest ? 'Confirm your identity for these courses' : 'Enrol your face'}</h3><p className="text-xs text-slate-500 mt-1">Position your face in the frame and follow the prompts to capture multiple samples for the lecturer review requests.</p></div>
             <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-left text-xs text-emerald-800 dark:text-emerald-300"><strong>{studentEnrollmentForm.name}</strong> · {studentEnrollmentForm.studentId.toUpperCase()}<br />Submitting for {selectedCourses.length} course(s): {selectedCourses.join(', ')}</div>
             {enrollmentSubmitting ? <div className="py-8 text-xs text-slate-500"><RefreshCw className="w-6 h-6 mx-auto mb-2 animate-spin" />Submitting your enrolment requests securely…</div> : <FaceCapture key={enrollmentFaceAttempt} mode="enroll" onEnrolled={handleStudentFaceEnrollment} />}
-            <button type="button" onClick={() => setEnrollmentStage('profile')} className="text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200">Back to profile</button>
+            <button type="button" onClick={() => setEnrollmentStage('profile')} className="text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200">Back to course selection</button>
           </div>
         )}
 
         {enrollmentStage === 'success' && (
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-7 sm:p-9 border border-slate-200 dark:border-slate-800 shadow-xl text-center space-y-5 animate-fade-up">
             <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 flex items-center justify-center mx-auto"><Check className="w-8 h-8" /></div>
-            <div><h3 className="text-xl font-black text-slate-900 dark:text-white">Enrolment requests submitted!</h3><p className="text-sm text-slate-500 mt-2">Your profile and face template have been sent to the lecturers responsible for your selected courses.</p></div>
+            <div><h3 className="text-xl font-black text-slate-900 dark:text-white">{isAdditionalCourseRequest ? 'Additional course requests submitted!' : 'Enrolment requests submitted!'}</h3><p className="text-sm text-slate-500 mt-2">{isAdditionalCourseRequest ? 'Your new course requests and identity confirmation have been sent to the lecturers responsible for those courses.' : 'Your profile and face template have been sent to the lecturers responsible for your selected courses.'}</p></div>
             <div className="grid grid-cols-2 gap-3"><div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800"><strong className="block text-2xl text-emerald-700 dark:text-emerald-400">{enrollmentResult?.requests_sent ?? selectedCourses.length}</strong><span className="text-[10px] text-slate-500">Lecturer requests</span></div><div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800"><strong className="block text-2xl text-emerald-700 dark:text-emerald-400">{selectedCourses.length}</strong><span className="text-[10px] text-slate-500">Courses selected</span></div></div>
             <p className="text-xs text-slate-500">Your lecturers must approve each request before you can use face-verified attendance for that course.</p>
-            <button onClick={() => { setShowEnrollment(false); setEnrollmentStage('profile'); setStudentEnrollmentForm({ studentId: '', name: '', dept: '', level: '100' }); setSelectedCourses([]); setShowAccountPortal(true); }} className="w-full py-3.5 rounded-xl bg-emerald-900 hover:bg-emerald-800 text-amber-300 font-extrabold text-sm">Return to student account</button>
+            <button onClick={() => { setShowEnrollment(false); setEnrollmentStage('profile'); setStudentEnrollmentForm({ studentId: '', name: '', dept: '', level: '100' }); setSelectedCourses([]); setIsAdditionalCourseRequest(false); setExistingCourseNames([]); setShowAccountPortal(true); }} className="w-full py-3.5 rounded-xl bg-emerald-900 hover:bg-emerald-800 text-amber-300 font-extrabold text-sm">Return to student account</button>
           </div>
         )}
       </div>
