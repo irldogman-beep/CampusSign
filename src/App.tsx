@@ -151,6 +151,12 @@ function formatQrInterval(seconds) {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('home'); // home | admin | student | docs
+  const [showLaunchScreen, setShowLaunchScreen] = useState(true);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setShowLaunchScreen(false), 1050);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   const [studentEntry, setStudentEntry] = useState(false);
   const [quickAttendance, setQuickAttendance] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -289,6 +295,14 @@ export default function App() {
 
   return (
     <div className={`campus-app-shell min-h-screen ${isDarkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'} transition-colors duration-200 font-sans`}>
+      {showLaunchScreen && (
+        <div className="campus-launch-screen" aria-label="CampusSign starting" role="status">
+          <div className="campus-launch-mark"><CampusSignLogo className="w-16 h-16"/></div>
+          <p className="campus-launch-name">CampusSign</p>
+          <p className="campus-launch-caption">Attendance, clearly verified.</p>
+          <span className="campus-launch-progress"><span/></span>
+        </div>
+      )}
       
       {/* HEADER / NAVIGATION BAR */}
       {!quickAttendance && <header className="sticky top-0 z-40 bg-emerald-950/90 backdrop-blur-md border-b border-emerald-900 shadow-md">
@@ -333,37 +347,38 @@ export default function App() {
       <main key={activeTab} className={`${quickAttendance ? 'max-w-2xl' : 'max-w-7xl'} mx-auto w-full min-w-0 px-3 sm:px-6 lg:px-8 py-3 sm:py-8 page-enter`} aria-live="polite">
         {quickAttendance && <div className="mb-4 flex items-center justify-between"><div className="flex items-center gap-2"><CampusSignLogo className="w-8 h-8"/><span className="font-black text-sm">CampusSign <span className="font-medium text-slate-500">· Quick attendance</span></span></div><button onClick={() => { setQuickAttendance(false); setActiveTab("home"); }} className="text-xs font-bold text-emerald-800 dark:text-emerald-300">Home</button></div>}
         {activeTab === 'home' && (
-          <section className="space-y-12 sm:space-y-16 py-4 sm:py-10">
-            <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-950 text-white border border-emerald-800 shadow-2xl">
-              <div className="absolute -right-24 -top-24 w-96 h-96 rounded-full bg-amber-400/10 blur-3xl" />
-              <div className="absolute -left-20 bottom-0 w-72 h-72 rounded-full bg-emerald-400/10 blur-3xl" />
-              <div className="relative grid lg:grid-cols-[1.15fr_.85fr] gap-8 items-center p-6 sm:p-10 lg:p-14">
-                <div className="max-w-2xl">
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-amber-300 text-[10px] font-black tracking-[.18em] uppercase"><ShieldCheck className="w-3.5 h-3.5"/> Smart campus attendance</div>
-                  <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.05] mt-6">Your campus.<br/><span className="text-amber-300">One connected</span> experience.</h1>
-                  <p className="text-sm sm:text-base text-emerald-100/80 leading-relaxed mt-5 max-w-xl">A simpler way for students and staff to manage academic attendance, verify class participation and stay connected with campus services.</p>
-                  <div className="flex flex-col sm:flex-row gap-3 mt-8">
-                    <button onClick={() => { setStudentEntry(true); setActiveTab('student'); }} className="px-6 py-3.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-emerald-950 font-extrabold text-sm shadow-lg inline-flex items-center justify-center gap-2">Continue as a student <ArrowRight className="w-4 h-4"/></button>
-                    <button onClick={() => setActiveTab('admin')} className="px-6 py-3.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 text-white font-bold text-sm inline-flex items-center justify-center gap-2">Staff and lecturer portal <ArrowRight className="w-4 h-4"/></button>
-                  </div>
-                  <p className="text-[11px] text-emerald-200/60 mt-4">Already have a student account? Sign in to open your dashboard.</p>
+          <section className="max-w-4xl mx-auto space-y-5 sm:space-y-7 py-3 sm:py-8 page-enter">
+            <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-950 text-white border border-emerald-800 shadow-xl">
+              <div className="absolute -right-16 -top-20 w-64 h-64 rounded-full bg-amber-400/10 blur-3xl" />
+              <div className="absolute -left-16 -bottom-24 w-64 h-64 rounded-full bg-emerald-300/10 blur-3xl" />
+              <div className="relative p-6 sm:p-9">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/15 grid place-items-center"><CampusSignLogo className="w-9 h-9"/></div>
+                  <div><p className="text-[10px] uppercase tracking-[.2em] text-emerald-200 font-black">CampusSign</p><p className="text-xs text-emerald-100/70">Campus attendance, made simple</p></div>
                 </div>
-                <div className="hidden sm:block relative max-w-sm mx-auto w-full">
-                  <div className="absolute inset-6 bg-amber-400/20 blur-3xl rounded-full"/>
-                  <div className="relative rounded-[2rem] border border-white/15 bg-white/10 backdrop-blur-xl p-5 shadow-2xl rotate-1">
-                    <div className="flex items-center justify-between border-b border-white/10 pb-4"><div className="flex items-center gap-2"><CampusSignLogo className="w-9 h-9"/><div><p className="font-black text-sm">CampusSign</p><p className="text-[9px] text-emerald-200">CAMPUS ATTENDANCE</p></div></div><span className="w-2 h-2 rounded-full bg-emerald-300"/></div>
-                    <div className="py-7 text-center"><div className="w-36 h-36 mx-auto rounded-2xl bg-white p-3 grid place-items-center"><QrCode className="w-full h-full text-emerald-950"/></div><p className="font-extrabold mt-4">Attendance, simplified.</p><p className="text-[10px] text-emerald-100/70 mt-1">Scan · Verify · You're marked present</p></div>
-                    <div className="grid grid-cols-2 gap-2"><div className="rounded-xl bg-white/10 p-3"><UserCheck className="w-4 h-4 text-amber-300"/><p className="text-[10px] font-bold mt-2">Student-first</p></div><div className="rounded-xl bg-white/10 p-3"><ShieldCheck className="w-4 h-4 text-amber-300"/><p className="text-[10px] font-bold mt-2">Verified sessions</p></div></div>
-                  </div>
+                <h1 className="text-3xl sm:text-4xl font-black tracking-tight mt-8 leading-tight">Your campus day,<br/><span className="text-amber-300">all in one place.</span></h1>
+                <p className="text-sm text-emerald-100/80 mt-3 max-w-lg">Scan into class, verify your attendance and manage your academic activity from one secure space.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-7">
+                  <button onClick={() => { setStudentEntry(false); setActiveTab('student'); }} className="min-h-14 px-5 py-4 rounded-2xl bg-amber-400 hover:bg-amber-300 text-emerald-950 font-extrabold text-sm shadow-lg inline-flex items-center justify-center gap-3"><Scan className="w-5 h-5"/> Student check-in <ArrowRight className="w-4 h-4"/></button>
+                  <button onClick={() => setActiveTab('admin')} className="min-h-14 px-5 py-4 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/20 text-white font-bold text-sm inline-flex items-center justify-center gap-3"><Building className="w-5 h-5"/> Staff workspace <ArrowRight className="w-4 h-4"/></button>
                 </div>
               </div>
             </div>
-            <div className="text-center max-w-2xl mx-auto"><p className="text-[10px] uppercase tracking-[.22em] font-black text-emerald-700 dark:text-emerald-400">Built around your campus day</p><h2 className="text-2xl sm:text-3xl font-black mt-2">Everything starts with the right portal.</h2><p className="text-sm text-slate-500 dark:text-slate-400 mt-3">Choose the space that matches your role. You can return to this page whenever you need.</p></div>
-            <div className="grid md:grid-cols-2 gap-4 sm:gap-6">
-              <button onClick={() => { setStudentEntry(true); setActiveTab('student'); }} className="text-left group rounded-3xl p-6 sm:p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-700 shadow-sm hover:shadow-xl transition-all"><div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 grid place-items-center"><GraduationCap className="w-6 h-6"/></div><h3 className="text-xl font-black mt-5">Student portal</h3><p className="text-sm text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">Access your courses, attendance history, announcements and profile. Scan a lecturer's attendance QR from inside your dashboard.</p><span className="inline-flex items-center gap-2 text-emerald-800 dark:text-emerald-300 font-extrabold text-xs mt-5">Student sign in or register <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform"/></span></button>
-              <button onClick={() => setActiveTab('admin')} className="text-left group rounded-3xl p-6 sm:p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-amber-500 dark:hover:border-amber-700 shadow-sm hover:shadow-xl transition-all"><div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950 text-amber-800 dark:text-amber-300 grid place-items-center"><Building className="w-6 h-6"/></div><h3 className="text-xl font-black mt-5">Staff and lecturer portal</h3><p className="text-sm text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">Manage teaching sessions, display attendance QR codes, review student enrolments and access attendance records.</p><span className="inline-flex items-center gap-2 text-emerald-800 dark:text-emerald-300 font-extrabold text-xs mt-5">Staff sign in or register <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform"/></span></button>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <button onClick={() => { setStudentEntry(true); setActiveTab('student'); }} className="interactive-card text-left rounded-2xl p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center gap-3">
+                <span className="w-11 h-11 rounded-xl bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 grid place-items-center shrink-0"><GraduationCap className="w-5 h-5"/></span>
+                <span className="min-w-0"><strong className="block text-sm">Student account</strong><span className="block text-[11px] text-slate-500 mt-1">Sign in or register</span></span><ArrowRight className="w-4 h-4 ml-auto text-slate-400 shrink-0"/>
+              </button>
+              <div className="rounded-2xl p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center gap-3">
+                <span className="w-11 h-11 rounded-xl bg-amber-50 dark:bg-amber-950 text-amber-800 dark:text-amber-300 grid place-items-center shrink-0"><ShieldCheck className="w-5 h-5"/></span>
+                <span><strong className="block text-sm">Verified sessions</strong><span className="block text-[11px] text-slate-500 mt-1">Secure QR and identity checks</span></span>
+              </div>
+              <div className="rounded-2xl p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center gap-3">
+                <span className="w-11 h-11 rounded-xl bg-sky-50 dark:bg-sky-950 text-sky-800 dark:text-sky-300 grid place-items-center shrink-0"><BookOpen className="w-5 h-5"/></span>
+                <span><strong className="block text-sm">Academic activity</strong><span className="block text-[11px] text-slate-500 mt-1">Courses and attendance history</span></span>
+              </div>
             </div>
-            <div className="rounded-3xl bg-slate-100 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 p-6 sm:p-8 grid sm:grid-cols-3 gap-5"><div><QrCode className="w-5 h-5 text-emerald-700 dark:text-emerald-400"/><h3 className="font-extrabold text-sm mt-3">Quick attendance</h3><p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Scan the lecturer's QR with your phone camera. No dashboard navigation required.</p></div><div><ShieldCheck className="w-5 h-5 text-emerald-700 dark:text-emerald-400"/><h3 className="font-extrabold text-sm mt-3">Secure verification</h3><p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Attendance sessions use signed QR codes and server-side student checks.</p></div><div><BookOpen className="w-5 h-5 text-emerald-700 dark:text-emerald-400"/><h3 className="font-extrabold text-sm mt-3">One campus space</h3><p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Student and staff services are organised around the academic community.</p></div></div>
+            <p className="text-center text-[11px] text-slate-500 dark:text-slate-400">A focused attendance workspace for students, lecturers and administrators.</p>
           </section>
         )}
         {activeTab === 'admin' && (
@@ -2527,7 +2542,7 @@ function StudentPortal({
     return <StudentAccountPortal onClose={onHome} onScan={() => { setShowAccountPortal(false); setStep(1); setIsScanningQR(true); }} onEnroll={(profile, courses) => { setShowAccountPortal(false); startStudentEnrollment(profile, courses); }} />;
   }
 
-  if (!quickMode && step === 1 && !showEnrollment) {
+  if (!quickMode && step === 1 && !showEnrollment && !isScanningQR) {
     return (
       <div className="max-w-3xl mx-auto space-y-5 page-enter">
         <section className="rounded-3xl bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-950 text-white p-6 sm:p-8 border border-emerald-800 shadow-xl">
@@ -2535,8 +2550,8 @@ function StudentPortal({
           <p className="text-sm text-emerald-100/80 mt-4 max-w-xl">Sign in to your student dashboard to manage courses and view attendance, or use quick attendance when you have scanned a lecturer's QR code.</p>
         </section>
         <div className="grid sm:grid-cols-2 gap-4">
-          <button onClick={() => setShowAccountPortal(true)} className="text-left rounded-3xl p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 shadow-sm transition-all"><div className="w-11 h-11 rounded-2xl bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 grid place-items-center"><GraduationCap className="w-6 h-6"/></div><h2 className="text-lg font-black mt-4">My student dashboard</h2><p className="text-xs text-slate-500 mt-2 leading-relaxed">Register or sign in to access your courses, attendance history, notifications and profile.</p><span className="inline-flex items-center gap-2 text-emerald-800 dark:text-emerald-300 font-extrabold text-xs mt-5">Continue <ArrowRight className="w-4 h-4"/></span></button>
-          <button onClick={() => { setStep(1); setIsScanningQR(true); }} className="text-left rounded-3xl p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-amber-500 shadow-sm transition-all"><div className="w-11 h-11 rounded-2xl bg-amber-50 dark:bg-amber-950 text-amber-800 dark:text-amber-300 grid place-items-center"><Scan className="w-6 h-6"/></div><h2 className="text-lg font-black mt-4">Scan attendance QR</h2><p className="text-xs text-slate-500 mt-2 leading-relaxed">Open your camera to scan a lecturer's QR code and proceed directly to attendance verification.</p><span className="inline-flex items-center gap-2 text-emerald-800 dark:text-emerald-300 font-extrabold text-xs mt-5">Open scanner <ArrowRight className="w-4 h-4"/></span></button>
+          <button onClick={() => { setIsScanningQR(true); setCheckinError(''); }} className="text-left rounded-3xl p-6 sm:p-7 bg-emerald-950 text-white border border-emerald-800 shadow-lg transition-all"><div className="w-12 h-12 rounded-2xl bg-amber-400 text-emerald-950 grid place-items-center"><Scan className="w-6 h-6"/></div><h2 className="text-lg font-black mt-4">Scan attendance QR</h2><p className="text-xs text-emerald-100/80 mt-2 leading-relaxed">Open your camera and scan the code displayed by your lecturer. No account registration is needed to begin a check-in.</p><span className="inline-flex items-center gap-2 text-amber-300 font-extrabold text-xs mt-5">Open scanner <ArrowRight className="w-4 h-4"/></span></button>
+          <button onClick={() => setShowAccountPortal(true)} className="text-left rounded-3xl p-6 sm:p-7 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 shadow-sm transition-all"><div className="w-11 h-11 rounded-2xl bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 grid place-items-center"><GraduationCap className="w-6 h-6"/></div><h2 className="text-lg font-black mt-4">My student dashboard</h2><p className="text-xs text-slate-500 mt-2 leading-relaxed">Sign in or create your student account to manage courses, attendance history, announcements and profile.</p><span className="inline-flex items-center gap-2 text-emerald-800 dark:text-emerald-300 font-extrabold text-xs mt-5">Open dashboard <ArrowRight className="w-4 h-4"/></span></button>
         </div>
         <button onClick={onHome} className="w-full text-xs font-bold text-slate-500 hover:text-emerald-700 py-2">Back to CampusSign home</button>
       </div>
@@ -2620,7 +2635,7 @@ function StudentPortal({
 
   return (
     <div className="max-w-xl mx-auto space-y-6 page-enter">
-      <div className="flex justify-end"><button type="button" onClick={() => setShowAccountPortal(true)} className="rounded-xl bg-emerald-950 text-amber-300 hover:bg-emerald-900 px-3 py-2.5 text-xs font-extrabold border border-emerald-800"><UserCheck className="w-4 h-4 inline mr-1.5" /> Student services · Account / registration</button></div>
+      <div className="flex items-center justify-between gap-3"><button type="button" onClick={onHome} className="text-xs font-bold text-slate-500 hover:text-emerald-700">← Back</button><button type="button" onClick={() => setShowAccountPortal(true)} className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-bold text-emerald-800 dark:text-emerald-300"><UserCheck className="w-4 h-4 inline mr-1.5" /> Student account</button></div>
       {/* STEP PROGRESS BAR */}
       <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 mb-2">
