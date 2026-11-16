@@ -18,7 +18,8 @@ import {
   Users, 
   FileCheck, 
   Scan, 
-  Building, 
+  Building,
+  GraduationCap, 
   Key, 
   UserPlus, 
   Trash2, 
@@ -149,7 +150,9 @@ function formatQrInterval(seconds) {
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('admin'); // 'admin' | 'student' | 'docs'
+  const [activeTab, setActiveTab] = useState('home'); // home | admin | student | docs
+  const [studentEntry, setStudentEntry] = useState(false);
+  const [quickAttendance, setQuickAttendance] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     try {
       const saved = localStorage.getItem('campussign-theme');
@@ -272,6 +275,8 @@ export default function App() {
     if (!new URLSearchParams(window.location.search).has('checkin')) return;
     const link = window.location.href;
     window.history.replaceState({}, '', window.location.pathname);
+    setStudentEntry(false);
+    setQuickAttendance(true);
     setActiveTab('student');
     handleQrScanned(link);
   }, []);
@@ -286,7 +291,7 @@ export default function App() {
     <div className={`campus-app-shell min-h-screen ${isDarkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'} transition-colors duration-200 font-sans`}>
       
       {/* HEADER / NAVIGATION BAR */}
-      <header className="sticky top-0 z-40 bg-emerald-950/90 backdrop-blur-md border-b border-emerald-900 shadow-md">
+      {!quickAttendance && <header className="sticky top-0 z-40 bg-emerald-950/90 backdrop-blur-md border-b border-emerald-900 shadow-md">
         <div className="max-w-7xl mx-auto w-full px-3 sm:px-6 lg:px-8 min-h-14 sm:h-16 py-2 sm:py-0 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2">
           
           {/* Logo & Brand Name */}
@@ -303,68 +308,64 @@ export default function App() {
             </div>
           </div>
 
-          {/* Navigation Controls */}
-          <div className="flex items-center gap-1 sm:gap-4 shrink-0">
-            
-            {/* Mode Switcher Buttons */}
-            <div className="bg-emerald-900/80 p-0.5 sm:p-1 rounded-xl border border-emerald-800 flex items-center">
-              <button
-                onClick={() => setActiveTab('admin')}
-                aria-pressed={activeTab === 'admin'}
-                className={`px-2 sm:px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
-                  activeTab === 'admin'
-                    ? 'bg-amber-500 text-emerald-950 shadow-md'
-                    : 'text-emerald-200 hover:text-white'
-                }`}
-              >
-                <Building className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Lecturer Portal</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('student')}
-                aria-pressed={activeTab === 'student'}
-                className={`px-2 sm:px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
-                  activeTab === 'student'
-                    ? 'bg-amber-500 text-emerald-950 shadow-md'
-                    : 'text-emerald-200 hover:text-white'
-                }`}
-              >
-                <QrCode className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Student Portal</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('docs')}
-                aria-pressed={activeTab === 'docs'}
-                className={`px-2 sm:px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
-                  activeTab === 'docs'
-                    ? 'bg-amber-500 text-emerald-950 shadow-md'
-                    : 'text-emerald-200 hover:text-white'
-                }`}
-              >
-                <BookOpen className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Docs</span>
-              </button>
-            </div>
-
-            {/* Dark / Light Toggle */}
-            <button
-              onClick={() => setIsDarkMode(!isDarkMode)}
-              className="theme-toggle p-2 text-emerald-200 hover:text-amber-400 bg-emerald-900/50 hover:bg-emerald-900 border border-emerald-800 rounded-xl transition-colors"
-              title={isDarkMode ? 'Switch to light theme' : 'Switch to dark theme'}
-              aria-label={isDarkMode ? 'Switch to light theme' : 'Switch to dark theme'}
-              aria-pressed={isDarkMode}
-            >
-              {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </button>
-
+          {/* Public entry actions and authenticated workspace navigation */}
+          <div className="flex items-center gap-2 shrink-0">
+            {activeTab === 'home' ? (
+              <>
+                <button onClick={() => { setStudentEntry(true); setActiveTab('student'); }} className="px-3 sm:px-4 py-2 rounded-xl bg-amber-400 text-emerald-950 text-xs font-extrabold shadow-sm">Student access</button>
+                <button onClick={() => setActiveTab('admin')} className="px-3 sm:px-4 py-2 rounded-xl border border-emerald-700 text-emerald-100 hover:bg-emerald-900 text-xs font-bold">Staff access</button>
+              </>
+            ) : !quickAttendance ? (
+              <>
+                <div className="bg-emerald-900/80 p-0.5 sm:p-1 rounded-xl border border-emerald-800 flex items-center">
+                  <button onClick={() => { setStudentEntry(false); setActiveTab('home'); }} className="px-2 sm:px-3 py-1.5 text-xs font-bold rounded-lg text-emerald-100 hover:text-white">Home</button>
+                  <button onClick={() => setActiveTab('admin')} aria-pressed={activeTab === 'admin'} className={`px-2 sm:px-3 py-1.5 text-xs font-bold rounded-lg ${activeTab === 'admin' ? 'bg-amber-500 text-emerald-950' : 'text-emerald-200'}`}>Staff</button>
+                  <button onClick={() => { setStudentEntry(true); setActiveTab('student'); }} aria-pressed={activeTab === 'student'} className={`px-2 sm:px-3 py-1.5 text-xs font-bold rounded-lg ${activeTab === 'student' ? 'bg-amber-500 text-emerald-950' : 'text-emerald-200'}`}>Student</button>
+                </div>
+                <button onClick={() => setIsDarkMode(!isDarkMode)} className="theme-toggle p-2 text-emerald-200 hover:text-amber-400 bg-emerald-900/50 border border-emerald-800 rounded-xl" title={isDarkMode ? 'Switch to light theme' : 'Switch to dark theme'} aria-label={isDarkMode ? 'Switch to light theme' : 'Switch to dark theme'}>{isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}</button>
+              </>
+            ) : null}
           </div>
         </div>
-      </header>
+      </header>}
 
       {/* MAIN CONTENT CONTAINER */}
-      <main key={activeTab} className="max-w-7xl mx-auto w-full min-w-0 px-3 sm:px-6 lg:px-8 py-3 sm:py-8 page-enter" aria-live="polite">
+      <main key={activeTab} className={`${quickAttendance ? 'max-w-2xl' : 'max-w-7xl'} mx-auto w-full min-w-0 px-3 sm:px-6 lg:px-8 py-3 sm:py-8 page-enter`} aria-live="polite">
+        {quickAttendance && <div className="mb-4 flex items-center justify-between"><div className="flex items-center gap-2"><CampusSignLogo className="w-8 h-8"/><span className="font-black text-sm">CampusSign <span className="font-medium text-slate-500">· Quick attendance</span></span></div><button onClick={() => { setQuickAttendance(false); setActiveTab("home"); }} className="text-xs font-bold text-emerald-800 dark:text-emerald-300">Home</button></div>}
+        {activeTab === 'home' && (
+          <section className="space-y-12 sm:space-y-16 py-4 sm:py-10">
+            <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-950 text-white border border-emerald-800 shadow-2xl">
+              <div className="absolute -right-24 -top-24 w-96 h-96 rounded-full bg-amber-400/10 blur-3xl" />
+              <div className="absolute -left-20 bottom-0 w-72 h-72 rounded-full bg-emerald-400/10 blur-3xl" />
+              <div className="relative grid lg:grid-cols-[1.15fr_.85fr] gap-8 items-center p-6 sm:p-10 lg:p-14">
+                <div className="max-w-2xl">
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-amber-300 text-[10px] font-black tracking-[.18em] uppercase"><ShieldCheck className="w-3.5 h-3.5"/> Smart campus attendance</div>
+                  <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.05] mt-6">Your campus.<br/><span className="text-amber-300">One connected</span> experience.</h1>
+                  <p className="text-sm sm:text-base text-emerald-100/80 leading-relaxed mt-5 max-w-xl">A simpler way for students and staff to manage academic attendance, verify class participation and stay connected with campus services.</p>
+                  <div className="flex flex-col sm:flex-row gap-3 mt-8">
+                    <button onClick={() => { setStudentEntry(true); setActiveTab('student'); }} className="px-6 py-3.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-emerald-950 font-extrabold text-sm shadow-lg inline-flex items-center justify-center gap-2">Continue as a student <ArrowRight className="w-4 h-4"/></button>
+                    <button onClick={() => setActiveTab('admin')} className="px-6 py-3.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 text-white font-bold text-sm inline-flex items-center justify-center gap-2">Staff and lecturer portal <ArrowRight className="w-4 h-4"/></button>
+                  </div>
+                  <p className="text-[11px] text-emerald-200/60 mt-4">Already have a student account? Sign in to open your dashboard.</p>
+                </div>
+                <div className="hidden sm:block relative max-w-sm mx-auto w-full">
+                  <div className="absolute inset-6 bg-amber-400/20 blur-3xl rounded-full"/>
+                  <div className="relative rounded-[2rem] border border-white/15 bg-white/10 backdrop-blur-xl p-5 shadow-2xl rotate-1">
+                    <div className="flex items-center justify-between border-b border-white/10 pb-4"><div className="flex items-center gap-2"><CampusSignLogo className="w-9 h-9"/><div><p className="font-black text-sm">CampusSign</p><p className="text-[9px] text-emerald-200">CAMPUS ATTENDANCE</p></div></div><span className="w-2 h-2 rounded-full bg-emerald-300"/></div>
+                    <div className="py-7 text-center"><div className="w-36 h-36 mx-auto rounded-2xl bg-white p-3 grid place-items-center"><QrCode className="w-full h-full text-emerald-950"/></div><p className="font-extrabold mt-4">Attendance, simplified.</p><p className="text-[10px] text-emerald-100/70 mt-1">Scan · Verify · You're marked present</p></div>
+                    <div className="grid grid-cols-2 gap-2"><div className="rounded-xl bg-white/10 p-3"><UserCheck className="w-4 h-4 text-amber-300"/><p className="text-[10px] font-bold mt-2">Student-first</p></div><div className="rounded-xl bg-white/10 p-3"><ShieldCheck className="w-4 h-4 text-amber-300"/><p className="text-[10px] font-bold mt-2">Verified sessions</p></div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="text-center max-w-2xl mx-auto"><p className="text-[10px] uppercase tracking-[.22em] font-black text-emerald-700 dark:text-emerald-400">Built around your campus day</p><h2 className="text-2xl sm:text-3xl font-black mt-2">Everything starts with the right portal.</h2><p className="text-sm text-slate-500 dark:text-slate-400 mt-3">Choose the space that matches your role. You can return to this page whenever you need.</p></div>
+            <div className="grid md:grid-cols-2 gap-4 sm:gap-6">
+              <button onClick={() => { setStudentEntry(true); setActiveTab('student'); }} className="text-left group rounded-3xl p-6 sm:p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-700 shadow-sm hover:shadow-xl transition-all"><div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 grid place-items-center"><GraduationCap className="w-6 h-6"/></div><h3 className="text-xl font-black mt-5">Student portal</h3><p className="text-sm text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">Access your courses, attendance history, announcements and profile. Scan a lecturer's attendance QR from inside your dashboard.</p><span className="inline-flex items-center gap-2 text-emerald-800 dark:text-emerald-300 font-extrabold text-xs mt-5">Student sign in or register <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform"/></span></button>
+              <button onClick={() => setActiveTab('admin')} className="text-left group rounded-3xl p-6 sm:p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-amber-500 dark:hover:border-amber-700 shadow-sm hover:shadow-xl transition-all"><div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950 text-amber-800 dark:text-amber-300 grid place-items-center"><Building className="w-6 h-6"/></div><h3 className="text-xl font-black mt-5">Staff and lecturer portal</h3><p className="text-sm text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">Manage teaching sessions, display attendance QR codes, review student enrolments and access attendance records.</p><span className="inline-flex items-center gap-2 text-emerald-800 dark:text-emerald-300 font-extrabold text-xs mt-5">Staff sign in or register <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform"/></span></button>
+            </div>
+            <div className="rounded-3xl bg-slate-100 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 p-6 sm:p-8 grid sm:grid-cols-3 gap-5"><div><QrCode className="w-5 h-5 text-emerald-700 dark:text-emerald-400"/><h3 className="font-extrabold text-sm mt-3">Quick attendance</h3><p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Scan the lecturer's QR with your phone camera. No dashboard navigation required.</p></div><div><ShieldCheck className="w-5 h-5 text-emerald-700 dark:text-emerald-400"/><h3 className="font-extrabold text-sm mt-3">Secure verification</h3><p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Attendance sessions use signed QR codes and server-side student checks.</p></div><div><BookOpen className="w-5 h-5 text-emerald-700 dark:text-emerald-400"/><h3 className="font-extrabold text-sm mt-3">One campus space</h3><p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Student and staff services are organised around the academic community.</p></div></div>
+          </section>
+        )}
         {activeTab === 'admin' && (
           <AdminPortal 
             activeSession={activeSession}
@@ -398,6 +399,9 @@ export default function App() {
             setLockedOutStudents={setLockedOutStudents}
             studentRegistry={studentRegistry}
             isDarkMode={isDarkMode}
+            openAccountInitially={studentEntry}
+            quickMode={quickAttendance}
+            onHome={() => { setQuickAttendance(false); setStudentEntry(false); setActiveTab('home'); }}
           />
         )}
 
@@ -407,7 +411,7 @@ export default function App() {
       </main>
 
       {/* FOOTER */}
-      <footer className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-6 mt-12 text-center text-xs text-slate-500 dark:text-slate-400">
+      {!quickAttendance && <footer className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-6 mt-12 text-center text-xs text-slate-500 dark:text-slate-400">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-2">
           <div className="flex items-center gap-2">
             <CampusSignLogo className="w-5 h-5" />
@@ -415,7 +419,7 @@ export default function App() {
           </div>
           <p>© 2026 CampusSign · QR attendance and biometric verification</p>
         </div>
-      </footer>
+      </footer>}
 
     </div>
   );
@@ -2307,9 +2311,12 @@ function StudentPortal({
   lockedOutStudents,
   setLockedOutStudents,
   studentRegistry,
-  isDarkMode 
+  isDarkMode,
+  openAccountInitially = false,
+  quickMode = false,
+  onHome = () => {},
 }) {
-  const [step, setStep] = useState(1); // 1: Scan QR -> 2: Lookup ID -> 3: Consent -> 4: Face Scan -> 5: Receipt
+  const [step, setStep] = useState(quickMode ? 2 : 1); // 1: Scan QR -> 2: Lookup ID -> 3: Consent -> 4: Face Scan -> 5: Receipt
   
   // Student Lookup Form Data
   const [studentIdInput, setStudentIdInput] = useState('');
@@ -2327,7 +2334,7 @@ function StudentPortal({
   const [receiptData, setReceiptData] = useState(null);
   const locRef = useRef(null); // location lookup started at the consent step
   const [submitting, setSubmitting] = useState(false);
-  const [showAccountPortal, setShowAccountPortal] = useState(false);
+  const [showAccountPortal, setShowAccountPortal] = useState(openAccountInitially);
 
   // Student self-enrolment is independent of the live QR check-in flow.
   const [showEnrollment, setShowEnrollment] = useState(false);
@@ -2345,6 +2352,8 @@ function StudentPortal({
   const [enrollmentFaceAttempt, setEnrollmentFaceAttempt] = useState(0);
   const [isAdditionalCourseRequest, setIsAdditionalCourseRequest] = useState(false);
   const [existingCourseNames, setExistingCourseNames] = useState<string[]>([]);
+
+  useEffect(() => { if (quickMode) { setStep(checkin ? 2 : 1); setShowAccountPortal(false); } }, [quickMode, checkin]);
 
   // The session comes from the QR the student actually scanned (signed + time-limited)
   const session = checkin ? checkin.session : null;
@@ -2513,6 +2522,26 @@ function StudentPortal({
     });
     setStep(5); // Go to receipt screen
   };
+
+  if (showAccountPortal) {
+    return <StudentAccountPortal onClose={onHome} onScan={() => { setShowAccountPortal(false); setStep(1); setIsScanningQR(true); }} onEnroll={(profile, courses) => { setShowAccountPortal(false); startStudentEnrollment(profile, courses); }} />;
+  }
+
+  if (!quickMode && step === 1 && !showEnrollment) {
+    return (
+      <div className="max-w-3xl mx-auto space-y-5 page-enter">
+        <section className="rounded-3xl bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-950 text-white p-6 sm:p-8 border border-emerald-800 shadow-xl">
+          <div className="flex items-center gap-3"><CampusSignLogo className="w-12 h-12"/><div><p className="text-[10px] uppercase tracking-[.2em] text-emerald-200 font-black">CampusSign · Student services</p><h1 className="text-2xl sm:text-3xl font-black mt-1">Welcome, student</h1></div></div>
+          <p className="text-sm text-emerald-100/80 mt-4 max-w-xl">Sign in to your student dashboard to manage courses and view attendance, or use quick attendance when you have scanned a lecturer's QR code.</p>
+        </section>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <button onClick={() => setShowAccountPortal(true)} className="text-left rounded-3xl p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 shadow-sm transition-all"><div className="w-11 h-11 rounded-2xl bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 grid place-items-center"><GraduationCap className="w-6 h-6"/></div><h2 className="text-lg font-black mt-4">My student dashboard</h2><p className="text-xs text-slate-500 mt-2 leading-relaxed">Register or sign in to access your courses, attendance history, notifications and profile.</p><span className="inline-flex items-center gap-2 text-emerald-800 dark:text-emerald-300 font-extrabold text-xs mt-5">Continue <ArrowRight className="w-4 h-4"/></span></button>
+          <button onClick={() => { setStep(1); setIsScanningQR(true); }} className="text-left rounded-3xl p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-amber-500 shadow-sm transition-all"><div className="w-11 h-11 rounded-2xl bg-amber-50 dark:bg-amber-950 text-amber-800 dark:text-amber-300 grid place-items-center"><Scan className="w-6 h-6"/></div><h2 className="text-lg font-black mt-4">Scan attendance QR</h2><p className="text-xs text-slate-500 mt-2 leading-relaxed">Open your camera to scan a lecturer's QR code and proceed directly to attendance verification.</p><span className="inline-flex items-center gap-2 text-emerald-800 dark:text-emerald-300 font-extrabold text-xs mt-5">Open scanner <ArrowRight className="w-4 h-4"/></span></button>
+        </div>
+        <button onClick={onHome} className="w-full text-xs font-bold text-slate-500 hover:text-emerald-700 py-2">Back to CampusSign home</button>
+      </div>
+    );
+  }
 
   if (showAccountPortal) {
     return <StudentAccountPortal onClose={() => setShowAccountPortal(false)} onEnroll={(profile, courses) => { setShowAccountPortal(false); startStudentEnrollment(profile, courses); }} />;
