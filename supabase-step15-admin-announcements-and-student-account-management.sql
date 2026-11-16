@@ -172,7 +172,7 @@ begin
   elsif p_audience_type='individual_student' then
     insert into _announcement_target_users
     select user_id from public.student_accounts
-    where user_id=p_student_user and status='approved';
+    where user_id=p_student_user and status in ('pending','approved');
   end if;
 
   delete from public.app_notifications n
