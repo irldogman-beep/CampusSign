@@ -368,3 +368,25 @@ export async function reviewStudentAccount(userId: string, decision: 'approve' |
     p_user_id: userId, p_decision: decision,
   }));
 }
+
+
+// ---- department reroll workflow ----
+export async function requestDepartmentReroll(department: string, reason: string) {
+  return unwrap<any>(await supabase.rpc('student_request_department_reroll', {
+    p_department: department, p_reason: reason,
+  }));
+}
+export async function loadDepartmentRerollStatus() {
+  return unwrap<any>(await supabase.rpc('student_get_department_reroll_status'));
+}
+export async function applyDepartmentReroll() {
+  return unwrap<any>(await supabase.rpc('student_apply_department_reroll'));
+}
+export async function loadAdminDepartmentRerolls() {
+  return unwrap<any[]>(await supabase.rpc('admin_list_department_rerolls'));
+}
+export async function reviewDepartmentReroll(requestId: string, decision: 'approve' | 'reject', note = '') {
+  return unwrap<any>(await supabase.rpc('admin_review_department_reroll', {
+    p_request_id: requestId, p_decision: decision, p_admin_note: note,
+  }));
+}
