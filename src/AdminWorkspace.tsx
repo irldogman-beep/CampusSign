@@ -290,6 +290,29 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
     try { await db.markAllNotificationsRead(); await refresh(false); }
     catch (e) { setError(db.friendly(e)); }
   };
+  const unreadOne = async (id: string) => {
+    try { await db.markNotificationUnread(id); await refresh(false); }
+    catch (e) { setError(db.friendly(e)); }
+  };
+  const deleteOneNotification = async (id: string) => {
+    try { await db.deleteNotification(id); await refresh(false); }
+    catch (e) { setError(db.friendly(e)); }
+  };
+  const openNotification = (item: any) => {
+    if (item.notification_type === 'lecturer_review' || item.entity_type === 'lecturer') {
+      setTab('lecturers');
+      return true;
+    }
+    if (item.notification_type === 'enrollment_request' || item.entity_type === 'enrollment_request') {
+      setTab('enrolments');
+      return true;
+    }
+    if (item.entity_type === 'attendance' || item.entity_type === 'session') {
+      setTab('monitoring');
+      return true;
+    }
+    return false;
+  };
 
   const visibleLecturers = lecturers.filter((item) =>
     [item.name, item.email, item.dept, item.course].some((value) => String(value || '').toLowerCase().includes(search.toLowerCase()))
@@ -309,7 +332,7 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
         <div className="absolute -right-10 -top-16 w-56 h-56 rounded-full bg-amber-400/10 blur-3xl pointer-events-none" />
         <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0"><div className="w-12 h-12 rounded-2xl bg-amber-400/15 border border-amber-300/30 grid place-items-center text-amber-300"><ShieldCheck className="w-6 h-6" /></div><div className="min-w-0"><p className="text-[10px] uppercase tracking-[.2em] text-emerald-200 font-black">CampusSign · System administration</p><h1 className="text-xl sm:text-2xl font-black text-white mt-1">Welcome, {activeStaff.name}</h1><p className="text-xs text-emerald-100/75 mt-1">Manage lecturer access, monitor attendance and review system activity.</p></div></div>
-          <div className="flex items-center gap-2 self-end sm:self-auto"><NotificationBell notifications={notifications} onRead={readOne} onReadAll={readAll} /><button onClick={() => refresh(true)} className="p-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15" aria-label="Refresh dashboard"><RefreshCw className="w-4 h-4" /></button><button onClick={onLogout} className="px-3 py-2.5 rounded-xl bg-rose-950/70 hover:bg-rose-900 border border-rose-700 text-rose-100 text-xs font-bold inline-flex items-center gap-2"><LogOut className="w-4 h-4" />Sign out</button></div>
+          <div className="flex items-center gap-2 self-end sm:self-auto"><NotificationBell notifications={notifications} onRead={readOne} onReadAll={readAll} onUnread={unreadOne} onDelete={deleteOneNotification} onOpen={openNotification} /><button onClick={() => refresh(true)} className="p-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15" aria-label="Refresh dashboard"><RefreshCw className="w-4 h-4" /></button><button onClick={onLogout} className="px-3 py-2.5 rounded-xl bg-rose-950/70 hover:bg-rose-900 border border-rose-700 text-rose-100 text-xs font-bold inline-flex items-center gap-2"><LogOut className="w-4 h-4" />Sign out</button></div>
         </div>
       </section>
 
