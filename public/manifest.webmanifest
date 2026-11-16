@@ -1,9 +1,9 @@
 {
-  "id": "/",
-  "name": "CampusSign",
-  "short_name": "CampusSign",
+  "id": "/?app=student",
+  "name": "CampusSign Student",
+  "short_name": "CampusSign Student",
   "description": "Secure QR and biometric student attendance management.",
-  "start_url": "/",
+  "start_url": "/?app=student",
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
