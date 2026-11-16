@@ -95,3 +95,8 @@ begin
   return jsonb_build_object('status',case when p_decision='approve' then 'approved' else 'rejected' end);
 end;
 $function$;
+
+-- The enrollment RPC is now authenticated-only. It also verifies the caller's
+-- own approved student account before accepting course/face registration.
+revoke all on function public.submit_student_enrollment(text,text,text,text,text[],jsonb) from PUBLIC, anon;
+grant execute on function public.submit_student_enrollment(text,text,text,text,text[],jsonb) to authenticated;
