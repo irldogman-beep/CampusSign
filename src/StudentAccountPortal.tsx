@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   AlertTriangle, Bell, BookOpen, CalendarDays, CheckCircle2, Clock3,
-  GraduationCap, LogOut, RefreshCw, ShieldCheck, UserRound
+  GraduationCap, Scan, LogOut, RefreshCw, ShieldCheck, UserRound
 } from 'lucide-react';
 import { supabase } from './supabase';
 import * as db from './db';
