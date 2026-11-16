@@ -323,7 +323,7 @@ export default function App() {
               <button
                 onClick={() => setActiveTab('student')}
                 aria-pressed={activeTab === 'student'}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
+                className={`px-2 sm:px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
                   activeTab === 'student'
                     ? 'bg-amber-500 text-emerald-950 shadow-md'
                     : 'text-emerald-200 hover:text-white'
@@ -336,7 +336,7 @@ export default function App() {
               <button
                 onClick={() => setActiveTab('docs')}
                 aria-pressed={activeTab === 'docs'}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
+                className={`px-2 sm:px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
                   activeTab === 'docs'
                     ? 'bg-amber-500 text-emerald-950 shadow-md'
                     : 'text-emerald-200 hover:text-white'
