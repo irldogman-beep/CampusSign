@@ -42,30 +42,52 @@ export const headTurn = (p: Pt[]) => (p[30].x - p[0].x) / (p[16].x - p[0].x) - 0
 
 // ---- matching ----------------------------------------------------------------
 export function descriptorDistance(a: ArrayLike<number>, b: ArrayLike<number>): number {
+  if (a.length !== 128 || b.length !== 128) return Number.POSITIVE_INFINITY;
   let sum = 0;
-  for (let i = 0; i < a.length; i++) sum += (a[i] - b[i]) ** 2;
+  for (let i = 0; i < 128; i++) {
+    const av = a[i];
+    const bv = b[i];
+    if (!Number.isFinite(av) || !Number.isFinite(bv)) return Number.POSITIVE_INFINITY;
+    sum += (av - bv) ** 2;
+  }
   return Math.sqrt(sum);
 }
 
 export function bestDistance(sample: number[], enrolled: number[][]): number {
+  if (!enrolled.length) return Number.POSITIVE_INFINITY;
   return Math.min(...enrolled.map((e) => descriptorDistance(sample, e)));
 }
 
 /**
- * Check that a multi-frame enrolment belongs to one visually consistent face.
- * Each captured sample must have at least one close neighbour among the other
- * samples. This catches an isolated frame where the detector switched to a
- * second person or produced a badly degraded descriptor.
+ * Select the largest coherent cluster around the capture-set medoid.
+ * A single poor frame is discarded; a capture is rejected when fewer than
+ * 75% of frames agree with the representative descriptor.
  */
-export function areFaceSamplesConsistent(samples: number[][], maxNearestDistance = 0.6): boolean {
-  if (samples.length < 2) return false;
-  return samples.every((sample, index) => {
-    let nearest = Number.POSITIVE_INFINITY;
+export function selectConsistentFaceSamples(samples: number[][], maxDistance = 0.6): number[][] {
+  if (samples.length < 2 || samples.some((sample) => sample.length !== 128 || sample.some((v) => !Number.isFinite(v)))) return [];
+
+  let medoidIndex = -1;
+  let bestMeanDistance = Number.POSITIVE_INFINITY;
+  samples.forEach((sample, index) => {
+    let total = 0;
     samples.forEach((other, otherIndex) => {
-      if (index !== otherIndex) nearest = Math.min(nearest, descriptorDistance(sample, other));
+      if (index !== otherIndex) total += descriptorDistance(sample, other);
     });
-    return Number.isFinite(nearest) && nearest <= maxNearestDistance;
+    const mean = total / Math.max(1, samples.length - 1);
+    if (mean < bestMeanDistance) {
+      bestMeanDistance = mean;
+      medoidIndex = index;
+    }
   });
+
+  const representative = samples[medoidIndex];
+  const inliers = samples.filter((sample) => descriptorDistance(sample, representative) <= maxDistance);
+  const minimumInliers = Math.ceil(samples.length * 0.75);
+  return inliers.length >= minimumInliers ? inliers : [];
+}
+
+export function areFaceSamplesConsistent(samples: number[][], maxDistance = 0.6): boolean {
+  return selectConsistentFaceSamples(samples, maxDistance).length > 0;
 }
 
 // ---- photo crop ----------------------------------------------------------------
