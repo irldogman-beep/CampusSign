@@ -2310,9 +2310,12 @@ function StudentPortal({
   lockedOutStudents,
   setLockedOutStudents,
   studentRegistry,
-  isDarkMode 
+  isDarkMode,
+  openAccountInitially = false,
+  quickMode = false,
+  onHome = () => {},
 }) {
-  const [step, setStep] = useState(1); // 1: Scan QR -> 2: Lookup ID -> 3: Consent -> 4: Face Scan -> 5: Receipt
+  const [step, setStep] = useState(quickMode ? 2 : 1); // 1: Scan QR -> 2: Lookup ID -> 3: Consent -> 4: Face Scan -> 5: Receipt
   
   // Student Lookup Form Data
   const [studentIdInput, setStudentIdInput] = useState('');
@@ -2330,7 +2333,7 @@ function StudentPortal({
   const [receiptData, setReceiptData] = useState(null);
   const locRef = useRef(null); // location lookup started at the consent step
   const [submitting, setSubmitting] = useState(false);
-  const [showAccountPortal, setShowAccountPortal] = useState(false);
+  const [showAccountPortal, setShowAccountPortal] = useState(openAccountInitially);
 
   // Student self-enrolment is independent of the live QR check-in flow.
   const [showEnrollment, setShowEnrollment] = useState(false);
@@ -2348,6 +2351,8 @@ function StudentPortal({
   const [enrollmentFaceAttempt, setEnrollmentFaceAttempt] = useState(0);
   const [isAdditionalCourseRequest, setIsAdditionalCourseRequest] = useState(false);
   const [existingCourseNames, setExistingCourseNames] = useState<string[]>([]);
+
+  useEffect(() => { if (quickMode) { setStep(2); setShowAccountPortal(false); } }, [quickMode]);
 
   // The session comes from the QR the student actually scanned (signed + time-limited)
   const session = checkin ? checkin.session : null;
@@ -2516,6 +2521,26 @@ function StudentPortal({
     });
     setStep(5); // Go to receipt screen
   };
+
+  if (showAccountPortal) {
+    return <StudentAccountPortal onClose={onHome} onEnroll={(profile, courses) => { setShowAccountPortal(false); startStudentEnrollment(profile, courses); }} />;
+  }
+
+  if (!quickMode && step === 1 && !showEnrollment) {
+    return (
+      <div className="max-w-3xl mx-auto space-y-5 page-enter">
+        <section className="rounded-3xl bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-950 text-white p-6 sm:p-8 border border-emerald-800 shadow-xl">
+          <div className="flex items-center gap-3"><CampusSignLogo className="w-12 h-12"/><div><p className="text-[10px] uppercase tracking-[.2em] text-emerald-200 font-black">CampusSign · Student services</p><h1 className="text-2xl sm:text-3xl font-black mt-1">Welcome, student</h1></div></div>
+          <p className="text-sm text-emerald-100/80 mt-4 max-w-xl">Sign in to your student dashboard to manage courses and view attendance, or use quick attendance when you have scanned a lecturer's QR code.</p>
+        </section>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <button onClick={() => setShowAccountPortal(true)} className="text-left rounded-3xl p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 shadow-sm transition-all"><div className="w-11 h-11 rounded-2xl bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 grid place-items-center"><GraduationCap className="w-6 h-6"/></div><h2 className="text-lg font-black mt-4">My student dashboard</h2><p className="text-xs text-slate-500 mt-2 leading-relaxed">Register or sign in to access your courses, attendance history, notifications and profile.</p><span className="inline-flex items-center gap-2 text-emerald-800 dark:text-emerald-300 font-extrabold text-xs mt-5">Continue <ArrowRight className="w-4 h-4"/></span></button>
+          <button onClick={() => { setStep(1); setIsScanningQR(true); }} className="text-left rounded-3xl p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-amber-500 shadow-sm transition-all"><div className="w-11 h-11 rounded-2xl bg-amber-50 dark:bg-amber-950 text-amber-800 dark:text-amber-300 grid place-items-center"><Scan className="w-6 h-6"/></div><h2 className="text-lg font-black mt-4">Scan attendance QR</h2><p className="text-xs text-slate-500 mt-2 leading-relaxed">Open your camera to scan a lecturer's QR code and proceed directly to attendance verification.</p><span className="inline-flex items-center gap-2 text-emerald-800 dark:text-emerald-300 font-extrabold text-xs mt-5">Open scanner <ArrowRight className="w-4 h-4"/></span></button>
+        </div>
+        <button onClick={onHome} className="w-full text-xs font-bold text-slate-500 hover:text-emerald-700 py-2">Back to CampusSign home</button>
+      </div>
+    );
+  }
 
   if (showAccountPortal) {
     return <StudentAccountPortal onClose={() => setShowAccountPortal(false)} onEnroll={(profile, courses) => { setShowAccountPortal(false); startStudentEnrollment(profile, courses); }} />;
