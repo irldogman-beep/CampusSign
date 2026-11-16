@@ -28,17 +28,22 @@ export default function StudentAccountPortal({ onClose, onEnroll }: Props) {
   const [notice, setNotice] = useState('');
   const [expandedNotification, setExpandedNotification] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<'courses' | 'attendance' | 'inbox' | 'profile'>('courses');
+  const [rerollStatus, setRerollStatus] = useState<any>(null);
+  const [rerollDepartment, setRerollDepartment] = useState('');
+  const [rerollReason, setRerollReason] = useState('');
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const [data, inbox] = await Promise.all([
+      const [data, inbox, reroll] = await Promise.all([
         db.loadStudentDashboard(),
         db.loadNotifications(30),
+        db.loadDepartmentRerollStatus(),
       ]);
       setDashboard(data);
+      setRerollStatus(reroll);
       setNotifications(inbox.filter((item: any) =>
-        item.notification_type === 'announcement' || item.recipient_role === 'student'
+        item.notification_type === 'announcement' || item.notification_type === 'department_reroll' || item.recipient_role === 'student'
       ));
       setError('');
     } catch (e: any) {
@@ -102,6 +107,24 @@ export default function StudentAccountPortal({ onClose, onEnroll }: Props) {
     } catch (e: any) {
       setError(e?.message ? db.friendly(e) : 'Could not complete the account request.');
     } finally { setBusy(false); }
+  };
+
+  const submitDepartmentReroll = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!rerollDepartment || rerollReason.trim().length < 10) return;
+    if (!window.confirm(`Request a department change from ${profile.department} to ${rerollDepartment}? An administrator must approve it first.`)) return;
+    setBusy(true); setError(''); setNotice('');
+    try { await db.requestDepartmentReroll(rerollDepartment, rerollReason.trim()); setRerollReason(''); setNotice('Your department change request has been sent for administrator review.'); await refresh(); }
+    catch (e) { setError(db.friendly(e)); }
+    finally { setBusy(false); }
+  };
+
+  const applyApprovedReroll = async () => {
+    if (!window.confirm('Apply the approved department change? Your old course enrolments and face registration will be cleared. Your attendance history will remain. You will need to select courses and register your face again.')) return;
+    setBusy(true); setError(''); setNotice('');
+    try { await db.applyDepartmentReroll(); setActiveSection('courses'); setNotice('Department updated. Choose your new courses and complete face registration.'); await refresh(); }
+    catch (e) { setError(db.friendly(e)); }
+    finally { setBusy(false); }
   };
 
   const markRead = async (id: string) => {
@@ -223,6 +246,29 @@ export default function StudentAccountPortal({ onClose, onEnroll }: Props) {
                  <div><dt className="text-[10px] text-slate-500">Department</dt><dd className="font-semibold mt-1 break-words">{profile.department}</dd></div>
                  <div><dt className="text-[10px] text-slate-500">Level</dt><dd className="font-semibold mt-1">{profile.level} Level</dd></div>
                </dl>
+               <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                 <h4 className="text-sm font-bold text-slate-900 dark:text-white">Change department</h4>
+                 {rerollStatus && ['pending','approved'].includes(rerollStatus.status) ? (
+                   <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-3 space-y-2">
+                     <div className="flex items-center justify-between gap-2"><strong className="text-xs break-words">{rerollStatus.current_department} → {rerollStatus.requested_department}</strong><span className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-bold ${rerollStatus.status==='approved'?'bg-emerald-100 text-emerald-800':'bg-amber-100 text-amber-800'}`}>{rerollStatus.status==='approved'?'Approved':'Pending review'}</span></div>
+                     <p className="text-xs text-slate-500 break-words">{rerollStatus.reason}</p>
+                     {rerollStatus.admin_note&&<p className="text-[11px] text-slate-500">Admin note: {rerollStatus.admin_note}</p>}
+                     {rerollStatus.status==='approved'&&<button type="button" disabled={busy} onClick={applyApprovedReroll} className="w-full rounded-xl bg-emerald-900 text-amber-300 px-4 py-3 text-xs font-extrabold disabled:opacity-50">Apply approved department change</button>}
+                   </div>
+                 ) : (
+                   <>
+                     {rerollStatus?.status==='rejected'&&<p className="text-xs text-rose-600 dark:text-rose-300">Your last request was declined. You can submit a new request with further information.</p>}
+                     {rerollStatus?.status==='applied'&&<p className="text-xs text-emerald-700 dark:text-emerald-300">Your last department change was applied on {new Date(rerollStatus.applied_at).toLocaleDateString()}.</p>}
+                     <form onSubmit={submitDepartmentReroll} className="space-y-2">
+                       <select required value={rerollDepartment} onChange={e=>setRerollDepartment(e.target.value)} className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3 text-xs">
+                         <option value="">Choose new department</option>{departments.filter(d=>d.name!==profile.department).map(d=><option key={d.id} value={d.name}>{d.name}</option>)}
+                       </select>
+                       <textarea required minLength={10} maxLength={500} rows={3} value={rerollReason} onChange={e=>setRerollReason(e.target.value)} placeholder="Explain why you need to change department (10–500 characters)" className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3 text-xs resize-y"/>
+                       <button type="submit" disabled={busy||!rerollDepartment||rerollReason.trim().length<10} className="w-full rounded-xl border border-emerald-800 text-emerald-800 dark:text-emerald-300 px-4 py-3 text-xs font-bold disabled:opacity-50">Request department change</button>
+                     </form>
+                   </>
+                 )}
+               </div>
              </section>}
            </>}
            <div className="flex justify-end"><button type="button" onClick={refresh} className="rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-300 inline-flex items-center gap-2"><RefreshCw className="w-3.5 h-3.5"/>Refresh account</button></div>
