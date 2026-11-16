@@ -2352,7 +2352,7 @@ function StudentPortal({
   const [isAdditionalCourseRequest, setIsAdditionalCourseRequest] = useState(false);
   const [existingCourseNames, setExistingCourseNames] = useState<string[]>([]);
 
-  useEffect(() => { if (quickMode) { setStep(2); setShowAccountPortal(false); } }, [quickMode]);
+  useEffect(() => { if (quickMode) { setStep(checkin ? 2 : 1); setShowAccountPortal(false); } }, [quickMode, checkin]);
 
   // The session comes from the QR the student actually scanned (signed + time-limited)
   const session = checkin ? checkin.session : null;
@@ -2523,7 +2523,7 @@ function StudentPortal({
   };
 
   if (showAccountPortal) {
-    return <StudentAccountPortal onClose={onHome} onEnroll={(profile, courses) => { setShowAccountPortal(false); startStudentEnrollment(profile, courses); }} />;
+    return <StudentAccountPortal onClose={onHome} onScan={() => { setShowAccountPortal(false); setStep(1); setIsScanningQR(true); }} onEnroll={(profile, courses) => { setShowAccountPortal(false); startStudentEnrollment(profile, courses); }} />;
   }
 
   if (!quickMode && step === 1 && !showEnrollment) {
