@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   AlertCircle, BarChart3, BadgeCheck, Bell, BookOpen, CheckCheck,
   ClipboardList, History, LogOut, QrCode, RefreshCw, Search, ShieldAlert,
@@ -49,22 +49,36 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
+  // Keep independent admin sections usable when one RPC/table is unavailable.
+  // A failed audit or notification request must not blank the catalogue or lecturer list.
+  const refreshInFlight = useRef(false);
   const refresh = async (showLoader = false) => {
+    if (refreshInFlight.current) return;
+    refreshInFlight.current = true;
     if (showLoader) setLoading(true);
-    setError('');
+    const failures: string[] = [];
+    const jobs = [
+      ['overview', db.loadAdminOverview, setOverview],
+      ['lecturers', db.loadAdminLecturers, setLecturers],
+      ['audit history', () => db.loadAdminAudit(60), setAudit],
+      ['notifications', () => db.loadNotifications(20), setNotifications],
+      ['departments', db.loadCatalogDepartments, setDepartments],
+      ['course catalogue', () => db.loadCatalogCourses(null), setCatalogCourses],
+    ] as const;
     try {
-      const [stats, staff, events, notices, depts, catalog] = await Promise.all([
-        db.loadAdminOverview(), db.loadAdminLecturers(), db.loadAdminAudit(60), db.loadNotifications(20), db.loadCatalogDepartments(), db.loadCatalogCourses(null)
-      ]);
-      setOverview(stats);
-      setLecturers(staff);
-      setAudit(events);
-      setNotifications(notices);
-      setDepartments(depts);
-      setCatalogCourses(catalog);
-    } catch (e) {
-      setError(db.friendly(e));
+      await Promise.all(jobs.map(async ([label, load, apply]) => {
+        try {
+          const value = await load();
+          apply(value as never);
+        } catch (e) {
+          failures.push(`${label}: ${db.friendly(e)}`);
+        }
+      }));
+      setError(failures.length
+        ? `Some admin information could not be loaded. Other sections remain available. ${failures.join(' · ')}`
+        : '');
     } finally {
+      refreshInFlight.current = false;
       setLoading(false);
     }
   };
