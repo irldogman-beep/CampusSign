@@ -285,3 +285,30 @@ export async function loadAdminRecentAttendance(limit = 100): Promise<any[]> {
 export async function loadAdminRecentSessions(limit = 50): Promise<any[]> {
   return unwrap<any[]>(await supabase.rpc('admin_recent_sessions', { p_limit: limit }));
 }
+
+
+// ---- administrator destructive actions (all enforced by admin-only RPCs) ----
+export async function adminDeleteAttendance(id: string) {
+  return unwrap<any>(await supabase.rpc('admin_delete_attendance', { p_attendance: id }));
+}
+export async function adminDeleteSession(id: string) {
+  return unwrap<any>(await supabase.rpc('admin_delete_session', { p_session: id }));
+}
+export async function adminDeleteStudent(id: string) {
+  return unwrap<any>(await supabase.rpc('admin_delete_student', { p_student: id }));
+}
+export async function adminDeleteLecturer(id: string) {
+  return unwrap<any>(await supabase.rpc('admin_delete_lecturer', { p_lecturer: id }));
+}
+export async function adminDeleteCourse(id: string) {
+  return unwrap<any>(await supabase.rpc('admin_delete_course', { p_course: id }));
+}
+export async function adminDeleteDepartment(id: string) {
+  return unwrap<any>(await supabase.rpc('admin_delete_department', { p_department: id }));
+}
+export async function loadAdminAttendanceTrends(days = 14) {
+  return unwrap<any[]>(await supabase.rpc('admin_attendance_trends', { p_days: days }));
+}
+export async function loadAdminCourseActivity(days = 30) {
+  return unwrap<any[]>(await supabase.rpc('admin_course_activity', { p_days: days }));
+}
