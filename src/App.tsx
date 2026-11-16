@@ -1641,11 +1641,11 @@ The request has NOT been rejected or approved. Check the student's official univ
         
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
           {/* Sub Tab Buttons */}
-          <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl w-full sm:w-auto">
-            <button type="button" onClick={() => setAdminTab('session')} className={`px-3 sm:px-4 py-2.5 sm:py-2 text-xs font-bold rounded-xl transition-all flex flex-1 sm:flex-none justify-center items-center gap-2 ${adminTab==='session'?'bg-emerald-900 text-amber-400 shadow':'text-slate-600 dark:text-slate-400 hover:text-slate-900'}`}><QrCode className="w-4 h-4"/><span>Session & QR</span></button>
+          <div className="grid grid-cols-2 sm:flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl w-full sm:w-auto">
+            <button type="button" onClick={() => setAdminTab('session')} className={`px-3 sm:px-4 py-2.5 sm:py-2 text-xs font-bold rounded-xl transition-all flex min-w-0 justify-center items-center gap-2 ${adminTab==='session'?'bg-emerald-900 text-amber-400 shadow':'text-slate-600 dark:text-slate-400 hover:text-slate-900'}`}><QrCode className="w-4 h-4"/><span>Session & QR</span></button>
             <button
               onClick={() => setAdminTab('roster')}
-              className={`px-3 sm:px-4 py-2.5 sm:py-2 text-xs font-bold rounded-xl transition-all flex flex-1 sm:flex-none justify-center items-center gap-2 ${
+              className={`px-3 sm:px-4 py-2.5 sm:py-2 text-xs font-bold rounded-xl transition-all flex min-w-0 justify-center items-center gap-2 ${
                 adminTab === 'roster'
                   ? 'bg-emerald-900 text-amber-400 shadow'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
@@ -1658,7 +1658,7 @@ The request has NOT been rejected or approved. Check the student's official univ
 
             <button
               onClick={() => setAdminTab('registry')}
-              className={`px-3 sm:px-4 py-2.5 sm:py-2 text-xs font-bold rounded-xl transition-all flex flex-1 sm:flex-none justify-center items-center gap-2 ${
+              className={`px-3 sm:px-4 py-2.5 sm:py-2 text-xs font-bold rounded-xl transition-all flex min-w-0 justify-center items-center gap-2 ${
                 adminTab === 'registry'
                   ? 'bg-emerald-900 text-amber-400 shadow'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
@@ -1671,7 +1671,7 @@ The request has NOT been rejected or approved. Check the student's official univ
 
             <button
               onClick={() => setAdminTab('requests')}
-              className={`px-3 sm:px-4 py-2.5 sm:py-2 text-xs font-bold rounded-xl transition-all flex flex-1 sm:flex-none justify-center items-center gap-2 ${
+              className={`px-3 sm:px-4 py-2.5 sm:py-2 text-xs font-bold rounded-xl transition-all flex min-w-0 justify-center items-center gap-2 ${
                 adminTab === 'requests'
                   ? 'bg-emerald-900 text-amber-400 shadow'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
