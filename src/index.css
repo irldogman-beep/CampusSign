@@ -162,3 +162,26 @@ html, body, #root {
     background-attachment: scroll;
   }
 }
+
+
+/* Small-screen text wrapping and compact controls. */
+.campus-app-shell h1,
+.campus-app-shell h2,
+.campus-app-shell h3,
+.campus-app-shell p,
+.campus-app-shell label,
+.campus-app-shell button,
+.campus-app-shell td,
+.campus-app-shell th {
+  overflow-wrap: anywhere;
+}
+.campus-app-shell input,
+.campus-app-shell select,
+.campus-app-shell textarea {
+  min-width: 0;
+  max-width: 100%;
+}
+@media (max-width: 640px) {
+  .campus-app-shell main { font-size: 0.9375rem; }
+  .campus-app-shell table { font-size: 0.75rem; }
+}
