@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import QRCode from 'qrcode';
 import jsQR from 'jsqr';
 import { Camera, RefreshCw, AlertTriangle } from 'lucide-react';
@@ -6,8 +7,11 @@ import { loadFaceApi, eyeOpenness, headTurn, bestDistance, areFaceSamplesConsist
 
 function cameraErrorMessage(e: any): string {
   const name = e && typeof e === 'object' ? e.name : '';
-  if (name === 'NotAllowedError' || name === 'PermissionDeniedError')
-    return 'Camera access was blocked. In your browser, open the site permissions (the icon beside the address), set Camera to Allow, then reload this page. Also check that camera access is enabled for your browser in your phone or computer privacy settings.';
+  if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+    return Capacitor.isNativePlatform()
+      ? 'CampusSign needs camera permission. Open Android Settings → Apps → CampusSign → Permissions, allow Camera, then return to the app and try again.'
+      : 'Camera access was blocked. Open the site permissions beside your browser address, set Camera to Allow, then reload CampusSign. Also check that camera access is enabled for your browser in your device privacy settings.';
+  }
   if (name === 'SecurityError')
     return 'The browser blocked camera access because this page is not in an approved secure context. Open the official HTTPS CampusSign link directly in Chrome, Safari or Edge.';
   if (name === 'NotFoundError' || name === 'DevicesNotFoundError')
@@ -19,7 +23,9 @@ function cameraErrorMessage(e: any): string {
   if (name === 'AbortError')
     return 'The camera startup was interrupted. Close other camera apps and try again.';
   if (name === 'TypeError')
-    return 'This browser does not expose camera access on this page. Open CampusSign directly in an up-to-date Chrome, Safari or Edge browser over HTTPS—not inside another app.';
+    return Capacitor.isNativePlatform()
+      ? 'Android did not expose camera access to CampusSign. Update the app, check its Camera permission in Android Settings, and restart it.'
+      : 'This browser does not expose camera access on this page. Open CampusSign directly in an up-to-date Chrome, Safari or Edge browser over HTTPS—not inside another app.';
   const detail = name ? ` (Browser error: ${name})` : '';
   return `CampusSign could not start the camera. Check browser and device camera permissions, close other apps using the camera, then try again.${detail}`;
 }
