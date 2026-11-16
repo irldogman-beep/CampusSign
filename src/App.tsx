@@ -290,7 +290,7 @@ export default function App() {
     <div className={`campus-app-shell min-h-screen ${isDarkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'} transition-colors duration-200 font-sans`}>
       
       {/* HEADER / NAVIGATION BAR */}
-      <header className="sticky top-0 z-40 bg-emerald-950/90 backdrop-blur-md border-b border-emerald-900 shadow-md">
+      {!quickAttendance && <header className="sticky top-0 z-40 bg-emerald-950/90 backdrop-blur-md border-b border-emerald-900 shadow-md">
         <div className="max-w-7xl mx-auto w-full px-3 sm:px-6 lg:px-8 min-h-14 sm:h-16 py-2 sm:py-0 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2">
           
           {/* Logo & Brand Name */}
@@ -326,10 +326,11 @@ export default function App() {
             ) : null}
           </div>
         </div>
-      </header>
+      </header>}
 
       {/* MAIN CONTENT CONTAINER */}
       <main key={activeTab} className={`${quickAttendance ? 'max-w-2xl' : 'max-w-7xl'} mx-auto w-full min-w-0 px-3 sm:px-6 lg:px-8 py-3 sm:py-8 page-enter`} aria-live="polite">
+        {quickAttendance && <div className="mb-4 flex items-center justify-between"><div className="flex items-center gap-2"><CampusSignLogo className="w-8 h-8"/><span className="font-black text-sm">CampusSign <span className="font-medium text-slate-500">· Quick attendance</span></span></div><button onClick={() => { setQuickAttendance(false); setActiveTab("home"); }} className="text-xs font-bold text-emerald-800 dark:text-emerald-300">Home</button></div>}
         {activeTab === 'home' && (
           <section className="space-y-12 sm:space-y-16 py-4 sm:py-10">
             <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-950 text-white border border-emerald-800 shadow-2xl">
@@ -397,6 +398,9 @@ export default function App() {
             setLockedOutStudents={setLockedOutStudents}
             studentRegistry={studentRegistry}
             isDarkMode={isDarkMode}
+            openAccountInitially={studentEntry}
+            quickMode={quickAttendance}
+            onHome={() => { setQuickAttendance(false); setStudentEntry(false); setActiveTab('home'); }}
           />
         )}
 
@@ -414,7 +418,7 @@ export default function App() {
           </div>
           <p>© 2026 CampusSign · QR attendance and biometric verification</p>
         </div>
-      </footer>
+      </footer>}
 
     </div>
   );
