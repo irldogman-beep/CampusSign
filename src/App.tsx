@@ -286,11 +286,11 @@ export default function App() {
       
       {/* HEADER / NAVIGATION BAR */}
       <header className="sticky top-0 z-40 bg-emerald-950/90 backdrop-blur-md border-b border-emerald-900 shadow-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto w-full px-3 sm:px-6 lg:px-8 min-h-14 sm:h-16 py-2 sm:py-0 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2">
           
           {/* Logo & Brand Name */}
-          <div className="flex items-center gap-3">
-            <CampusSignLogo className="w-9 h-9" />
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <CampusSignLogo className="w-8 h-8 sm:w-9 sm:h-9 shrink-0" />
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-black text-white text-lg tracking-tight">CampusSign</span>
@@ -303,14 +303,14 @@ export default function App() {
           </div>
 
           {/* Navigation Controls */}
-          <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-1 sm:gap-4 shrink-0">
             
             {/* Mode Switcher Buttons */}
-            <div className="bg-emerald-900/80 p-1 rounded-xl border border-emerald-800 flex items-center">
+            <div className="bg-emerald-900/80 p-0.5 sm:p-1 rounded-xl border border-emerald-800 flex items-center">
               <button
                 onClick={() => setActiveTab('admin')}
                 aria-pressed={activeTab === 'admin'}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
+                className={`px-2 sm:px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
                   activeTab === 'admin'
                     ? 'bg-amber-500 text-emerald-950 shadow-md'
                     : 'text-emerald-200 hover:text-white'
@@ -363,7 +363,7 @@ export default function App() {
       </header>
 
       {/* MAIN CONTENT CONTAINER */}
-      <main key={activeTab} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 page-enter" aria-live="polite">
+      <main key={activeTab} className="max-w-7xl mx-auto w-full min-w-0 px-3 sm:px-6 lg:px-8 py-3 sm:py-8 page-enter" aria-live="polite">
         {activeTab === 'admin' && (
           <AdminPortal 
             activeSession={activeSession}
@@ -573,6 +573,21 @@ function AdminPortal({
   const handleReadAllNotifications = async () => {
     try { await db.markAllNotificationsRead(); await refreshNotifications(); }
     catch (e) { console.error('Could not update notifications', e); }
+  };
+  const handleUnreadNotification = async (id: string) => {
+    try { await db.markNotificationUnread(id); await refreshNotifications(); }
+    catch (e) { console.error('Could not mark notification unread', e); }
+  };
+  const handleDeleteNotification = async (id: string) => {
+    try { await db.deleteNotification(id); await refreshNotifications(); }
+    catch (e) { console.error('Could not dismiss notification', e); }
+  };
+  const handleOpenNotification = (item: any) => {
+    if (item.notification_type === 'enrollment_request' || item.entity_type === 'enrollment_request') {
+      setAdminTab('requests');
+      return true;
+    }
+    return false;
   };
 
   // Load the roster + attendance once signed in, then refresh attendance every 5 seconds
@@ -1275,7 +1290,7 @@ The request has NOT been rejected or approved. Check the student's official univ
             </div>
           </div>
         </div>
-        <NotificationBell notifications={notifications} onRead={handleReadNotification} onReadAll={handleReadAllNotifications} />
+        <NotificationBell notifications={notifications} onRead={handleReadNotification} onReadAll={handleReadAllNotifications} onUnread={handleUnreadNotification} onDelete={handleDeleteNotification} onOpen={handleOpenNotification} />
         <button
           onClick={handleLogout}
           className="p-2.5 sm:px-4 sm:py-2 bg-rose-950 hover:bg-rose-900 border border-rose-800 text-rose-200 text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5 shrink-0"
