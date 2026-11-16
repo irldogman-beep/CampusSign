@@ -185,3 +185,112 @@ html, body, #root {
   .campus-app-shell main { font-size: 0.9375rem; }
   .campus-app-shell table { font-size: 0.75rem; }
 }
+
+
+/* ==========================================================================
+   CampusSign visual foundation — consistent, calm and touch-friendly
+   ========================================================================== */
+:root {
+  --cs-ink: #14231f;
+  --cs-muted: #64736d;
+  --cs-line: #e2e9e5;
+  --cs-surface: #ffffff;
+  --cs-canvas: #f5f8f6;
+  --cs-green: #075b45;
+  --cs-green-deep: #063d30;
+  --cs-gold: #f3b640;
+  --cs-shadow: 0 12px 34px rgb(17 49 38 / 6%);
+  --cs-shadow-raised: 0 18px 46px rgb(17 49 38 / 11%);
+}
+.dark {
+  --cs-ink: #edf5f1;
+  --cs-muted: #a0b1a9;
+  --cs-line: #263b33;
+  --cs-surface: #101d19;
+  --cs-canvas: #09130f;
+  --cs-shadow: 0 14px 38px rgb(0 0 0 / 20%);
+  --cs-shadow-raised: 0 20px 48px rgb(0 0 0 / 32%);
+}
+html { text-size-adjust: 100%; }
+body {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  letter-spacing: -0.008em;
+}
+.campus-app-shell {
+  background-color: var(--cs-canvas);
+  background-image:
+    radial-gradient(ellipse at 8% -8%, rgb(16 185 129 / 7%), transparent 34%),
+    radial-gradient(ellipse at 96% 4%, rgb(245 158 11 / 5%), transparent 28%);
+}
+.campus-app-shell.dark {
+  background-color: var(--cs-canvas);
+  background-image:
+    radial-gradient(ellipse at 8% -8%, rgb(16 185 129 / 11%), transparent 34%),
+    radial-gradient(ellipse at 96% 4%, rgb(245 158 11 / 6%), transparent 28%);
+}
+.campus-app-shell header {
+  box-shadow: 0 5px 22px rgb(2 30 22 / 14%);
+  border-bottom-color: rgb(255 255 255 / 9%);
+}
+.campus-app-shell main {
+  padding-top: clamp(1rem, 2.2vw, 2rem);
+  padding-bottom: clamp(2rem, 4vw, 3.5rem);
+}
+.campus-app-shell main h1,
+.campus-app-shell main h2,
+.campus-app-shell main h3 {
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+.campus-app-shell main h1 { line-height: 1.12; }
+.campus-app-shell main h2 { line-height: 1.18; }
+.campus-app-shell main p { line-height: 1.6; }
+.campus-app-shell main .rounded-3xl.bg-white,
+.campus-app-shell main .rounded-2xl.bg-white,
+.campus-app-shell main .rounded-3xl.dark\:bg-slate-900,
+.campus-app-shell main .rounded-2xl.dark\:bg-slate-900 {
+  box-shadow: var(--cs-shadow);
+}
+.campus-app-shell main .border-slate-200,
+.campus-app-shell main .dark\:border-slate-800 {
+  border-color: var(--cs-line);
+}
+.campus-app-shell main input,
+.campus-app-shell main select,
+.campus-app-shell main textarea {
+  border-radius: 0.85rem;
+}
+.campus-app-shell main button:not(.theme-toggle) {
+  min-height: 2.5rem;
+}
+.campus-app-shell main button:focus-visible,
+.campus-app-shell header button:focus-visible {
+  outline-color: var(--cs-gold);
+}
+.campus-app-shell main .overflow-x-auto {
+  border-radius: 1rem;
+}
+.campus-app-shell footer {
+  border-top-color: var(--cs-line);
+  background-color: var(--cs-surface);
+}
+@media (hover: hover) and (pointer: fine) {
+  .campus-app-shell main .rounded-3xl.bg-white:hover,
+  .campus-app-shell main .rounded-2xl.bg-white:hover {
+    box-shadow: var(--cs-shadow-raised);
+  }
+}
+@media (max-width: 640px) {
+  .campus-app-shell main { padding-top: 0.9rem; }
+  .campus-app-shell main h1 { font-size: clamp(1.35rem, 5vw, 1.75rem); }
+  .campus-app-shell main h2 { font-size: clamp(1.15rem, 4.3vw, 1.45rem); }
+  .campus-app-shell main .rounded-3xl { border-radius: 1.25rem; }
+  .campus-app-shell main .shadow-xl { box-shadow: 0 12px 28px rgb(2 44 34 / 12%); }
+  .campus-app-shell header > div {
+    gap: 0.5rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .campus-app-shell main .rounded-3xl,
+  .campus-app-shell main .rounded-2xl { transition: none !important; }
+}
