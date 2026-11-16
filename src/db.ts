@@ -29,6 +29,12 @@ const MESSAGES: Record<string, string> = {
   course_not_found: 'Course was not found.',
   admin_required: 'Administrator access required.',
   enrollment_rate_limited: 'Too many enrolment attempts. Please wait a few minutes before trying again.',
+  announcement_title_invalid: 'Announcement title must be between 3 and 120 characters.',
+  announcement_body_invalid: 'Announcement message must be between 3 and 5,000 characters.',
+  announcement_audience_invalid: 'Choose a valid announcement audience.',
+  announcement_department_required: 'Choose a department for this announcement.',
+  announcement_course_required: 'Choose a course for this announcement.',
+  announcement_not_found: 'This announcement no longer exists.',
 };
 
 export function friendly(e: any): string {
@@ -319,4 +325,24 @@ export async function loadAdminAttendanceTrends(days = 14) {
 }
 export async function loadAdminCourseActivity(days = 30) {
   return unwrap<any[]>(await supabase.rpc('admin_course_activity', { p_days: days }));
+}
+
+
+// ---- administrator announcements ----
+export async function loadAdminAnnouncements() {
+  return unwrap<any[]>(await supabase.rpc('admin_list_announcements'));
+}
+export async function saveAdminAnnouncement(input: {
+  id?: string | null; title: string; body: string; audienceType: string;
+  departmentId?: string | null; courseId?: string | null; publish: boolean;
+}) {
+  return unwrap<any>(await supabase.rpc('admin_save_announcement', {
+    p_id: input.id || null, p_title: input.title, p_body: input.body,
+    p_audience_type: input.audienceType,
+    p_department: input.departmentId || null, p_course: input.courseId || null,
+    p_publish: input.publish,
+  }));
+}
+export async function deleteAdminAnnouncement(id: string) {
+  return unwrap<boolean>(await supabase.rpc('admin_delete_announcement', { p_id: id }));
 }
