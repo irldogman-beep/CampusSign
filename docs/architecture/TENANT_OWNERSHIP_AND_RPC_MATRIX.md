@@ -94,7 +94,6 @@ All current `admin_*` functions are gated by `is_admin()` in the inspected defin
 | `admin_delete_session(p_session)`, `admin_delete_attendance(p_attendance)` | Resolve target institution before mutation; preserve existing audit/history rules |
 | `admin_list_announcements()`, `admin_save_announcement(...)`, `admin_delete_announcement(p_id)` | Institution-scoped audience, department, course, student and recipients |
 | `admin_list_department_rerolls()`, `admin_review_department_reroll(...)`, `admin_review_student_account(...)` | Target student and request must belong to institution |
-| `admin_delete_announcement(p_id)` | Institution ownership must be checked before deletion |
 
 ### Student and lecturer workflows
 
