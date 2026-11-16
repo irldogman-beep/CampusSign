@@ -154,15 +154,29 @@ function formatQrInterval(seconds) {
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('home'); // home | admin | student | docs
+  const [appSpace] = useState(() => { const value = new URLSearchParams(window.location.search).get('app'); return value === 'student' || value === 'staff' ? value : 'hub'; });
+  const [activeTab, setActiveTab] = useState(() => appSpace === 'student' ? 'student' : appSpace === 'staff' ? 'admin' : 'home'); // hub | admin | student | docs
   const [showLaunchScreen, setShowLaunchScreen] = useState(true);
   useEffect(() => {
     const timer = window.setTimeout(() => setShowLaunchScreen(false), 1050);
     return () => window.clearTimeout(timer);
   }, []);
 
-  const [studentEntry, setStudentEntry] = useState(false);
+  const [studentEntry, setStudentEntry] = useState(appSpace === 'student');
   const [quickAttendance, setQuickAttendance] = useState(false);
+  const [branding, setBranding] = useState(db.DEFAULT_CAMPUS_BRANDING);
+  useEffect(() => {
+    let active = true;
+    db.loadCampusBranding().then(value => {
+      if (!active) return;
+      setBranding(value);
+      try { if (value.logo_url) localStorage.setItem('campussign-brand-logo', value.logo_url); else localStorage.removeItem('campussign-brand-logo'); } catch { /* storage unavailable */ }
+      document.title = appSpace === 'student' ? value.student_app_name : appSpace === 'staff' ? value.staff_app_name : value.brand_name;
+      const theme = document.querySelector('meta[name="theme-color"]');
+      if (theme) theme.setAttribute('content', value.primary_color);
+    }).catch(error => console.warn('CampusSign branding could not be loaded; defaults remain active.', error));
+    return () => { active = false; };
+  }, [appSpace]);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     try {
       const saved = localStorage.getItem('campussign-theme');
@@ -298,12 +312,12 @@ export default function App() {
   };
 
   return (
-    <div className={`campus-app-shell min-h-screen ${isDarkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'} transition-colors duration-200 font-sans`}>
+    <div style={{ '--campus-primary': branding.primary_color, '--campus-accent': branding.accent_color, '--campus-background': branding.background_color } as React.CSSProperties} className={`campus-app-shell min-h-screen ${isDarkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'} transition-colors duration-200 font-sans`}>
       {showLaunchScreen && (
-        <div className="campus-launch-screen" aria-label="CampusSign starting" role="status">
+        <div className="campus-launch-screen" aria-label={`${branding.brand_name} starting`} role="status">
           <div className="campus-launch-mark"><CampusSignLogo className="w-16 h-16"/></div>
-          <p className="campus-launch-name">CampusSign</p>
-          <p className="campus-launch-caption">Attendance, clearly verified.</p>
+          <p className="campus-launch-name">{branding.brand_name}</p>
+          <p className="campus-launch-caption">{branding.tagline}</p>
           <span className="campus-launch-progress"><span/></span>
         </div>
       )}
@@ -317,7 +331,7 @@ export default function App() {
             <CampusSignLogo className="w-8 h-8 sm:w-9 sm:h-9 shrink-0" />
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-black text-white text-lg tracking-tight">CampusSign</span>
+                <span className="font-black text-white text-lg tracking-tight">{appSpace === 'student' ? branding.student_app_name : appSpace === 'staff' ? branding.staff_app_name : branding.brand_name}</span>
                 <span className="hidden sm:inline-block bg-amber-500 text-emerald-950 font-extrabold text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider">
                   SECURE ATTENDANCE
                 </span>
@@ -328,9 +342,11 @@ export default function App() {
 
           {/* Public entry actions and authenticated workspace navigation */}
           <div className="flex items-center gap-2 shrink-0">
-            {activeTab === 'home' ? (
+            {appSpace !== 'hub' ? (
+              <span className="text-[10px] font-bold tracking-wider uppercase text-emerald-200">{appSpace === 'student' ? 'Student space' : 'Staff workspace'}</span>
+            ) : activeTab === 'home' ? (
               <>
-                <button onClick={() => { setStudentEntry(true); setActiveTab('student'); }} className="px-3 sm:px-4 py-2 rounded-xl bg-amber-400 text-emerald-950 text-xs font-extrabold shadow-sm">Student access</button>
+                <button onClick={() => { setStudentEntry(true); setActiveTab('student'); }} className="px-3 sm:px-4 py-2 rounded-xl bg-amber-400 text-emerald-950 text-xs font-extrabold shadow-sm">Student check-in</button>
                 <button onClick={() => setActiveTab('admin')} className="px-3 sm:px-4 py-2 rounded-xl border border-emerald-700 text-emerald-100 hover:bg-emerald-900 text-xs font-bold">Staff access</button>
               </>
             ) : !quickAttendance ? (
