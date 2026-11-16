@@ -2,6 +2,8 @@ name: CampusSign Android (debug APK)
 
 on:
   workflow_dispatch:
+  push:
+    branches: [feature/android-app-foundation]
 
 permissions:
   contents: read
