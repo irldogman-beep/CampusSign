@@ -146,3 +146,7 @@ grant execute on function public.student_get_department_reroll_status() to authe
 grant execute on function public.admin_list_department_rerolls() to authenticated;
 grant execute on function public.admin_review_department_reroll(uuid,text,text) to authenticated;
 grant execute on function public.student_apply_department_reroll() to authenticated;
+
+
+-- Supporting index for the optional admin reviewer reference.
+create index if not exists student_department_reroll_reviewer_idx on public.student_department_reroll_requests(reviewed_by) where reviewed_by is not null;
