@@ -105,8 +105,11 @@ export default function StudentAccountPortal({ onClose, onEnroll }: Props) {
   };
 
   const markRead = async (id: string) => {
-    try { await db.markNotificationRead(id); await refresh(); }
-    catch (e) { setError(db.friendly(e)); }
+    try {
+      await db.markNotificationRead(id);
+      setNotifications(current => current.map(item => item.id === id ? { ...item, read_at: new Date().toISOString() } : item));
+      setDashboard(current => current ? { ...current, unread_notifications: Math.max(0, Number(current.unread_notifications || 0) - 1) } : current);
+    } catch (e) { setError(db.friendly(e)); }
   };
 
   const signOut = async () => {
