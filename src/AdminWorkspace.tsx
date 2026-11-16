@@ -148,6 +148,8 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
   const [assignedCourseIds, setAssignedCourseIds] = useState<string[]>([]);
   const [assignmentLoading, setAssignmentLoading] = useState(false);
   const [monitorSearch, setMonitorSearch] = useState('');
+  const [accountSearch, setAccountSearch] = useState('');
+  const [catalogSearch, setCatalogSearch] = useState('');
   const [deptForm, setDeptForm] = useState({ id: '', code: '', name: '', active: true });
   const [courseForm, setCourseForm] = useState({ id: '', departmentId: '', code: '', title: '', level: '', active: true });
   const [catalogMessage, setCatalogMessage] = useState('');
@@ -284,7 +286,7 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
     const warning = kind === 'session'
       ? 'Delete session "' + label + '"? Its attendance rows and check-in attempts will also be deleted. This cannot be undone.'
       : kind === 'student account'
-      ? 'Permanently delete the student sign-in account for "' + label + '"? This revokes access. Course enrolment requests and their submitted face data will be removed. Approved course-roster entries, attendance face templates and historical attendance records will be preserved.'
+      ? 'Permanently delete the student account for "' + label + '"? They will be removed from every lecturer course roster, and their course requests and face templates will be deleted. Historical attendance records will remain.'
       : kind === 'student'
       ? 'Remove student "' + label + '"? Their face template will be deleted, but historical attendance will remain.'
       : kind === 'lecturer'
@@ -294,7 +296,7 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
     setWorkingId('delete:' + id);
     try {
       const result = await action();
-      const extra = result?.enrollment_requests_deleted !== undefined ? ' ' + result.enrollment_requests_deleted + ' course requests removed; course roster and attendance preserved.'
+      const extra = result?.roster_entries_deleted !== undefined ? ` ${result.roster_entries_deleted} course roster entr${result.roster_entries_deleted === 1 ? 'y' : 'ies'} removed; historical attendance preserved.` : result?.enrollment_requests_deleted !== undefined ? ' ' + result.enrollment_requests_deleted + ' course requests removed.'
         : result?.attendance_rows_deleted ? ' ' + result.attendance_rows_deleted + ' attendance rows removed.'
         : result?.historical_attendance_preserved ? ' ' + result.historical_attendance_preserved + ' historical attendance rows preserved.' : '';
       setMessage(kind.charAt(0).toUpperCase() + kind.slice(1) + ' deleted successfully.' + extra);
@@ -368,6 +370,12 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
   const visibleLecturers = lecturers.filter((item) =>
     [item.name, item.email, item.dept, item.course].some((value) => String(value || '').toLowerCase().includes(search.toLowerCase()))
   );
+  const visibleStudentAccounts = studentAccounts.filter((item) =>
+    [item.full_name, item.student_id, item.email, item.department, item.status].some((value) => String(value || '').toLowerCase().includes(accountSearch.toLowerCase().trim()))
+  );
+  const visibleCatalogCourses = catalogCourses.filter((item) =>
+    [item.code, item.title, item.department_name, item.level].some((value) => String(value || '').toLowerCase().includes(catalogSearch.toLowerCase().trim()))
+  );
   const statCards = [
     { label: 'Lecturers', value: overview?.lecturers_total ?? '—', detail: `${overview?.lecturers_verified ?? 0} verified · Manage accounts`, icon: UserCog, tab: 'lecturers' },
     { label: 'Awaiting verification', value: overview?.lecturers_pending ?? '—', detail: 'Review pending accounts', icon: ShieldAlert, tab: 'lecturers' },
@@ -382,7 +390,7 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
       <section className="rounded-3xl bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-950 border border-emerald-800 p-5 sm:p-7 text-white shadow-xl overflow-hidden relative">
         <div className="absolute -right-10 -top-16 w-56 h-56 rounded-full bg-amber-400/10 blur-3xl pointer-events-none" />
         <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0"><div className="w-12 h-12 rounded-2xl bg-amber-400/15 border border-amber-300/30 grid place-items-center text-amber-300"><ShieldCheck className="w-6 h-6" /></div><div className="min-w-0"><p className="text-[10px] uppercase tracking-[.2em] text-emerald-200 font-black">CampusSign · System administration</p><h1 className="text-xl sm:text-2xl font-black text-white mt-1">Welcome, {activeStaff.name}</h1><p className="text-xs text-emerald-100/75 mt-1">Manage lecturer access, monitor attendance and review system activity.</p></div></div>
+          <div className="flex items-center gap-3 min-w-0"><div className="w-12 h-12 rounded-2xl bg-amber-400/15 border border-amber-300/30 grid place-items-center text-amber-300"><ShieldCheck className="w-6 h-6" /></div><div className="min-w-0"><p className="text-[10px] uppercase tracking-[.2em] text-emerald-200 font-black">CampusSign · System administration</p><h1 className="text-xl sm:text-2xl font-black text-white mt-1">Welcome, {activeStaff.name}</h1></div></div>
           <div className="flex items-center gap-2 self-end sm:self-auto"><NotificationBell notifications={notifications} onRead={readOne} onReadAll={readAll} onUnread={unreadOne} onDelete={deleteOneNotification} onOpen={openNotification} /><button onClick={() => refresh(true)} className="p-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15" aria-label="Refresh dashboard"><RefreshCw className="w-4 h-4" /></button><button onClick={onLogout} className="px-3 py-2.5 rounded-xl bg-rose-950/70 hover:bg-rose-900 border border-rose-700 text-rose-100 text-xs font-bold inline-flex items-center gap-2"><LogOut className="w-4 h-4" />Sign out</button></div>
         </div>
       </section>
@@ -421,7 +429,7 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="font-extrabold text-slate-900 dark:text-white">Departments</h2>
-                <p className="text-[11px] text-slate-500 mt-1">Create and maintain the university's academic departments.</p>
+                
               </div>
               <Building2 className="w-5 h-5 text-emerald-600" />
             </div>
@@ -469,7 +477,7 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="font-extrabold text-slate-900 dark:text-white">Course catalogue</h2>
-                <p className="text-[11px] text-slate-500 mt-1">Register courses and assign them to departments.</p>
+                
               </div>
               <BookOpen className="w-5 h-5 text-emerald-600" />
             </div>
@@ -500,7 +508,8 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
               </div>
             </form>
             <div className="max-h-[430px] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
-              {catalogCourses.length === 0 ? <p className="py-4 text-center text-xs text-slate-500">No courses registered in the catalogue yet.</p> : catalogCourses.map(c=>(
+              <div className="relative"><Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400"/><input value={catalogSearch} onChange={e=>setCatalogSearch(e.target.value)} placeholder="Search courses or departments" className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs"/></div>
+              {visibleCatalogCourses.length === 0 ? <p className="py-4 text-center text-xs text-slate-500">{catalogCourses.length ? 'No courses match your search.' : 'No courses registered in the catalogue yet.'}</p> : visibleCatalogCourses.map(c=>(
                 <div key={c.id} className="py-3 flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
@@ -521,7 +530,7 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
       ) : tab === 'enrolments' ? (
         <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div><h2 className="font-extrabold text-slate-900 dark:text-white">Student enrolments</h2><p className="text-[11px] text-slate-500 mt-1">Recent student records and face-enrolment status. Biometric data is not displayed.</p></div>
+            <div><h2 className="font-extrabold text-slate-900 dark:text-white">Student enrolments</h2></div>
             <input value={monitorSearch} onChange={e=>setMonitorSearch(e.target.value)} placeholder="Search student, ID, course…" className="w-full sm:max-w-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-xs"/>
           </div>
           <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left"><thead><tr className="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-100 dark:border-slate-800"><th className="p-3">Student</th><th className="p-3">Department / level</th><th className="p-3">Course</th><th className="p-3">Lecturer</th><th className="p-3">Face setup</th><th className="p-3">Added</th><th className="p-3">Actions</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -532,11 +541,12 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
       ) : tab === 'student-accounts' ? (
         <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div><h2 className="font-extrabold text-slate-900 dark:text-white">Student account verification</h2><p className="text-[11px] text-slate-500 mt-1">Review student identity before any course request is sent to lecturers. Check the submitted ID, registered name, department and level against your institution's official records.</p></div>
+            <div><h2 className="font-extrabold text-slate-900 dark:text-white">Student account verification</h2></div>
             <button type="button" onClick={()=>refresh(false)} className="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs font-bold"><RefreshCw className="w-3.5 h-3.5 inline mr-1"/>Refresh</button>
           </div>
+          <div className="relative"><Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400"/><input value={accountSearch} onChange={e=>setAccountSearch(e.target.value)} placeholder="Search student name, ID, email or department" className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs"/></div>
           <div className="overflow-x-auto"><table className="w-full min-w-[850px] text-left"><thead><tr className="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-100 dark:border-slate-800"><th className="p-3">Student</th><th className="p-3">Contact</th><th className="p-3">Academic details</th><th className="p-3">Existing roster</th><th className="p-3">Status</th><th className="p-3">Actions</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-          {studentAccounts.map((account:any)=><tr key={account.user_id}>
+          {visibleStudentAccounts.map((account:any)=><tr key={account.user_id}>
             <td className="p-3"><strong className="block text-xs text-slate-900 dark:text-white">{account.full_name}</strong><span className="text-[10px] text-slate-500">{account.student_id}</span></td>
             <td className="p-3 text-xs">{account.email}</td>
             <td className="p-3 text-xs">{account.department}<span className="block text-[10px] text-slate-500">{account.level} Level</span></td>
@@ -544,25 +554,25 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
             <td className="p-3"><span className={"rounded-full px-2 py-1 text-[9px] font-bold " + (account.status==='approved'?'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200':account.status==='rejected'?'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-200':'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200')}>{account.status}</span><span className="block text-[9px] text-slate-500 mt-1">{new Date(account.created_at).toLocaleDateString()}</span></td>
             <td className="p-3"><div className="flex flex-wrap gap-2">{account.status==='pending' && <><button type="button" disabled={workingId==='student-account:'+account.user_id} onClick={()=>reviewStudentAccount(account,'approve')} className="rounded-lg bg-emerald-800 text-white px-3 py-2 text-[10px] font-bold disabled:opacity-40"><Check className="w-3 h-3 inline mr-1"/>Approve</button><button type="button" disabled={workingId==='student-account:'+account.user_id} onClick={()=>reviewStudentAccount(account,'reject')} className="rounded-lg border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 px-3 py-2 text-[10px] font-bold">Reject</button></>}<button type="button" disabled={workingId==='delete:'+account.user_id} onClick={()=>runDelete('student account',account.user_id,account.full_name,()=>db.adminDeleteStudentAccount(account.user_id))} className="rounded-lg border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 px-3 py-2 text-[10px] font-bold disabled:opacity-40"><Trash2 className="w-3 h-3 inline mr-1"/>Delete account</button></div></td>
           </tr>)}
-          </tbody></table>{studentAccounts.length===0&&<p className="py-10 text-center text-xs text-slate-500">No student accounts have been created yet.</p>}</div>
-          <p className="text-[10px] text-slate-500">Administrator approval is the first gate. You may approve a new student's identity before course enrolment; only after approval can the student submit course requests for lecturers to review. Existing roster matches are shown for reference, not as an approval prerequisite. No existing roster or attendance data is changed during account verification.</p>
+          </tbody></table>{visibleStudentAccounts.length===0&&<p className="py-10 text-center text-xs text-slate-500">{studentAccounts.length ? 'No student accounts match your search.' : 'No student accounts have been created yet.'}</p>}</div>
+          
         </section>
       ) : tab === 'monitoring' ? (
         <div className="space-y-4">
           <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
-            <div><h2 className="font-extrabold text-slate-900 dark:text-white">Recent attendance</h2><p className="text-[11px] text-slate-500 mt-1">Latest check-in records across the system. This view is read-only.</p></div>
+            <div><h2 className="font-extrabold text-slate-900 dark:text-white">Recent attendance</h2></div>
             <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left"><thead><tr className="text-[10px] uppercase text-slate-500 border-b border-slate-100 dark:border-slate-800"><th className="p-3">Student</th><th className="p-3">Course</th><th className="p-3">Session</th><th className="p-3">Lecturer</th><th className="p-3">Status</th><th className="p-3">Time</th><th className="p-3">Actions</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{recentAttendance.filter((r:any)=>[r.student_name,r.student_id,r.course,r.session_title,r.lecturer_name].some(v=>String(v||'').toLowerCase().includes(monitorSearch.toLowerCase()))).map((r:any)=><tr key={r.attendance_id}><td className="p-3"><strong className="block text-xs text-slate-800 dark:text-white">{r.student_name}</strong><span className="text-[10px] text-slate-500">{r.student_id}</span></td><td className="p-3 text-xs">{r.course}</td><td className="p-3 text-xs">{r.session_title || r.session_id || '—'}</td><td className="p-3 text-xs">{r.lecturer_name || '—'}</td><td className="p-3 text-xs">{r.status || 'Recorded'}</td><td className="p-3 text-[10px] text-slate-500">{new Date(r.created_at).toLocaleString()}</td><td className="p-3"><button type="button" disabled={workingId==='delete:'+r.attendance_id} onClick={()=>runDelete('attendance',r.attendance_id,r.student_name+' · '+r.course,()=>db.adminDeleteAttendance(r.attendance_id))} className="text-rose-600 hover:text-rose-700 text-xs font-bold inline-flex items-center gap-1"><Trash2 className="w-3.5 h-3.5"/>Delete</button></td></tr>)}</tbody></table>{recentAttendance.length===0 && <p className="py-6 text-center text-xs text-slate-500">No attendance records returned.</p>}</div>
           </section>
           <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
-            <div><h2 className="font-extrabold text-slate-900 dark:text-white">Attendance sessions</h2><p className="text-[11px] text-slate-500 mt-1">Recent QR/attendance sessions and their current state.</p></div>
+            <div><h2 className="font-extrabold text-slate-900 dark:text-white">Attendance sessions</h2></div>
             <div className="space-y-2">{recentSessions.map((s:any)=><article key={s.session_id} className="p-3 rounded-xl border border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2"><div className="min-w-0"><strong className="block text-xs text-slate-800 dark:text-white">{s.title || s.course}</strong><p className="text-[10px] text-slate-500 mt-1">{s.course} · {s.lecturer_name || 'Unknown lecturer'} · {s.attendance_count} check-ins</p><p className="text-[10px] text-slate-400">{new Date(s.created_at).toLocaleString()}{s.ends_at ? ` · Ends ${new Date(s.ends_at).toLocaleString()}` : ''}</p></div><div className="flex items-center gap-3 shrink-0"><span className={`text-[10px] font-bold ${s.revoked || (s.ends_at && new Date(s.ends_at)<new Date()) ? 'text-slate-500' : 'text-emerald-600'}`}>{s.revoked ? 'Revoked' : s.ends_at && new Date(s.ends_at)<new Date() ? 'Expired' : 'Active'}</span><button type="button" disabled={workingId==='delete:'+s.session_id} onClick={()=>runDelete('session',s.session_id,s.title||s.course,()=>db.adminDeleteSession(s.session_id))} className="text-rose-600 hover:text-rose-700 text-xs font-bold inline-flex items-center gap-1"><Trash2 className="w-3.5 h-3.5"/>Delete</button></div></article>)}{recentSessions.length===0 && <p className="py-6 text-center text-xs text-slate-500">No attendance sessions returned.</p>}</div>
           </section>
         </div>
       ) : tab === 'lecturers' ? (
-        <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4"><div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><h2 className="font-extrabold text-slate-900 dark:text-white">Lecturer accounts</h2><p className="text-[11px] text-slate-500 mt-1">Verify academic staff before they can use lecturer tools.</p></div><div className="relative w-full sm:max-w-xs"><Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, email or course" className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs" /></div></div>
+        <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4"><div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><h2 className="font-extrabold text-slate-900 dark:text-white">Lecturer accounts</h2></div><div className="relative w-full sm:max-w-xs"><Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, email or course" className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs" /></div></div>
           <div className="overflow-x-auto"><table className="w-full text-left min-w-[680px]"><thead><tr className="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-100 dark:border-slate-800"><th className="p-3">Lecturer</th><th className="p-3">Department</th><th className="p-3">Course</th><th className="p-3">Status</th><th className="p-3 text-right">Actions</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{visibleLecturers.map((lecturer) => <tr key={lecturer.lecturer_id}><td className="p-3"><strong className="block text-xs text-slate-800 dark:text-white">{lecturer.name}</strong><span className="text-[10px] text-slate-500">{lecturer.email}</span></td><td className="p-3 text-xs text-slate-600 dark:text-slate-300">{lecturer.dept}</td><td className="p-3 text-xs text-slate-600 dark:text-slate-300">{lecturer.course}</td><td className="p-3">{lecturer.is_verified ? <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 inline-flex items-center gap-1"><BadgeCheck className="w-4 h-4" />Verified</span> : <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300 inline-flex items-center gap-1"><AlertCircle className="w-4 h-4" />Pending</span>}</td><td className="p-3 text-right"><button disabled={workingId === lecturer.lecturer_id} onClick={() => changeVerification(lecturer)} className={`px-3 py-2 rounded-lg text-[10px] font-extrabold disabled:opacity-50 ${lecturer.is_verified ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900' : 'bg-emerald-900 text-amber-300 border border-emerald-700'}`}>{workingId === lecturer.lecturer_id ? 'Saving…' : lecturer.is_verified ? 'Withdraw access' : 'Verify lecturer'}</button><button type="button" disabled={workingId==='delete:'+lecturer.lecturer_id} onClick={()=>runDelete("lecturer",lecturer.lecturer_id,lecturer.name,()=>db.adminDeleteLecturer(lecturer.lecturer_id))} className="ml-2 px-2 py-2 rounded-lg text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 disabled:opacity-40" title="Delete lecturer account"><Trash2 className="w-4 h-4"/></button></td></tr>)}</tbody></table>{visibleLecturers.length === 0 && <p className="py-8 text-center text-xs text-slate-500">No lecturer accounts match that search.</p>}</div>
           <div className="border-t border-slate-100 dark:border-slate-800 pt-4 space-y-3">
-            <div><h3 className="font-extrabold text-sm text-slate-900 dark:text-white">Lecturer course assignments</h3><p className="text-[11px] text-slate-500 mt-1">Choose a lecturer to manage the courses they are authorised to teach.</p></div>
+            <div><h3 className="font-extrabold text-sm text-slate-900 dark:text-white">Lecturer course assignments</h3></div>
             <select value={assignmentLecturer} onChange={e=>loadLecturerAssignments(e.target.value)} className="w-full sm:max-w-md rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-xs">
               <option value="">Choose lecturer</option>{lecturers.map((l:any)=><option key={l.lecturer_id} value={l.lecturer_id}>{l.name} · {l.email}</option>)}
             </select>
@@ -578,7 +588,7 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
       ) : tab === 'announcements' ? (
         <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] gap-4">
           <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-            <div><h2 className="font-extrabold text-slate-900 dark:text-white">{announcementForm.id ? 'Edit announcement' : 'Compose announcement'}</h2><p className="text-[11px] text-slate-500 mt-1">Write updates for verified lecturers or approved student accounts. Drafts remain private to administrators until published.</p></div>
+            <div><h2 className="font-extrabold text-slate-900 dark:text-white">{announcementForm.id ? 'Edit announcement' : 'Compose announcement'}</h2></div>
             {announcementForm.id && <div className="flex items-center justify-between rounded-xl bg-amber-50 dark:bg-amber-950/30 p-3 text-[11px] text-amber-800 dark:text-amber-200"><span>Editing selected announcement</span><button type="button" onClick={resetAnnouncementForm} className="font-bold underline">Cancel</button></div>}
             <div className="space-y-3">
               <label className="block"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Title</span><input maxLength={120} value={announcementForm.title} onChange={e=>setAnnouncementForm({...announcementForm,title:e.target.value})} placeholder="e.g. Semester attendance policy update" className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3 text-sm"/></label>
@@ -603,16 +613,16 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
             </div>
           </section>
           <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
-            <div className="flex items-center justify-between gap-2"><div><h2 className="font-extrabold text-slate-900 dark:text-white">Announcement history</h2><p className="text-[11px] text-slate-500 mt-1">Edit drafts or published messages and review delivery/read counts.</p></div><button type="button" onClick={()=>refresh(false)} className="rounded-lg border border-slate-200 dark:border-slate-700 p-2" aria-label="Refresh announcements"><RefreshCw className="w-4 h-4"/></button></div>
+            <div className="flex items-center justify-between gap-2"><div><h2 className="font-extrabold text-slate-900 dark:text-white">Announcement history</h2></div><button type="button" onClick={()=>refresh(false)} className="rounded-lg border border-slate-200 dark:border-slate-700 p-2" aria-label="Refresh announcements"><RefreshCw className="w-4 h-4"/></button></div>
             {announcements.length===0 ? <p className="py-10 text-center text-xs text-slate-500">No announcements yet. Compose one to get started.</p> : <div className="space-y-3">{announcements.map((item:any)=><article key={item.id} className="rounded-2xl border border-slate-200 dark:border-slate-700 p-3 sm:p-4 space-y-2"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><h3 className="text-sm font-extrabold text-slate-900 dark:text-white break-words">{item.title}</h3><p className="text-[10px] text-slate-500 mt-1">{item.audience_type==='all_staff'?'All staff':item.audience_type==='all_lecturers'?'All verified lecturers':item.audience_type==='all_students'?'All students':item.audience_type==='department_students'?'Students · ' + (departments.find(d=>d.id===item.department_id)?.name || 'Selected department'):item.audience_type==='individual_student'?'One student · ' + (studentAccounts.find(a=>a.user_id===item.student_user_id)?.full_name || 'Account removed'):item.audience_type==='department'?(departments.find(d=>d.id===item.department_id)?.name || 'Selected department'):(catalogCourses.find(c=>c.id===item.course_id)?.code || 'Selected course')} · Updated {new Date(item.updated_at).toLocaleString()}</p></div><span className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-bold ${item.status==='published'?'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200':'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'}`}>{item.status==='published'?'Published':'Draft'}</span></div><p className="text-xs text-slate-600 dark:text-slate-300 whitespace-pre-wrap line-clamp-4">{item.body}</p>{item.status==='published' && <div className="flex gap-4 text-[10px] text-slate-500"><span>{item.recipient_count} delivered</span><span>{item.read_count} read</span></div>}<div className="flex flex-wrap gap-2 pt-1"><button type="button" onClick={()=>editAnnouncement(item)} className="rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-[10px] font-bold text-slate-700 dark:text-slate-200"><Pencil className="w-3 h-3 inline mr-1"/>Edit</button><button type="button" disabled={workingId==='announcement-delete'} onClick={()=>removeAnnouncement(item)} className="rounded-lg border border-rose-200 dark:border-rose-900 px-3 py-2 text-[10px] font-bold text-rose-700 dark:text-rose-300"><Trash2 className="w-3 h-3 inline mr-1"/>Delete</button></div></article>)}</div>}
           </section>
         </div>
       ) : (
-        <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm"><div className="mb-4"><h2 className="font-extrabold text-slate-900 dark:text-white">Audit history</h2><p className="text-[11px] text-slate-500 mt-1">Recent enrolment, verification and attendance changes. Biometric descriptors and photos are never included.</p></div>
+        <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm"><div className="mb-4"><h2 className="font-extrabold text-slate-900 dark:text-white">Audit history</h2></div>
           {audit.length === 0 ? <p className="py-10 text-center text-xs text-slate-500">No audit events recorded yet. New sensitive actions will appear here.</p> : <div className="space-y-2">{audit.map((event) => <article key={event.id} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700"><div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1"><strong className="text-xs text-slate-800 dark:text-slate-100">{String(event.action).replace(/\./g, ' ')}</strong><time className="text-[10px] text-slate-500">{new Date(event.created_at).toLocaleString()}</time></div><p className="text-[11px] text-slate-600 dark:text-slate-300 mt-1">{event.entity_type}{event.course ? ` · ${event.course}` : ''}{event.actor_email ? ` · by ${event.actor_email}` : ''}</p><pre className="mt-2 text-[10px] text-slate-500 whitespace-pre-wrap break-words">{JSON.stringify(event.details, null, 2)}</pre></article>)}</div>}
         </section>
       )}
-      <p className="text-[10px] text-slate-400 text-center">Administrator actions are enforced by Supabase policies and server-side functions, not by this interface alone.</p>
+      
     </div>
   );
 }
