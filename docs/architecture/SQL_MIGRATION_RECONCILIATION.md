@@ -115,3 +115,18 @@ For each SQL artifact:
 The next safe engineering action is a **schema-to-source comparison**, starting with the Step 11 variants and the Step 12–17 changes, because those are the later root-level scripts that correspond most closely to the recorded migration ledger and the current application features. A canonical local migration history should be created only after this comparison is complete.
 
 This document records findings and a procedure; it does not claim that a local database has been initialized or that migrations have been tested.
+
+
+## Step 11 variant comparison — high-impact differences found
+
+A line-level comparison of the two Step 11 files confirms that the fixed variant is **not merely a duplicate-key correction**. It changes multiple behaviours:
+
+- **Department backfill:** the original derives department codes from a six-character prefix plus a four-character hash and uses `UNION`; the fixed version groups case-insensitive department names and uses a deterministic `D_` plus hash code. This changes the resulting department codes and deduplication behaviour.
+- **Course code generation:** the original includes a minimum-length padding branch; the fixed version uses the normalized prefix directly.
+- **Lecturer assignment backfill:** both versions attempt to create lecturer-course assignments, but their matching predicates differ.
+- **RLS and catalogue visibility:** the fixed variant replaces some policy/grant arrangements. It removes anonymous execution of `catalog_courses` while changing other public/authenticated grants.
+- **Course availability:** the fixed version changes the eligible lecturer role predicate from `('lecturer','admin')` to `'lecturer'`.
+- **Student submission and throttling:** the original Step 11 includes a rate-limit table and helper functions and applies IP/student throttling. The fixed variant replaces that section with a different student-submission implementation and, in the compared file, does not retain the same rate-limit mechanism.
+- **Function grants:** the fixed variant grants the student submission RPC to both `anon` and `authenticated`; this must be reconciled with the later Step 12 and Step 14 security changes before any use.
+
+These are material functional and security differences. **Do not treat `CampusSign-Step11-FIXED.sql` as a drop-in replacement or apply either variant as part of a local bootstrap yet.** The canonical Step 11 migration must be assembled from the deployed schema and the intended security behaviour, then tested with anon/authenticated roles and synthetic data. The earlier duplicate department-code incident alone is not enough evidence to choose the fixed file.
