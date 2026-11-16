@@ -284,7 +284,7 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
     const warning = kind === 'session'
       ? 'Delete session "' + label + '"? Its attendance rows and check-in attempts will also be deleted. This cannot be undone.'
       : kind === 'student account'
-      ? 'Permanently delete the student sign-in account for "' + label + '"? This revokes access. Pending course requests and their submitted face data will be removed. Approved course-roster entries, attendance face templates and historical attendance records will be preserved.'
+      ? 'Permanently delete the student sign-in account for "' + label + '"? This revokes access. Course enrolment requests and their submitted face data will be removed. Approved course-roster entries, attendance face templates and historical attendance records will be preserved.'
       : kind === 'student'
       ? 'Remove student "' + label + '"? Their face template will be deleted, but historical attendance will remain.'
       : kind === 'lecturer'
@@ -294,7 +294,7 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
     setWorkingId('delete:' + id);
     try {
       const result = await action();
-      const extra = result?.enrollment_requests_deleted !== undefined ? ' ' + result.enrollment_requests_deleted + ' pending course requests removed; course roster and attendance preserved.'
+      const extra = result?.enrollment_requests_deleted !== undefined ? ' ' + result.enrollment_requests_deleted + ' course requests removed; course roster and attendance preserved.'
         : result?.attendance_rows_deleted ? ' ' + result.attendance_rows_deleted + ' attendance rows removed.'
         : result?.historical_attendance_preserved ? ' ' + result.historical_attendance_preserved + ' historical attendance rows preserved.' : '';
       setMessage(kind.charAt(0).toUpperCase() + kind.slice(1) + ' deleted successfully.' + extra);
