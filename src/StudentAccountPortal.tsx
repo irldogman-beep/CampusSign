@@ -13,7 +13,7 @@ type Props = {
 };
 
 export default function StudentAccountPortal({ onClose, onEnroll, onScan }: Props) {
-  const [mode, setMode] = useState<'login' | 'signup'>('signup');
+  const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [studentId, setStudentId] = useState('');
@@ -159,9 +159,9 @@ export default function StudentAccountPortal({ onClose, onEnroll, onScan }: Prop
             <div><p className="text-[10px] uppercase tracking-[.2em] text-emerald-200 font-black">CampusSign · Student services</p><h1 className="text-xl sm:text-2xl font-black mt-1">Student services</h1></div>
           </div>
           <div className="grid grid-cols-2 sm:flex gap-2">
-            {isSignedIn && onScan && <button type="button" onClick={onScan} className="px-3 py-2 rounded-xl bg-amber-400 text-emerald-950 text-xs font-extrabold inline-flex items-center gap-2"><Scan className="w-4 h-4"/>Scan attendance</button>}
+            {onScan && <button type="button" onClick={onScan} className="px-3 py-2 rounded-xl bg-amber-400 text-emerald-950 text-xs font-extrabold inline-flex items-center gap-2"><Scan className="w-4 h-4"/>Quick QR check-in</button>}
             {isSignedIn && <button type="button" onClick={signOut} disabled={busy} className="px-3 py-2 rounded-xl bg-white/10 border border-white/15 text-xs font-bold inline-flex items-center gap-2"><LogOut className="w-4 h-4"/>Sign out</button>}
-            <button type="button" onClick={onClose} className="px-3 py-2 rounded-xl bg-amber-400 text-emerald-950 text-xs font-extrabold">Back to check-in</button>
+            <button type="button" onClick={onClose} className="px-3 py-2 rounded-xl bg-amber-400 text-emerald-950 text-xs font-extrabold">Back to CampusSign</button>
           </div>
         </div>
       </section>
@@ -187,6 +187,7 @@ export default function StudentAccountPortal({ onClose, onEnroll, onScan }: Prop
             <label className="block"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Password</span><input required type="password" minLength={8} autoComplete={mode==='signup'?'new-password':'current-password'} value={password} onChange={e=>setPassword(e.target.value)} placeholder="At least 8 characters" className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3 text-sm"/></label>
             <button disabled={busy || !email.trim() || !password || (mode==='signup' && (!studentId.trim() || !fullName.trim() || !department))} className="w-full rounded-xl bg-emerald-900 text-amber-300 py-3.5 text-sm font-extrabold disabled:opacity-50">{busy?'Please wait…':mode==='signup'?'Create account & continue':'Sign in to Student services'}</button>
           </form>
+          {!isSignedIn && onScan && <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 text-center"><p className="text-xs font-semibold text-slate-600 dark:text-slate-300">Having trouble signing in?</p><button type="button" onClick={onScan} className="mt-2 inline-flex items-center gap-2 rounded-xl border border-emerald-200 dark:border-emerald-900 px-4 py-2.5 text-xs font-extrabold text-emerald-800 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"><Scan className="w-4 h-4"/>Continue with QR without signing in</button><p className="mt-2 text-[10px] text-slate-500">Use this only when a lecturer has displayed an attendance QR code.</p></div>}
           {mode==='signup' && <p className="mt-4 text-[10px] text-slate-500 leading-relaxed">Your account is your CampusSign login. First, an administrator checks and approves your student details. After approval, you can select courses and enrol your face; the relevant lecturers then review your course requests. If you already have academic records, the administrator can use them to verify you before you request any additional courses.</p>}
         </section>
       ) : (
