@@ -44,6 +44,7 @@ import * as db from './db';
 import { getBestFix } from './geo';
 import { QR_DISPLAY_CHANNEL } from './QRDisplayWindow';
 import AdminWorkspace, { NotificationBell } from './AdminWorkspace';
+import StudentAccountPortal from './StudentAccountPortal';
 
 /* ==========================================================================
    LOGO COMPONENT (Matching Forest Green & Academic Gold Emblem)
@@ -2316,6 +2317,7 @@ function StudentPortal({
   const [receiptData, setReceiptData] = useState(null);
   const locRef = useRef(null); // location lookup started at the consent step
   const [submitting, setSubmitting] = useState(false);
+  const [showAccountPortal, setShowAccountPortal] = useState(false);
 
   // Student self-enrolment is independent of the live QR check-in flow.
   const [showEnrollment, setShowEnrollment] = useState(false);
@@ -2404,7 +2406,8 @@ function StudentPortal({
 
   const handleFaceCaptured = ({ photo, descriptors }) => submitCheckIn(photo, descriptors);
 
-  const startStudentEnrollment = async () => {
+  const startStudentEnrollment = async (profile: any = null) => {
+    if (profile) setStudentEnrollmentForm({ studentId: profile.student_id || '', name: profile.full_name || '', dept: profile.department || '', level: profile.level || '100' });
     setShowEnrollment(true);
     setEnrollmentStage('profile');
     setEnrollmentError('');
@@ -2495,6 +2498,10 @@ function StudentPortal({
     });
     setStep(5); // Go to receipt screen
   };
+
+  if (showAccountPortal) {
+    return <StudentAccountPortal onClose={() => setShowAccountPortal(false)} onEnroll={(profile) => { setShowAccountPortal(false); startStudentEnrollment(profile); }} />;
+  }
 
   if (showEnrollment) {
     return (
@@ -2648,6 +2655,7 @@ function StudentPortal({
             <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
               <p className="text-[11px] text-slate-500 mb-2">First time using CampusSign?</p>
               <button onClick={startStudentEnrollment} className="w-full py-3 rounded-xl border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 font-extrabold text-xs transition-all hover:-translate-y-0.5">Create student profile & enrol courses <ArrowRight className="w-4 h-4 inline ml-1" /></button>
+              <button type="button" onClick={() => setShowAccountPortal(true)} className="w-full py-3 rounded-xl bg-emerald-950 text-amber-300 hover:bg-emerald-900 font-extrabold text-xs transition-all border border-emerald-800"><UserCheck className="w-4 h-4 inline mr-1.5" /> Student account & dashboard</button>
             </div>
           </div>
         </div>
