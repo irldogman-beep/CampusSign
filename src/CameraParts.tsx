@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import jsQR from 'jsqr';
 import { Camera, RefreshCw, AlertTriangle } from 'lucide-react';
-import { loadFaceApi, eyeOpenness, headTurn, bestDistance, areFaceSamplesConsistent, cropFace, FACE_MATCH_THRESHOLD } from './face';
+import { loadFaceApi, eyeOpenness, headTurn, bestDistance, areFaceSamplesConsistent, selectConsistentFaceSamples, cropFace, FACE_MATCH_THRESHOLD } from './face';
 
 function cameraErrorMessage(e: any): string {
   const name = e && typeof e === 'object' ? e.name : '';
@@ -324,7 +324,9 @@ export function FaceCapture(props: FaceCaptureProps) {
       const faceapi: any = models.value;
       setStatus('running');
 
-      const opts = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 });
+      // A slightly larger detector input improves landmark/descriptor stability
+      // on ordinary phone cameras without jumping to the much heavier SSD model.
+      const opts = new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.55 });
       const verify = propsRef.current.mode === 'verify';
       let phase: 'align' | 'blink' | 'turn' | 'return' | 'capturing' = 'align';
       let stable = 0;
@@ -345,9 +347,24 @@ export function FaceCapture(props: FaceCaptureProps) {
         if (faces.length > 1) throw new Error('multiple_faces');
         const full = faces[0];
         if (!full) return null;
+
+        // Reject weak/small detections before they become biometric samples.
+        // Poorly framed faces are a common source of unstable descriptors.
+        const box = full.detection.box;
+        const frameWidth = video.videoWidth || 640;
+        const frameHeight = video.videoHeight || 480;
+        const descriptor = Array.from(full.descriptor) as number[];
+        if (
+          full.detection.score < 0.55 ||
+          box.width / frameWidth < 0.28 ||
+          box.height / frameHeight < 0.28 ||
+          descriptor.length !== 128 ||
+          descriptor.some((value) => !Number.isFinite(value))
+        ) return null;
+
         return {
-          descriptor: Array.from(full.descriptor) as number[],
-          photo: cropFace(video, full.detection.box),
+          descriptor,
+          photo: cropFace(video, box),
           turn: headTurn(full.landmarks.positions),
         };
       };
@@ -356,28 +373,39 @@ export function FaceCapture(props: FaceCaptureProps) {
         try {
           if (verify) {
             const shots: NonNullable<Awaited<ReturnType<typeof grab>>>[] = [];
-            for (let i = 0; i < 10 && shots.length < 3 && !cancelled; i++) {
+            for (let i = 0; i < 14 && shots.length < 3 && !cancelled; i++) {
               const g = await grab();
               if (g && Math.abs(g.turn) < 0.12) {
                 shots.push(g);
-                await new Promise((r) => setTimeout(r, 250));
+                await new Promise((r) => setTimeout(r, 300));
               }
             }
             if (cancelled) return;
-            if (!shots.length) return fail('Could not read your face clearly. Look straight at the camera in good light and try again.');
-            const shot = shots[0];
+            if (shots.length < 3) {
+              return fail('CampusSign could not get three clear face samples. Move closer, face the camera directly, improve the lighting, and try again.');
+            }
+
+            const stableDescriptors = selectConsistentFaceSamples(shots.map((x) => x.descriptor), 0.6);
+            if (stableDescriptors.length !== 3) {
+              return fail('Your face scan was unstable across frames. Hold still, keep only your face in view, and try again.');
+            }
+
+            // Use the middle frame for the receipt image while the server compares
+            // all three descriptors against the enrolled template.
+            const shot = shots[1];
             if (propsRef.current.onCaptured) {
               say('Done', 100);
               stopStream();
               propsRef.current.onCaptured({
                 photo: shot.photo,
                 descriptor: shot.descriptor,
-                descriptors: shots.map((x) => x.descriptor),
+                descriptors: stableDescriptors,
               });
               return;
             }
             const enrolled = propsRef.current.enrolled || [];
-            const distance = bestDistance(shot.descriptor, enrolled);
+            const distances = stableDescriptors.map((descriptor) => bestDistance(descriptor, enrolled));
+            const distance = distances.reduce((total, value) => total + value, 0) / distances.length;
             say('Done', 100);
             stopStream();
             if (distance <= FACE_MATCH_THRESHOLD) propsRef.current.onVerified?.({ photo: shot.photo, distance });
@@ -402,12 +430,13 @@ export function FaceCapture(props: FaceCaptureProps) {
             // Reject mixed/unstable captures before they can contaminate a
             // student's template. Every sample must have at least one close
             // neighbour among the other samples from this same capture.
-            if (!areFaceSamplesConsistent(samples, 0.6)) {
+            const stableDescriptors = selectConsistentFaceSamples(samples, 0.6);
+            if (!areFaceSamplesConsistent(samples, 0.6) || stableDescriptors.length < 4) {
               return fail('These face samples were inconsistent. Make sure only you are visible, face the camera, improve the lighting, and try enrolment again.');
             }
             say('Done', 100);
             stopStream();
-            propsRef.current.onEnrolled?.({ photo, descriptors: samples });
+            propsRef.current.onEnrolled?.({ photo, descriptors: stableDescriptors });
           }
         } catch (captureError: any) {
           if (captureError?.message === 'multiple_faces') {
@@ -435,9 +464,9 @@ export function FaceCapture(props: FaceCaptureProps) {
         if (!det) {
           stable = 0;
           if (phase === 'blink') {
-            // With eyes shut the detector can lose the face for a moment: count that as the blink
-            closedSeen = true;
-            say('Blink slowly: close your eyes for a second, then open them');
+            // Losing the face is not evidence of a blink; keep the challenge
+            // active until eye landmarks show a close-and-reopen sequence.
+            say('Keep your face in view and blink slowly');
           } else {
             say('No face found. Look at the camera.');
           }
