@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   AlertCircle, BarChart3, BadgeCheck, Bell, BookOpen, CheckCheck,
   ClipboardList, History, LogOut, QrCode, RefreshCw, Search, ShieldAlert,
@@ -40,6 +40,13 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [catalogCourses, setCatalogCourses] = useState<any[]>([]);
+  const [studentEnrolments, setStudentEnrolments] = useState<any[]>([]);
+  const [recentAttendance, setRecentAttendance] = useState<any[]>([]);
+  const [recentSessions, setRecentSessions] = useState<any[]>([]);
+  const [assignmentLecturer, setAssignmentLecturer] = useState('');
+  const [assignedCourseIds, setAssignedCourseIds] = useState<string[]>([]);
+  const [assignmentLoading, setAssignmentLoading] = useState(false);
+  const [monitorSearch, setMonitorSearch] = useState('');
   const [deptForm, setDeptForm] = useState({ id: '', code: '', name: '', active: true });
   const [courseForm, setCourseForm] = useState({ id: '', departmentId: '', code: '', title: '', level: '', active: true });
   const [catalogMessage, setCatalogMessage] = useState('');
@@ -49,22 +56,39 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
+  // Keep independent admin sections usable when one RPC/table is unavailable.
+  // A failed audit or notification request must not blank the catalogue or lecturer list.
+  const refreshInFlight = useRef(false);
   const refresh = async (showLoader = false) => {
+    if (refreshInFlight.current) return;
+    refreshInFlight.current = true;
     if (showLoader) setLoading(true);
-    setError('');
+    const failures: string[] = [];
+    const jobs = [
+      ['overview', db.loadAdminOverview, setOverview],
+      ['lecturers', db.loadAdminLecturers, setLecturers],
+      ['audit history', () => db.loadAdminAudit(60), setAudit],
+      ['notifications', () => db.loadNotifications(20), setNotifications],
+      ['departments', db.loadCatalogDepartments, setDepartments],
+      ['course catalogue', () => db.loadCatalogCourses(null), setCatalogCourses],
+      ['student enrolments', () => db.loadAdminStudentEnrolments(150), setStudentEnrolments],
+      ['recent attendance', () => db.loadAdminRecentAttendance(150), setRecentAttendance],
+      ['recent sessions', () => db.loadAdminRecentSessions(75), setRecentSessions],
+    ] as const;
     try {
-      const [stats, staff, events, notices, depts, catalog] = await Promise.all([
-        db.loadAdminOverview(), db.loadAdminLecturers(), db.loadAdminAudit(60), db.loadNotifications(20), db.loadCatalogDepartments(), db.loadCatalogCourses(null)
-      ]);
-      setOverview(stats);
-      setLecturers(staff);
-      setAudit(events);
-      setNotifications(notices);
-      setDepartments(depts);
-      setCatalogCourses(catalog);
-    } catch (e) {
-      setError(db.friendly(e));
+      await Promise.all(jobs.map(async ([label, load, apply]) => {
+        try {
+          const value = await load();
+          apply(value as never);
+        } catch (e) {
+          failures.push(`${label}: ${db.friendly(e)}`);
+        }
+      }));
+      setError(failures.length
+        ? `Some admin information could not be loaded. Other sections remain available. ${failures.join(' · ')}`
+        : '');
     } finally {
+      refreshInFlight.current = false;
       setLoading(false);
     }
   };
@@ -114,6 +138,28 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
     } catch (e) { setError(db.friendly(e)); } finally { setWorkingId(''); }
   };
 
+  const loadLecturerAssignments = async (lecturerId: string) => {
+    setAssignmentLecturer(lecturerId);
+    if (!lecturerId) { setAssignedCourseIds([]); return; }
+    setAssignmentLoading(true);
+    try {
+      const rows = await db.loadAdminLecturerCourses(lecturerId);
+      setAssignedCourseIds(rows.map((row: any) => row.course_id));
+    } catch (e) { setError(db.friendly(e)); }
+    finally { setAssignmentLoading(false); }
+  };
+  const toggleLecturerCourse = async (courseId: string, assigned: boolean) => {
+    if (!assignmentLecturer) return;
+    setWorkingId(`assignment:${courseId}`);
+    try {
+      await db.assignLecturerCourse(assignmentLecturer, courseId, assigned, false);
+      setAssignedCourseIds((current) => assigned ? [...current, courseId] : current.filter((id) => id !== courseId));
+      setMessage(`Course ${assigned ? 'assigned' : 'removed'} successfully.`);
+      await refresh(false);
+    } catch (e) { setError(db.friendly(e)); }
+    finally { setWorkingId(''); }
+  };
+
   const readOne = async (id: string) => {
     try { await db.markNotificationRead(id); await refresh(false); }
     catch (e) { setError(db.friendly(e)); }
@@ -151,7 +197,7 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
       {error && <div role="alert" className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-200 text-xs">{error}</div>}
 
       <div className="flex gap-2 overflow-x-auto p-1 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-fit max-w-full">
-        {[['overview', 'Overview', BarChart3], ['academic', 'Departments & courses', BookMarked], ['lecturers', 'Lecturers', UserCog], ['audit', 'Audit history', History]].map(([key, label, Icon]: any) => <button key={key} onClick={() => setTab(key)} className={`px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap inline-flex items-center gap-2 ${tab === key ? 'bg-emerald-900 text-amber-300 shadow' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}><Icon className="w-4 h-4" />{label}</button>)}
+        {[['overview', 'Overview', BarChart3], ['academic', 'Departments & courses', BookMarked], ['lecturers', 'Lecturers', UserCog], ['enrolments', 'Students', Users], ['monitoring', 'Attendance & sessions', ClipboardList], ['audit', 'Audit history', History]].map(([key, label, Icon]: any) => <button key={key} onClick={() => setTab(key)} className={`px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap inline-flex items-center gap-2 ${tab === key ? 'bg-emerald-900 text-amber-300 shadow' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}><Icon className="w-4 h-4" />{label}</button>)}
       </div>
 
       {loading ? <div className="py-16 text-center text-sm text-slate-500"><RefreshCw className="w-6 h-6 mx-auto mb-2 animate-spin" />Loading system overview…</div> : tab === 'overview' ? (
@@ -266,9 +312,43 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
             </div>
           </section>
         </div>
+      ) : tab === 'enrolments' ? (
+        <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div><h2 className="font-extrabold text-slate-900 dark:text-white">Student enrolments</h2><p className="text-[11px] text-slate-500 mt-1">Recent student records and face-enrolment status. Biometric data is not displayed.</p></div>
+            <input value={monitorSearch} onChange={e=>setMonitorSearch(e.target.value)} placeholder="Search student, ID, course…" className="w-full sm:max-w-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-xs"/>
+          </div>
+          <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left"><thead><tr className="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-100 dark:border-slate-800"><th className="p-3">Student</th><th className="p-3">Department / level</th><th className="p-3">Course</th><th className="p-3">Lecturer</th><th className="p-3">Face setup</th><th className="p-3">Added</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            {studentEnrolments.filter((r:any)=>[r.student_name,r.student_id,r.department,r.course,r.lecturer_name].some(v=>String(v||'').toLowerCase().includes(monitorSearch.toLowerCase()))).map((r:any)=><tr key={r.enrolment_id}><td className="p-3"><strong className="block text-xs text-slate-800 dark:text-white">{r.student_name}</strong><span className="text-[10px] text-slate-500">{r.student_id}</span></td><td className="p-3 text-xs text-slate-600 dark:text-slate-300">{r.department} · {r.level}</td><td className="p-3 text-xs text-slate-600 dark:text-slate-300">{r.course}</td><td className="p-3 text-xs text-slate-600 dark:text-slate-300">{r.lecturer_name}</td><td className="p-3 text-[10px] font-bold">{r.face_enrolled ? <span className="text-emerald-600">Enrolled</span> : <span className="text-amber-600">Not enrolled</span>}</td><td className="p-3 text-[10px] text-slate-500">{r.created_at ? new Date(r.created_at).toLocaleDateString() : '—'}</td></tr>)}
+          </tbody></table>{studentEnrolments.length===0 && <p className="py-8 text-center text-xs text-slate-500">No student enrolment records returned.</p>}</div>
+        </section>
+      ) : tab === 'monitoring' ? (
+        <div className="space-y-4">
+          <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
+            <div><h2 className="font-extrabold text-slate-900 dark:text-white">Recent attendance</h2><p className="text-[11px] text-slate-500 mt-1">Latest check-in records across the system. This view is read-only.</p></div>
+            <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left"><thead><tr className="text-[10px] uppercase text-slate-500 border-b border-slate-100 dark:border-slate-800"><th className="p-3">Student</th><th className="p-3">Course</th><th className="p-3">Session</th><th className="p-3">Lecturer</th><th className="p-3">Status</th><th className="p-3">Time</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{recentAttendance.filter((r:any)=>[r.student_name,r.student_id,r.course,r.session_title,r.lecturer_name].some(v=>String(v||'').toLowerCase().includes(monitorSearch.toLowerCase()))).map((r:any)=><tr key={r.attendance_id}><td className="p-3"><strong className="block text-xs text-slate-800 dark:text-white">{r.student_name}</strong><span className="text-[10px] text-slate-500">{r.student_id}</span></td><td className="p-3 text-xs">{r.course}</td><td className="p-3 text-xs">{r.session_title || r.session_id || '—'}</td><td className="p-3 text-xs">{r.lecturer_name || '—'}</td><td className="p-3 text-xs">{r.status || 'Recorded'}</td><td className="p-3 text-[10px] text-slate-500">{new Date(r.created_at).toLocaleString()}</td></tr>)}</tbody></table>{recentAttendance.length===0 && <p className="py-6 text-center text-xs text-slate-500">No attendance records returned.</p>}</div>
+          </section>
+          <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
+            <div><h2 className="font-extrabold text-slate-900 dark:text-white">Attendance sessions</h2><p className="text-[11px] text-slate-500 mt-1">Recent QR/attendance sessions and their current state.</p></div>
+            <div className="space-y-2">{recentSessions.map((s:any)=><article key={s.session_id} className="p-3 rounded-xl border border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2"><div className="min-w-0"><strong className="block text-xs text-slate-800 dark:text-white">{s.title || s.course}</strong><p className="text-[10px] text-slate-500 mt-1">{s.course} · {s.lecturer_name || 'Unknown lecturer'} · {s.attendance_count} check-ins</p><p className="text-[10px] text-slate-400">{new Date(s.created_at).toLocaleString()}{s.ends_at ? ` · Ends ${new Date(s.ends_at).toLocaleString()}` : ''}</p></div><span className={`text-[10px] font-bold ${s.revoked || (s.ends_at && new Date(s.ends_at)<new Date()) ? 'text-slate-500' : 'text-emerald-600'}`}>{s.revoked ? 'Revoked' : s.ends_at && new Date(s.ends_at)<new Date() ? 'Expired' : 'Active'}</span></article>)}{recentSessions.length===0 && <p className="py-6 text-center text-xs text-slate-500">No attendance sessions returned.</p>}</div>
+          </section>
+        </div>
       ) : tab === 'lecturers' ? (
         <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4"><div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><h2 className="font-extrabold text-slate-900 dark:text-white">Lecturer accounts</h2><p className="text-[11px] text-slate-500 mt-1">Verify academic staff before they can use lecturer tools.</p></div><div className="relative w-full sm:max-w-xs"><Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name, email or course" className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs" /></div></div>
           <div className="overflow-x-auto"><table className="w-full text-left min-w-[680px]"><thead><tr className="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-100 dark:border-slate-800"><th className="p-3">Lecturer</th><th className="p-3">Department</th><th className="p-3">Course</th><th className="p-3">Status</th><th className="p-3 text-right">Action</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{visibleLecturers.map((lecturer) => <tr key={lecturer.lecturer_id}><td className="p-3"><strong className="block text-xs text-slate-800 dark:text-white">{lecturer.name}</strong><span className="text-[10px] text-slate-500">{lecturer.email}</span></td><td className="p-3 text-xs text-slate-600 dark:text-slate-300">{lecturer.dept}</td><td className="p-3 text-xs text-slate-600 dark:text-slate-300">{lecturer.course}</td><td className="p-3">{lecturer.is_verified ? <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 inline-flex items-center gap-1"><BadgeCheck className="w-4 h-4" />Verified</span> : <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300 inline-flex items-center gap-1"><AlertCircle className="w-4 h-4" />Pending</span>}</td><td className="p-3 text-right"><button disabled={workingId === lecturer.lecturer_id} onClick={() => changeVerification(lecturer)} className={`px-3 py-2 rounded-lg text-[10px] font-extrabold disabled:opacity-50 ${lecturer.is_verified ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900' : 'bg-emerald-900 text-amber-300 border border-emerald-700'}`}>{workingId === lecturer.lecturer_id ? 'Saving…' : lecturer.is_verified ? 'Withdraw access' : 'Verify lecturer'}</button></td></tr>)}</tbody></table>{visibleLecturers.length === 0 && <p className="py-8 text-center text-xs text-slate-500">No lecturer accounts match that search.</p>}</div>
+          <div className="border-t border-slate-100 dark:border-slate-800 pt-4 space-y-3">
+            <div><h3 className="font-extrabold text-sm text-slate-900 dark:text-white">Lecturer course assignments</h3><p className="text-[11px] text-slate-500 mt-1">Choose a lecturer to manage the courses they are authorised to teach.</p></div>
+            <select value={assignmentLecturer} onChange={e=>loadLecturerAssignments(e.target.value)} className="w-full sm:max-w-md rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-xs">
+              <option value="">Choose lecturer</option>{lecturers.map((l:any)=><option key={l.lecturer_id} value={l.lecturer_id}>{l.name} · {l.email}</option>)}
+            </select>
+            {assignmentLecturer && <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {assignmentLoading ? <p className="text-xs text-slate-500">Loading assignments…</p> : catalogCourses.map((course:any)=><label key={course.id} className="flex items-center gap-2 p-3 rounded-xl border border-slate-200 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-200">
+                <input type="checkbox" checked={assignedCourseIds.includes(course.id)} disabled={workingId===`assignment:${course.id}` || !course.is_active} onChange={e=>toggleLecturerCourse(course.id,e.target.checked)}/>
+                <span className="min-w-0"><strong className="block">{course.code} · {course.title}</strong><span className="text-[10px] text-slate-500">{course.department_name}{!course.is_active ? ' · Inactive' : ''}</span></span>
+              </label>)}
+              {!catalogCourses.length && <p className="text-xs text-slate-500">Add courses to the catalogue before assigning them.</p>}
+            </div>}
+          </div>
         </section>
       ) : (
         <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm"><div className="mb-4"><h2 className="font-extrabold text-slate-900 dark:text-white">Audit history</h2><p className="text-[11px] text-slate-500 mt-1">Recent enrolment, verification and attendance changes. Biometric descriptors and photos are never included.</p></div>

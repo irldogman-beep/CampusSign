@@ -261,7 +261,7 @@ export async function saveCatalogCourse(input: { id?: string | null; departmentI
   }));
 }
 export async function assignLecturerCourse(lecturerId: string, courseId: string, assigned: boolean, primary = false) {
-  unwrap(await supabase.rpc('admin_assign_lecturer_course', {
+  return unwrap<void>(await supabase.rpc('admin_assign_lecturer_course', {
     p_lecturer: lecturerId, p_course: courseId, p_assigned: assigned, p_primary: primary,
   }));
 }
@@ -270,4 +270,18 @@ export async function loadDepartmentCourses(departmentName: string): Promise<any
 }
 export async function loadMyAssignedCourses(): Promise<any[]> {
   return unwrap<any[]>(await supabase.rpc('my_assigned_courses'));
+}
+
+// ---- administrator monitoring and lecturer assignments ----
+export async function loadAdminLecturerCourses(lecturerId: string): Promise<any[]> {
+  return unwrap<any[]>(await supabase.rpc('admin_lecturer_courses', { p_lecturer: lecturerId }));
+}
+export async function loadAdminStudentEnrolments(limit = 100): Promise<any[]> {
+  return unwrap<any[]>(await supabase.rpc('admin_list_student_enrolments', { p_limit: limit }));
+}
+export async function loadAdminRecentAttendance(limit = 100): Promise<any[]> {
+  return unwrap<any[]>(await supabase.rpc('admin_recent_attendance', { p_limit: limit }));
+}
+export async function loadAdminRecentSessions(limit = 50): Promise<any[]> {
+  return unwrap<any[]>(await supabase.rpc('admin_recent_sessions', { p_limit: limit }));
 }
