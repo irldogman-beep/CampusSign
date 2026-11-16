@@ -1,0 +1,21 @@
+{
+  "id": "/",
+  "name": "CampusSign",
+  "short_name": "CampusSign",
+  "description": "Secure QR and biometric student attendance management.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "background_color": "#f8fafc",
+  "theme_color": "#064e3b",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icons/campussign.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
