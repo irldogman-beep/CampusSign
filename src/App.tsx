@@ -1302,6 +1302,7 @@ The request has NOT been rejected or approved. Check the student's official univ
         </button>
       </div>
 
+      {adminTab === 'session' && <>
       {/* QUICK STATUS OVERVIEW */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="rounded-2xl p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-3 interactive-card">
@@ -1317,6 +1318,8 @@ The request has NOT been rejected or approved. Check the student's official univ
           <div className="flex-1"><div className="text-2xl font-black text-slate-900 dark:text-white tabular-nums">{enrollmentRequests.length}</div><div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Pending enrolments</div></div><ArrowRight className="w-4 h-4 text-slate-400" />
         </button>
       </div>
+
+      </>}
 
       {adminTab === 'session' && <>
       {/* SESSION + QR */}
