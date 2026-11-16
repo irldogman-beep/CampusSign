@@ -93,3 +93,72 @@ main div.fixed.inset-0 > div, main div.fixed.inset-0 > form {
     transition-duration: .01ms !important;
   }
 }
+
+
+/* Responsive app shell: respect narrow phones, tall portrait screens and device safe areas. */
+html, body, #root {
+  width: 100%;
+  min-height: 100%;
+  overflow-x: clip;
+}
+.campus-app-shell {
+  width: 100%;
+  min-height: 100svh;
+  min-height: 100dvh;
+  overflow-x: clip;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.campus-app-shell main,
+.campus-app-shell main > *,
+.campus-app-shell section,
+.campus-app-shell form {
+  min-width: 0;
+}
+.campus-app-shell img,
+.campus-app-shell video,
+.campus-app-shell canvas {
+  max-width: 100%;
+}
+.campus-app-shell .overflow-x-auto {
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+@media (max-width: 640px) {
+  .campus-app-shell header {
+    padding-top: env(safe-area-inset-top);
+  }
+  .campus-app-shell main {
+    padding-left: max(0.75rem, env(safe-area-inset-left));
+    padding-right: max(0.75rem, env(safe-area-inset-right));
+  }
+  .campus-app-shell main > .space-y-5,
+  .campus-app-shell main > .space-y-8 {
+    gap: 1rem;
+  }
+  .campus-app-shell footer {
+    padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
+  }
+  .campus-app-shell button,
+  .campus-app-shell a {
+    touch-action: manipulation;
+  }
+  .campus-app-shell .overflow-x-auto {
+    max-width: 100%;
+  }
+}
+@media (max-width: 380px) {
+  .campus-app-shell main {
+    padding-top: 0.75rem;
+  }
+  .campus-app-shell [class*="rounded-3xl"] {
+    border-radius: 1.25rem;
+  }
+  .campus-app-shell [class*="p-5"] {
+    padding: 1rem;
+  }
+}
+@media (max-width: 640px) and (max-aspect-ratio: 4 / 5) {
+  .campus-app-shell {
+    background-attachment: scroll;
+  }
+}

@@ -219,6 +219,14 @@ export async function markNotificationRead(id: string) {
   unwrap(await supabase.rpc('mark_notification_read', { p_notification: id }));
 }
 
+export async function markNotificationUnread(id: string) {
+  unwrap(await supabase.rpc('mark_notification_unread', { p_notification: id }));
+}
+
+export async function deleteNotification(id: string) {
+  unwrap(await supabase.rpc('delete_notification', { p_notification: id }));
+}
+
 export async function markAllNotificationsRead() {
   return unwrap<number>(await supabase.rpc('mark_all_notifications_read'));
 }
