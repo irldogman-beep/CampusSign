@@ -9,9 +9,10 @@ import * as db from './db';
 type Props = {
   onClose: () => void;
   onEnroll: (profile: any, courses: any[]) => void;
+  onScan?: () => void;
 };
 
-export default function StudentAccountPortal({ onClose, onEnroll }: Props) {
+export default function StudentAccountPortal({ onClose, onEnroll, onScan }: Props) {
   const [mode, setMode] = useState<'login' | 'signup'>('signup');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -158,6 +159,7 @@ export default function StudentAccountPortal({ onClose, onEnroll }: Props) {
             <div><p className="text-[10px] uppercase tracking-[.2em] text-emerald-200 font-black">CampusSign · Student services</p><h1 className="text-xl sm:text-2xl font-black mt-1">Student services</h1></div>
           </div>
           <div className="flex gap-2">
+            {isSignedIn && onScan && <button type="button" onClick={onScan} className="px-3 py-2 rounded-xl bg-amber-400 text-emerald-950 text-xs font-extrabold inline-flex items-center gap-2"><Scan className="w-4 h-4"/>Scan attendance</button>}
             {isSignedIn && <button type="button" onClick={signOut} disabled={busy} className="px-3 py-2 rounded-xl bg-white/10 border border-white/15 text-xs font-bold inline-flex items-center gap-2"><LogOut className="w-4 h-4"/>Sign out</button>}
             <button type="button" onClick={onClose} className="px-3 py-2 rounded-xl bg-amber-400 text-emerald-950 text-xs font-extrabold">Back to check-in</button>
           </div>
