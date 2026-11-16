@@ -43,6 +43,7 @@ import { supabase } from './supabase';
 import { QRCodeImage, QRScanner, FaceCapture } from './CameraParts';
 import * as db from './db';
 import { getBestFix } from './geo';
+import { Capacitor } from '@capacitor/core';
 import { QR_DISPLAY_CHANNEL } from './QRDisplayWindow';
 import AdminWorkspace, { NotificationBell } from './AdminWorkspace';
 import StudentAccountPortal from './StudentAccountPortal';
@@ -937,7 +938,9 @@ The request has NOT been rejected or approved. Check the student's official univ
     const fix = await getBestFix(12000, 10);
     if (!fix) {
       setLocBusy(false);
-      alert('Could not get your location. Allow location access for this site in your browser, then try again.');
+      alert(Capacitor.isNativePlatform()
+        ? 'CampusSign could not get a precise location. Turn on Location on your phone and allow CampusSign precise location access in Android Settings, then try again.'
+        : 'Could not get your location. Allow location access for CampusSign in your browser and device settings, then try again.');
       return;
     }
     try {
@@ -2426,7 +2429,9 @@ function StudentPortal({
         setFaceError(`Your face did not match the enrolled record (score ${r.distance}). ${r.remaining} attempt${r.remaining === 1 ? '' : 's'} left.`);
       } else if (r.status === 'blocked_location') {
         setFaceError(r.location === 'unavailable'
-          ? 'This session needs your location. Allow location access for this site in your browser settings, then try again.'
+          ? (Capacitor.isNativePlatform()
+            ? 'This session needs your location. Turn on Location and allow CampusSign precise location access in Android Settings, then try again.'
+            : 'This session needs your location. Allow location access for CampusSign in your browser settings, then try again.')
           : `You appear to be outside the classroom (about ${r.distance_m} m away). Move closer to the lecturer and try again.`);
       } else if (r.status === 'locked' || r.status === 'already') {
         setMatchedStudent(null);
