@@ -4,7 +4,6 @@ const config: CapacitorConfig = {
   appId: 'com.campussign.app',
   appName: 'CampusSign',
   webDir: 'dist',
-  bundledWebRuntime: false,
   android: {
     allowMixedContent: false,
   },
