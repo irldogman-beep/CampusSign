@@ -110,7 +110,7 @@ begin
     select 1 from public.academic_courses where id=p_course and is_active
   ) then raise exception 'course_not_found'; end if;
   if p_student_user is not null and not exists(
-    select 1 from public.student_accounts where user_id=p_student_user and status='approved'
+    select 1 from public.student_accounts where user_id=p_student_user and status in ('pending','approved')
   ) then raise exception 'announcement_student_required'; end if;
 
   if p_id is null then
@@ -145,7 +145,7 @@ begin
 
   if p_audience_type='all_staff' then
     insert into _announcement_target_users
-    select id from public.lecturers where role='admin' or (role='lecturer' and is_verified);
+    select id from public.lecturers where role in ('admin','lecturer');
   elsif p_audience_type='all_lecturers' then
     insert into _announcement_target_users
     select id from public.lecturers where role='lecturer' and is_verified;
@@ -162,13 +162,13 @@ begin
     where l.role='lecturer' and l.is_verified and lca.course_id=p_course;
   elsif p_audience_type='all_students' then
     insert into _announcement_target_users
-    select user_id from public.student_accounts where status='approved';
+    select user_id from public.student_accounts where status in ('pending','approved');
   elsif p_audience_type='department_students' then
     insert into _announcement_target_users
     select sa.user_id
     from public.student_accounts sa
     join public.academic_departments d on lower(btrim(d.name))=lower(btrim(sa.department))
-    where sa.status='approved' and d.id=p_department and d.is_active;
+    where sa.status in ('pending','approved') and d.id=p_department and d.is_active;
   elsif p_audience_type='individual_student' then
     insert into _announcement_target_users
     select user_id from public.student_accounts
