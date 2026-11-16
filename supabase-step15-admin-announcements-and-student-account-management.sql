@@ -65,7 +65,7 @@ $function$;
 revoke all on function public.admin_list_announcements() from public, anon;
 grant execute on function public.admin_list_announcements() to authenticated;
 
--- New overload: p_student_user allows an announcement to target one approved student.
+-- New overload: p_student_user allows an announcement to target one active (pending or approved) student account.
 create or replace function public.admin_save_announcement(
   p_id uuid, p_title text, p_body text, p_audience_type text,
   p_department uuid, p_course uuid, p_student_user uuid, p_publish boolean
