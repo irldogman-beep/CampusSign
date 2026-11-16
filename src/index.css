@@ -377,3 +377,18 @@ body {
     animation-iteration-count: 1 !important;
   }
 }
+
+
+/* Admin-managed brand tokens shared by Student and Staff spaces. */
+.campus-app-shell {
+  --brand-primary: var(--campus-primary, #064e3b);
+  --brand-accent: var(--campus-accent, #f59e0b);
+  --brand-background: var(--campus-background, #f8fafc);
+}
+.campus-app-shell:not(.dark) { background-color: var(--brand-background); }
+.campus-app-shell .bg-emerald-950 { background-color: var(--brand-primary); }
+.campus-app-shell .bg-emerald-900 { background-color: color-mix(in srgb, var(--brand-primary) 88%, black); }
+.campus-app-shell .border-emerald-800 { border-color: color-mix(in srgb, var(--brand-primary) 76%, white); }
+.campus-app-shell .bg-amber-400 { background-color: var(--brand-accent); }
+.campus-app-shell .text-amber-300,
+.campus-app-shell .text-amber-400 { color: var(--brand-accent); }
