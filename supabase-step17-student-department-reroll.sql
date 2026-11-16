@@ -85,7 +85,7 @@ as $function$
 declare v_request public.student_department_reroll_requests;
 begin
   if auth.uid() is null or not public.is_admin() then raise exception 'admin_required'; end if;
-  if p_decision not in ('approve','reject') then raise exception 'invalid_decision'; end if;
+  if p_decision is null or p_decision not in ('approve','reject') then raise exception 'invalid_decision'; end if;
   select * into v_request from public.student_department_reroll_requests where id=p_request_id for update;
   if not found then raise exception 'reroll_request_not_found'; end if;
   if v_request.status <> 'pending' then raise exception 'reroll_request_already_reviewed'; end if;
