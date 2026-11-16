@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   AlertCircle, BarChart3, BadgeCheck, Bell, BookOpen, CheckCheck,
   ClipboardList, History, LogOut, QrCode, RefreshCw, Search, ShieldAlert,
-  ShieldCheck, TrendingUp, UserCog, Users, Building2, Plus, Pencil, BookMarked, Trash2, Activity
+  ShieldCheck, UserCog, Users, Building2, Plus, Pencil, BookMarked, Trash2, Activity
 } from 'lucide-react';
 import * as db from './db';
 
@@ -199,8 +199,6 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
   const visibleLecturers = lecturers.filter((item) =>
     [item.name, item.email, item.dept, item.course].some((value) => String(value || '').toLowerCase().includes(search.toLowerCase()))
   );
-  const courses = overview?.courses || [];
-  const maxAttendance = Math.max(1, ...courses.map((course: any) => Number(course.attendance_30d || 0)));
   const statCards = [
     { label: 'Lecturers', value: overview?.lecturers_total ?? '—', detail: `${overview?.lecturers_verified ?? 0} verified · Manage accounts`, icon: UserCog, tab: 'lecturers' },
     { label: 'Awaiting verification', value: overview?.lecturers_pending ?? '—', detail: 'Review pending accounts', icon: ShieldAlert, tab: 'lecturers' },
