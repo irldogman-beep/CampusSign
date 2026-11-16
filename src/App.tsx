@@ -52,6 +52,9 @@ import StudentAccountPortal from './StudentAccountPortal';
    LOGO COMPONENT (Matching Forest Green & Academic Gold Emblem)
    ========================================================================== */
 function CampusSignLogo({ className = "w-10 h-10" }) {
+  let customLogo = '';
+  try { customLogo = window.localStorage.getItem('campussign-brand-logo') || ''; } catch { /* storage unavailable */ }
+  if (customLogo) return <img src={customLogo} alt="CampusSign logo" className={className + " object-contain"} />;
   return (
     <svg className={className} viewBox="0 0 500 500" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path 
