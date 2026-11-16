@@ -1,14 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  AlertCircle, BarChart3, BadgeCheck, Bell, BookOpen, CheckCheck,
+  AlertCircle, BarChart3, BadgeCheck, Bell, BookOpen, CheckCheck, Check, X,
   ClipboardList, History, LogOut, QrCode, RefreshCw, Search, ShieldAlert,
   ShieldCheck, UserCog, Users, Building2, Plus, Pencil, BookMarked, Trash2, Activity
 } from 'lucide-react';
 import * as db from './db';
 
-export function NotificationBell({ notifications = [], onRead, onReadAll }: any) {
+export function NotificationBell({ notifications = [], onRead, onReadAll, onUnread, onDelete, onOpen }: any) {
   const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState<any>(null);
   const [panelPosition, setPanelPosition] = useState<{ top: number; right: number; maxHeight: number } | null>(null);
   const bellRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -16,65 +17,109 @@ export function NotificationBell({ notifications = [], onRead, onReadAll }: any)
 
   useEffect(() => {
     if (!open) return;
-
     const updatePosition = () => {
       const rect = bellRef.current?.getBoundingClientRect();
       if (!rect) return;
-      const top = Math.min(rect.bottom + 8, window.innerHeight - 120);
+      const top = Math.max(8, Math.min(rect.bottom + 8, window.innerHeight - 160));
+      const isNarrow = window.innerWidth < 520;
       setPanelPosition({
         top,
-        right: Math.max(16, window.innerWidth - rect.right),
+        right: isNarrow ? 8 : Math.max(16, window.innerWidth - rect.right),
         maxHeight: Math.max(180, window.innerHeight - top - 16),
       });
     };
-
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target as Node;
       if (bellRef.current?.contains(target) || panelRef.current?.contains(target)) return;
       setOpen(false);
+      setSelected(null);
     };
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false);
+      if (event.key === 'Escape') { setOpen(false); setSelected(null); }
     };
-
     updatePosition();
     document.addEventListener('pointerdown', handlePointerDown);
     document.addEventListener('keydown', handleKeyDown);
     window.addEventListener('resize', updatePosition);
     window.addEventListener('scroll', updatePosition, true);
+    window.visualViewport?.addEventListener('resize', updatePosition);
     return () => {
       document.removeEventListener('pointerdown', handlePointerDown);
       document.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('resize', updatePosition);
       window.removeEventListener('scroll', updatePosition, true);
+      window.visualViewport?.removeEventListener('resize', updatePosition);
     };
   }, [open]);
 
+  const openNotification = (item: any) => {
+    if (!item.read_at) onRead?.(item.id);
+    const handled = onOpen?.(item) === true;
+    if (handled) {
+      setSelected(null);
+      setOpen(false);
+    } else {
+      setSelected(item);
+    }
+  };
+
+  const toggleRead = (item: any) => {
+    if (item.read_at) onUnread?.(item.id);
+    else onRead?.(item.id);
+    if (selected?.id === item.id) setSelected({ ...item, read_at: item.read_at ? null : new Date().toISOString() });
+  };
+
+  const dismiss = (item: any) => {
+    if (!window.confirm('Dismiss this notification?')) return;
+    onDelete?.(item.id);
+    if (selected?.id === item.id) setSelected(null);
+  };
+
   return (
     <div ref={bellRef} className="relative shrink-0">
-      <button type="button" onClick={() => setOpen((value) => !value)}
+      <button type="button" onClick={() => { setOpen(value => !value); setSelected(null); }}
         className="relative p-2.5 rounded-xl border border-emerald-700 bg-emerald-950/70 text-emerald-100 hover:text-amber-300"
         aria-label={`Notifications${unread ? `, ${unread} unread` : ''}`} aria-expanded={open} aria-haspopup="dialog">
         <Bell className="w-4 h-4" />
         {unread > 0 && <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black grid place-items-center">{unread > 9 ? '9+' : unread}</span>}
       </button>
       {open && panelPosition && createPortal(
-        <section
-          ref={panelRef}
-          role="dialog"
-          aria-label="Notifications"
+        <section ref={panelRef} role="dialog" aria-label="Notifications"
           style={{ position: 'fixed', top: panelPosition.top, right: panelPosition.right, maxHeight: panelPosition.maxHeight }}
-          className="z-[10000] w-[min(22rem,calc(100vw-2rem))] rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl overflow-hidden text-left flex flex-col"
-        >
+          className="z-[10000] w-[min(24rem,calc(100vw-1rem))] rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl overflow-hidden text-left flex flex-col">
           <div className="p-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2 shrink-0">
-            <div><p className="text-sm font-extrabold text-slate-900 dark:text-white">Notifications</p><p className="text-[10px] text-slate-500">{unread} unread</p></div>
-            <button type="button" onClick={onReadAll} disabled={!unread} className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 disabled:opacity-40 inline-flex items-center gap-1"><CheckCheck className="w-3.5 h-3.5" /> Mark all read</button>
+            <div className="min-w-0">
+              {selected ? <button type="button" onClick={() => setSelected(null)} className="text-xs font-bold text-emerald-700 dark:text-emerald-300">← All notifications</button> : <><p className="text-sm font-extrabold text-slate-900 dark:text-white">Notifications</p><p className="text-[10px] text-slate-500">{unread} unread · {notifications.length} total</p></>}
+            </div>
+            {!selected && <button type="button" onClick={onReadAll} disabled={!unread} className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 disabled:opacity-40 inline-flex items-center gap-1"><CheckCheck className="w-3.5 h-3.5" /> Mark all read</button>}
           </div>
-          <div className="min-h-0 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
-            {notifications.length === 0 ? <p className="p-5 text-center text-xs text-slate-500">You're all caught up.</p> : notifications.map((item: any) => <button key={item.id} type="button" onClick={() => !item.read_at && onRead(item.id)} className={`w-full text-left p-3 hover:bg-slate-50 dark:hover:bg-slate-800/70 ${!item.read_at ? 'bg-emerald-50/70 dark:bg-emerald-950/20' : ''}`}>
-              <div className="flex items-start gap-2"><span className={`mt-1 w-2 h-2 rounded-full shrink-0 ${item.read_at ? 'bg-slate-300' : 'bg-emerald-500'}`} /><span className="min-w-0"><strong className="block text-xs text-slate-800 dark:text-slate-100">{item.title}</strong><span className="block mt-0.5 text-[11px] leading-relaxed text-slate-600 dark:text-slate-300">{item.message}</span><span className="block mt-1 text-[10px] text-slate-400">{new Date(item.created_at).toLocaleString()}</span></span></div>
-            </button>)}
-          </div>
+          {selected ? (
+            <div className="p-4 overflow-y-auto">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0"><p className="text-sm font-extrabold text-slate-900 dark:text-white">{selected.title}</p><p className="text-[10px] text-slate-500 mt-1">{new Date(selected.created_at).toLocaleString()}</p></div>
+                <span className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-bold ${selected.read_at ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'}`}>{selected.read_at ? 'Read' : 'Unread'}</span>
+              </div>
+              <p className="text-xs leading-relaxed text-slate-700 dark:text-slate-200 mt-3 whitespace-pre-wrap">{selected.message}</p>
+              <div className="flex flex-wrap gap-2 mt-5">
+                <button type="button" onClick={() => toggleRead(selected)} className="rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-[11px] font-bold text-slate-700 dark:text-slate-200">{selected.read_at ? 'Mark as unread' : 'Mark as read'}</button>
+                <button type="button" onClick={() => dismiss(selected)} className="rounded-lg border border-rose-200 dark:border-rose-900 px-3 py-2 text-[11px] font-bold text-rose-700 dark:text-rose-300">Dismiss</button>
+              </div>
+            </div>
+          ) : (
+            <div className="min-h-0 overflow-y-auto overscroll-contain divide-y divide-slate-100 dark:divide-slate-800">
+              {notifications.length === 0 ? <p className="p-5 text-center text-xs text-slate-500">You're all caught up.</p> : notifications.map((item: any) => (
+                <div key={item.id} className={`p-3 flex items-start gap-2 ${!item.read_at ? 'bg-emerald-50/70 dark:bg-emerald-950/20' : ''}`}>
+                  <button type="button" onClick={() => openNotification(item)} className="flex-1 min-w-0 text-left rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
+                    <div className="flex items-start gap-2"><span className={`mt-1 w-2 h-2 rounded-full shrink-0 ${item.read_at ? 'bg-slate-300' : 'bg-emerald-500'}`} /><span className="min-w-0"><strong className="block text-xs text-slate-800 dark:text-slate-100">{item.title}</strong><span className="block mt-0.5 text-[11px] leading-relaxed text-slate-600 dark:text-slate-300 line-clamp-2">{item.message}</span><span className="block mt-1 text-[10px] text-slate-400">{new Date(item.created_at).toLocaleString()}</span></span></div>
+                  </button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button type="button" title={item.read_at ? 'Mark as unread' : 'Mark as read'} aria-label={item.read_at ? 'Mark as unread' : 'Mark as read'} onClick={() => toggleRead(item)} className="p-2 rounded-lg text-slate-500 hover:text-emerald-700 hover:bg-slate-100 dark:hover:bg-slate-800"><Check className="w-3.5 h-3.5" /></button>
+                    <button type="button" title="Dismiss notification" aria-label="Dismiss notification" onClick={() => dismiss(item)} className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40"><X className="w-3.5 h-3.5" /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </section>,
         document.body
       )}
