@@ -139,6 +139,9 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
   const [catalogCourses, setCatalogCourses] = useState<any[]>([]);
   const [studentEnrolments, setStudentEnrolments] = useState<any[]>([]);
   const [studentAccounts, setStudentAccounts] = useState<any[]>([]);
+  const [rerollRequests, setRerollRequests] = useState<any[]>([]);
+  const [studentAccountView, setStudentAccountView] = useState<'accounts' | 'rerolls'>('accounts');
+  const [rerollSearch, setRerollSearch] = useState('');
   const [recentAttendance, setRecentAttendance] = useState<any[]>([]);
   const [recentSessions, setRecentSessions] = useState<any[]>([]);
   const [attendanceTrends, setAttendanceTrends] = useState<any[]>([]);
@@ -178,6 +181,7 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
       ['course catalogue', () => db.loadCatalogCourses(null), setCatalogCourses],
       ['student enrolments', () => db.loadAdminStudentEnrolments(150), setStudentEnrolments],
       ['student accounts', db.loadAdminStudentAccounts, setStudentAccounts],
+      ['department change requests', db.loadAdminDepartmentRerolls, setRerollRequests],
       ['recent attendance', () => db.loadAdminRecentAttendance(150), setRecentAttendance],
       ['recent sessions', () => db.loadAdminRecentSessions(75), setRecentSessions],
       ['attendance trends', () => db.loadAdminAttendanceTrends(analyticsDays), setAttendanceTrends],
@@ -212,6 +216,15 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
     const timer = window.setTimeout(() => { setMessage(''); setError(''); }, 5000);
     return () => window.clearTimeout(timer);
   }, [message, error]);
+
+  const reviewDepartmentReroll = async (request: any, decision: 'approve' | 'reject') => {
+    const label = `${request.full_name} (${request.student_id})`;
+    if (!window.confirm(`${decision === 'approve' ? 'Approve' : 'Reject'} the department change for ${label}?${decision === 'approve' ? ` The student may then apply the move from ${request.current_department} to ${request.requested_department}. Old course enrolments and face registration are cleared only when they apply it.` : ''}`)) return;
+    setWorkingId('reroll:' + request.request_id);
+    try { await db.reviewDepartmentReroll(request.request_id, decision); setMessage(`Department change ${decision === 'approve' ? 'approved' : 'rejected'}.`); await refresh(false); }
+    catch (e) { setError(db.friendly(e)); }
+    finally { setWorkingId(''); }
+  };
 
   const reviewStudentAccount = async (account: any, decision: 'approve' | 'reject') => {
     const action = decision === 'approve' ? 'approve' : 'reject';
@@ -377,6 +390,9 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
   const visibleRecentAttendance = recentAttendance.filter((item) =>
     [item.student_name, item.student_id, item.course, item.session_title, item.lecturer_name].some((value) => String(value || '').toLowerCase().includes(attendanceSearch.toLowerCase().trim()))
   );
+  const visibleRerollRequests = rerollRequests.filter((item) =>
+    [item.full_name,item.student_id,item.email,item.current_department,item.requested_department,item.status].some((value) => String(value || '').toLowerCase().includes(rerollSearch.toLowerCase().trim()))
+  );
   const visibleStudentAccounts = studentAccounts.filter((item) =>
     [item.full_name, item.student_id, item.email, item.department, item.status].some((value) => String(value || '').toLowerCase().includes(accountSearch.toLowerCase().trim()))
   );
@@ -405,13 +421,19 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
       {message && <div role="status" className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-emerald-800 dark:text-emerald-200 text-xs font-semibold">{message}</div>}
       {error && <div role="alert" className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-200 text-xs">{error}</div>}
 
-      <div className="flex gap-2 overflow-x-auto p-1 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-fit max-w-full">
-        {[['overview', 'Overview', BarChart3], ['academic', 'Departments & courses', BookMarked], ['lecturers', 'Lecturers', UserCog], ['enrolments', 'Enrolments', Users], ['student-accounts', 'Student accounts', UserRound], ['monitoring', 'Attendance & sessions', ClipboardList], ['announcements', 'Announcements', Bell], ['audit', 'Audit history', History]].map(([key, label, Icon]: any) => <button key={key} onClick={() => setTab(key)} className={`px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap inline-flex items-center gap-2 ${tab === key ? 'bg-emerald-900 text-amber-300 shadow' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}><Icon className="w-4 h-4" />{label}</button>)}
+      <div className="sm:hidden">
+        <label className="sr-only" htmlFor="admin-section-select">Dashboard section</label>
+        <select id="admin-section-select" value={tab} onChange={e=>setTab(e.target.value)} className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-3 text-sm font-bold">
+          <option value="overview">Overview</option><option value="academic">Departments & courses</option><option value="lecturers">Lecturers</option><option value="enrolments">Enrolments</option><option value="student-accounts">Student accounts</option><option value="monitoring">Attendance & sessions</option><option value="announcements">Announcements</option><option value="audit">Audit history</option>
+        </select>
       </div>
+      <nav aria-label="Admin dashboard sections" className="hidden sm:grid grid-cols-4 gap-2">
+        {[[ 'overview', 'Overview', BarChart3 ],[ 'academic', 'Departments & courses', BookMarked ],[ 'lecturers', 'Lecturers', UserCog ],[ 'enrolments', 'Enrolments', Users ],[ 'student-accounts', 'Student accounts', UserRound ],[ 'monitoring', 'Attendance & sessions', ClipboardList ],[ 'announcements', 'Announcements', Bell ],[ 'audit', 'Audit history', History ]].map(([key,label,Icon]:any)=><button key={key} type="button" onClick={()=>setTab(key)} aria-current={tab===key?'page':undefined} className={`min-w-0 rounded-xl border px-3 py-3 text-left text-xs font-bold inline-flex items-center gap-2 transition-colors ${tab===key?'bg-emerald-900 text-amber-300 border-emerald-800':'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-emerald-500'}`}><Icon className="w-4 h-4 shrink-0"/><span className="truncate">{label}</span></button>)}
+      </nav>
 
       {loading ? <div className="py-16 text-center text-sm text-slate-500"><RefreshCw className="w-6 h-6 mx-auto mb-2 animate-spin" />Loading system overview…</div> : tab === 'overview' ? (
         <div className="space-y-5">
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">{statCards.map((card) => <button type="button" key={card.label} onClick={() => setTab(card.tab)} className="text-left rounded-2xl p-4 sm:p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:border-emerald-500 hover:shadow-md transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500"><div className="flex items-center justify-between gap-2"><span className="text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400">{card.label}</span><span className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 grid place-items-center"><card.icon className="w-4 h-4" /></span></div><p className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white mt-3 tabular-nums">{card.value}</p><p className="text-[10px] text-slate-500 mt-1">{card.detail} →</p></button>)}</div>
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">{statCards.map((card) => <button type="button" key={card.label} onClick={() => setTab(card.tab)} className="text-left rounded-2xl p-4 sm:p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:border-emerald-500 hover:shadow-md transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500"><div className="flex items-center justify-between gap-2"><span className="text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400">{card.label}</span><span className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 grid place-items-center"><card.icon className="w-4 h-4" /></span></div><p className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white mt-3 tabular-nums">{card.value}</p></button>)}</div>
           <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div><h2 className="font-extrabold text-slate-900 dark:text-white flex items-center gap-2"><Activity className="w-5 h-5 text-emerald-600"/> Attendance analytics</h2></div>
@@ -548,21 +570,38 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
       ) : tab === 'student-accounts' ? (
         <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div><h2 className="font-extrabold text-slate-900 dark:text-white">Student account verification</h2></div>
+            <h2 className="font-extrabold text-slate-900 dark:text-white">Student accounts</h2>
             <button type="button" onClick={()=>refresh(false)} className="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs font-bold"><RefreshCw className="w-3.5 h-3.5 inline mr-1"/>Refresh</button>
           </div>
-          <div className="relative"><Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400"/><input value={accountSearch} onChange={e=>setAccountSearch(e.target.value)} placeholder="Search student name, ID, email or department" className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs"/></div>
-          <div className="overflow-x-auto"><table className="w-full min-w-[850px] text-left"><thead><tr className="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-100 dark:border-slate-800"><th className="p-3">Student</th><th className="p-3">Contact</th><th className="p-3">Academic details</th><th className="p-3">Existing roster</th><th className="p-3">Status</th><th className="p-3">Actions</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-          {visibleStudentAccounts.map((account:any)=><tr key={account.user_id}>
-            <td className="p-3"><strong className="block text-xs text-slate-900 dark:text-white">{account.full_name}</strong><span className="text-[10px] text-slate-500">{account.student_id}</span></td>
-            <td className="p-3 text-xs">{account.email}</td>
-            <td className="p-3 text-xs">{account.department}<span className="block text-[10px] text-slate-500">{account.level} Level</span></td>
-            <td className="p-3"><strong className="text-xs tabular-nums">{account.matching_roster_count}</strong><span className="block max-w-[240px] text-[10px] text-slate-500">{(account.matching_courses||[]).join(', ')||'No existing roster record yet'}</span></td>
-            <td className="p-3"><span className={"rounded-full px-2 py-1 text-[9px] font-bold " + (account.status==='approved'?'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200':account.status==='rejected'?'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-200':'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200')}>{account.status}</span><span className="block text-[9px] text-slate-500 mt-1">{new Date(account.created_at).toLocaleDateString()}</span></td>
-            <td className="p-3"><div className="flex flex-wrap gap-2">{account.status==='pending' && <><button type="button" disabled={workingId==='student-account:'+account.user_id} onClick={()=>reviewStudentAccount(account,'approve')} className="rounded-lg bg-emerald-800 text-white px-3 py-2 text-[10px] font-bold disabled:opacity-40"><Check className="w-3 h-3 inline mr-1"/>Approve</button><button type="button" disabled={workingId==='student-account:'+account.user_id} onClick={()=>reviewStudentAccount(account,'reject')} className="rounded-lg border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 px-3 py-2 text-[10px] font-bold">Reject</button></>}<button type="button" disabled={workingId==='delete:'+account.user_id} onClick={()=>runDelete('student account',account.user_id,account.full_name,()=>db.adminDeleteStudentAccount(account.user_id))} className="rounded-lg border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 px-3 py-2 text-[10px] font-bold disabled:opacity-40"><Trash2 className="w-3 h-3 inline mr-1"/>Delete account</button></div></td>
-          </tr>)}
-          </tbody></table>{visibleStudentAccounts.length===0&&<p className="py-10 text-center text-xs text-slate-500">{studentAccounts.length ? 'No student accounts match your search.' : 'No student accounts have been created yet.'}</p>}</div>
-          
+          <div className="flex gap-2 p-1 rounded-xl bg-slate-100 dark:bg-slate-800">
+            <button type="button" onClick={()=>setStudentAccountView('accounts')} className={`flex-1 rounded-lg px-3 py-2.5 text-xs font-bold ${studentAccountView==='accounts'?'bg-emerald-900 text-amber-300':'text-slate-600 dark:text-slate-300'}`}>Accounts ({studentAccounts.length})</button>
+            <button type="button" onClick={()=>setStudentAccountView('rerolls')} className={`flex-1 rounded-lg px-3 py-2.5 text-xs font-bold ${studentAccountView==='rerolls'?'bg-emerald-900 text-amber-300':'text-slate-600 dark:text-slate-300'}`}>Department changes ({rerollRequests.filter(r=>r.status==='pending').length})</button>
+          </div>
+          {studentAccountView==='accounts' ? <>
+            <div className="relative"><Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400"/><input value={accountSearch} onChange={e=>setAccountSearch(e.target.value)} placeholder="Search student name, ID, email or department" className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs"/></div>
+            <div className="overflow-x-auto"><table className="w-full min-w-[850px] text-left"><thead><tr className="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-100 dark:border-slate-800"><th className="p-3">Student</th><th className="p-3">Contact</th><th className="p-3">Academic details</th><th className="p-3">Existing roster</th><th className="p-3">Status</th><th className="p-3">Actions</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            {visibleStudentAccounts.map((account:any)=><tr key={account.user_id}>
+              <td className="p-3"><strong className="block text-xs text-slate-900 dark:text-white">{account.full_name}</strong><span className="text-[10px] text-slate-500">{account.student_id}</span></td>
+              <td className="p-3 text-xs">{account.email}</td>
+              <td className="p-3 text-xs">{account.department}<span className="block text-[10px] text-slate-500">{account.level} Level</span></td>
+              <td className="p-3"><strong className="text-xs tabular-nums">{account.matching_roster_count}</strong><span className="block max-w-[240px] text-[10px] text-slate-500">{(account.matching_courses||[]).join(', ')||'No existing roster record yet'}</span></td>
+              <td className="p-3"><span className={"rounded-full px-2 py-1 text-[9px] font-bold " + (account.status==='approved'?'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200':account.status==='rejected'?'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-200':'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200')}>{account.status}</span><span className="block text-[9px] text-slate-500 mt-1">{new Date(account.created_at).toLocaleDateString()}</span></td>
+              <td className="p-3"><div className="flex flex-wrap gap-2">{account.status==='pending' && <><button type="button" disabled={workingId==='student-account:'+account.user_id} onClick={()=>reviewStudentAccount(account,'approve')} className="rounded-lg bg-emerald-800 text-white px-3 py-2 text-[10px] font-bold disabled:opacity-40"><Check className="w-3 h-3 inline mr-1"/>Approve</button><button type="button" disabled={workingId==='student-account:'+account.user_id} onClick={()=>reviewStudentAccount(account,'reject')} className="rounded-lg border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 px-3 py-2 text-[10px] font-bold">Reject</button></>}<button type="button" disabled={workingId==='delete:'+account.user_id} onClick={()=>runDelete('student account',account.user_id,account.full_name,()=>db.adminDeleteStudentAccount(account.user_id))} className="rounded-lg border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 px-3 py-2 text-[10px] font-bold disabled:opacity-40"><Trash2 className="w-3 h-3 inline mr-1"/>Delete account</button></div></td>
+            </tr>)}
+            </tbody></table>{visibleStudentAccounts.length===0&&<p className="py-10 text-center text-xs text-slate-500">{studentAccounts.length ? 'No student accounts match your search.' : 'No student accounts have been created yet.'}</p>}</div>
+          </> : <>
+            <div className="relative"><Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400"/><input value={rerollSearch} onChange={e=>setRerollSearch(e.target.value)} placeholder="Search student, ID or department" className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs"/></div>
+            <div className="space-y-3">
+              {visibleRerollRequests.map((request:any)=><article key={request.request_id} className="rounded-2xl border border-slate-200 dark:border-slate-700 p-4 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2"><div className="min-w-0"><h3 className="font-bold text-sm text-slate-900 dark:text-white break-words">{request.full_name}</h3><p className="text-[11px] text-slate-500 break-all">{request.student_id} · {request.email}</p></div><span className={`self-start rounded-full px-2.5 py-1 text-[10px] font-bold ${request.status==='pending'?'bg-amber-100 text-amber-800':request.status==='approved'?'bg-emerald-100 text-emerald-800':request.status==='rejected'?'bg-rose-100 text-rose-800':'bg-slate-100 text-slate-700'}`}>{request.status}</span></div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs"><div><span className="text-slate-500">Current</span><p className="font-semibold mt-1">{request.current_department}</p></div><div><span className="text-slate-500">Requested</span><p className="font-semibold mt-1">{request.requested_department}</p></div></div>
+                <p className="text-xs text-slate-700 dark:text-slate-300 whitespace-pre-wrap break-words">{request.reason}</p>
+                {request.admin_note&&<p className="text-[11px] text-slate-500">Admin note: {request.admin_note}</p>}
+                {request.status==='pending'&&<div className="flex gap-2"><button type="button" disabled={workingId==='reroll:'+request.request_id} onClick={()=>reviewDepartmentReroll(request,'approve')} className="flex-1 sm:flex-none rounded-xl bg-emerald-800 text-white px-4 py-2.5 text-xs font-bold disabled:opacity-50">Approve</button><button type="button" disabled={workingId==='reroll:'+request.request_id} onClick={()=>reviewDepartmentReroll(request,'reject')} className="flex-1 sm:flex-none rounded-xl border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 px-4 py-2.5 text-xs font-bold disabled:opacity-50">Reject</button></div>}
+              </article>)}
+              {visibleRerollRequests.length===0&&<p className="py-10 text-center text-xs text-slate-500">{rerollRequests.length?'No department change requests match your search.':'No department change requests yet.'}</p>}
+            </div>
+          </>}
         </section>
       ) : tab === 'monitoring' ? (
         <div className="space-y-4">
