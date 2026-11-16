@@ -219,7 +219,7 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
     setWorkingId('student-account:' + account.user_id);
     try {
       await db.reviewStudentAccount(account.user_id, action);
-      setMessage('Student account ' + action + 'd.');
+      setMessage(action === 'approve' ? 'Student account approved.' : 'Student account rejected.');
       await refresh(false);
     } catch (e) { setError(db.friendly(e)); }
     finally { setWorkingId(''); }
