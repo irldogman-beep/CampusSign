@@ -35,6 +35,10 @@ const MESSAGES: Record<string, string> = {
   announcement_department_required: 'Choose a department for this announcement.',
   announcement_course_required: 'Choose a course for this announcement.',
   announcement_not_found: 'This announcement no longer exists.',
+  student_account_not_found: 'No student account is linked to this sign-in. Create a student account first.',
+  student_account_already_reviewed: 'This student account has already been reviewed.',
+  student_roster_match_required: 'This account cannot be approved yet. The student must have at least one course enrolment approved by a lecturer, with matching name and department.',
+  invalid_decision: 'Choose a valid review decision.',
 };
 
 export function friendly(e: any): string {
@@ -345,4 +349,18 @@ export async function saveAdminAnnouncement(input: {
 }
 export async function deleteAdminAnnouncement(id: string) {
   return unwrap<boolean>(await supabase.rpc('admin_delete_announcement', { p_id: id }));
+}
+
+
+// ---- student accounts and self-service dashboard ----
+export async function loadStudentDashboard() {
+  return unwrap<any>(await supabase.rpc('student_get_dashboard'));
+}
+export async function loadAdminStudentAccounts() {
+  return unwrap<any[]>(await supabase.rpc('admin_list_student_accounts'));
+}
+export async function reviewStudentAccount(userId: string, decision: 'approve' | 'reject') {
+  return unwrap<any>(await supabase.rpc('admin_review_student_account', {
+    p_user_id: userId, p_decision: decision,
+  }));
 }
