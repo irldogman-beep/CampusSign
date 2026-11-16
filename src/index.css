@@ -294,3 +294,86 @@ body {
   .campus-app-shell main .rounded-3xl,
   .campus-app-shell main .rounded-2xl { transition: none !important; }
 }
+
+/* Native-style CampusSign launch and motion system */
+.campus-launch-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at 50% 35%, rgb(16 120 82 / 28%), transparent 42%), linear-gradient(145deg, #062e24, #031a16 72%, #071b18);
+  color: #fff;
+  animation: campus-launch-out 420ms ease 680ms both;
+  pointer-events: none;
+}
+.campus-launch-mark {
+  width: 92px;
+  height: 92px;
+  display: grid;
+  place-items: center;
+  border-radius: 28px;
+  background: rgb(255 255 255 / 7%);
+  border: 1px solid rgb(255 255 255 / 14%);
+  box-shadow: 0 20px 70px rgb(0 0 0 / 24%);
+  animation: campus-mark-in 650ms cubic-bezier(.2,.8,.2,1) both;
+}
+.campus-launch-name {
+  margin-top: 22px;
+  font-size: 25px;
+  font-weight: 900;
+  letter-spacing: -.04em;
+  animation: campus-launch-text 500ms ease 120ms both;
+}
+.campus-launch-caption {
+  margin-top: 5px;
+  color: rgb(209 250 229 / 72%);
+  font-size: 11px;
+  letter-spacing: .08em;
+  animation: campus-launch-text 500ms ease 180ms both;
+}
+.campus-launch-progress {
+  width: 78px;
+  height: 3px;
+  margin-top: 30px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 15%);
+}
+.campus-launch-progress span {
+  display: block;
+  width: 42%;
+  height: 100%;
+  border-radius: inherit;
+  background: #fbbf24;
+  animation: campus-launch-loading 760ms ease-in-out infinite;
+}
+@keyframes campus-mark-in {
+  from { opacity: 0; transform: translateY(14px) scale(.86); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes campus-launch-text {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes campus-launch-loading {
+  from { transform: translateX(-110%); }
+  to { transform: translateX(250%); }
+}
+@keyframes campus-launch-out {
+  to { opacity: 0; visibility: hidden; }
+}
+@media (max-width: 640px) {
+  .campus-app-shell main { padding-bottom: calc(2rem + env(safe-area-inset-bottom)); }
+  .campus-app-shell main .interactive-card { min-height: 76px; }
+  .campus-app-shell main .grid.grid-cols-2 > button { min-width: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .campus-launch-screen, .campus-launch-mark, .campus-launch-name,
+  .campus-launch-caption, .campus-launch-progress span {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
