@@ -20,7 +20,7 @@ async function getNativeFix(maxWaitMs: number, maxAcceptableM: number): Promise<
     // WebView's browser geolocation prompt.
     let permission = await Geolocation.checkPermissions();
     if (permission.location !== 'granted') {
-      permission = await Geolocation.requestPermissions({ permissions: ['location'] });
+      permission = await Geolocation.requestPermissions();
     }
     if (permission.location !== 'granted') return null;
 
