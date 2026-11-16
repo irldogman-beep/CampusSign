@@ -9,10 +9,10 @@ import * as db from './db';
 type Props = {
   onClose: () => void;
   onEnroll: (profile: any, courses: any[]) => void;
-  onScan?: () => void;
+  onScan?: () => void;\n  branding?: any;
 };
 
-export default function StudentAccountPortal({ onClose, onEnroll, onScan }: Props) {
+export default function StudentAccountPortal({ onClose, onEnroll, onScan, branding }: Props) {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -156,7 +156,7 @@ export default function StudentAccountPortal({ onClose, onEnroll, onScan }: Prop
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-2xl bg-amber-400/15 border border-amber-300/30 grid place-items-center text-amber-300"><GraduationCap className="w-6 h-6"/></div>
-            <div><p className="text-[10px] uppercase tracking-[.2em] text-emerald-200 font-black">CampusSign · Student services</p><h1 className="text-xl sm:text-2xl font-black mt-1">Student services</h1></div>
+            <div><p className="text-[10px] uppercase tracking-[.2em] text-emerald-200 font-black">{branding?.brand_name || 'CampusSign'} · Student services</p><h1 className="text-xl sm:text-2xl font-black mt-1">Student services</h1></div>
           </div>
           <div className="grid grid-cols-2 sm:flex gap-2">
             {onScan && <button type="button" onClick={onScan} className="px-3 py-2 rounded-xl bg-amber-400 text-emerald-950 text-xs font-extrabold inline-flex items-center gap-2"><Scan className="w-4 h-4"/>Quick QR check-in</button>}
@@ -176,7 +176,7 @@ export default function StudentAccountPortal({ onClose, onEnroll, onScan }: Prop
             <button type="button" onClick={()=>{setMode('signup');setError('');}} className={`flex-1 rounded-lg py-2.5 text-xs font-bold ${mode==='signup'?'bg-emerald-900 text-amber-300':'text-slate-500'}`}>New student</button>
           </div>
           <form onSubmit={submit} className="space-y-3">
-            <div><h2 className="text-lg font-extrabold text-slate-900 dark:text-white">{mode==='signup'?'Get started with CampusSign':'Welcome back'}</h2></div>
+            <div><h2 className="text-lg font-extrabold text-slate-900 dark:text-white">{mode==='signup' ? `Get started with ${branding?.brand_name || 'CampusSign'}` : 'Welcome back'}</h2><p className="text-xs text-slate-500 mt-1">{branding?.student_welcome || 'Sign in to manage your courses and attendance.'}</p></div>
             {mode==='signup' && <>
               <label className="block"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Student ID</span><input required maxLength={40} value={studentId} onChange={e=>setStudentId(e.target.value.toUpperCase())} placeholder="Your matriculation number" className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3 text-sm"/></label>
               <label className="block"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Full registered name</span><input required maxLength={120} value={fullName} onChange={e=>setFullName(e.target.value)} placeholder="As it appears on your student record" className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3 text-sm"/></label>
