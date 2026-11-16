@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   AlertCircle, BarChart3, BadgeCheck, Bell, BookOpen, CheckCheck, Check, X,
-  ClipboardList, History, LogOut, QrCode, RefreshCw, Search, ShieldAlert,
+  ClipboardList, History, LogOut, QrCode, RefreshCw, Search, ShieldAlert, Palette, ImagePlus, Save,
   ShieldCheck, UserCog, Users, Building2, Plus, Pencil, BookMarked, Trash2, Activity, UserRound
 } from 'lucide-react';
 import * as db from './db';
@@ -128,6 +128,29 @@ export function NotificationBell({ notifications = [], onRead, onReadAll, onUnre
 }
 
 export default function AdminWorkspace({ activeStaff, onLogout }: any) {
+  const [branding, setBranding] = useState<any>(db.DEFAULT_CAMPUS_BRANDING);
+  const [brandingBusy, setBrandingBusy] = useState(false);
+  const [brandingMessage, setBrandingMessage] = useState('');
+  const [brandingError, setBrandingError] = useState('');
+  const [logoBusy, setLogoBusy] = useState(false);
+  useEffect(() => { db.loadCampusBranding().then(setBranding).catch(e => setBrandingError(db.friendly(e))); }, []);
+  const saveBranding = async () => {
+    setBrandingBusy(true); setBrandingError(''); setBrandingMessage('');
+    try {
+      const saved = await db.saveCampusBranding(branding);
+      setBranding(saved);
+      try { if (saved.logo_url) localStorage.setItem('campussign-brand-logo', saved.logo_url); else localStorage.removeItem('campussign-brand-logo'); } catch {}
+      setBrandingMessage('Brand identity saved. Reload the app to see all updated surfaces.');
+    } catch (e) { setBrandingError(db.friendly(e)); }
+    finally { setBrandingBusy(false); }
+  };
+  const uploadBrandLogo = async (file?: File) => {
+    if (!file) return;
+    setLogoBusy(true); setBrandingError('');
+    try { const logo_url = await db.uploadCampusLogo(file); setBranding(prev => ({ ...prev, logo_url })); setBrandingMessage('Logo uploaded. Save branding to publish it.'); }
+    catch (e) { setBrandingError(db.friendly(e)); }
+    finally { setLogoBusy(false); }
+  };
   const [tab, setTab] = useState('overview');
   const [overview, setOverview] = useState<any>(null);
   const [lecturers, setLecturers] = useState<any[]>([]);
@@ -439,11 +462,11 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
       <div className="sm:hidden">
         <label className="sr-only" htmlFor="admin-section-select">Dashboard section</label>
         <select id="admin-section-select" value={tab} onChange={e=>setTab(e.target.value)} className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-3 text-sm font-bold">
-          <option value="overview">Overview</option><option value="academic">Departments & courses</option><option value="lecturers">Lecturers</option><option value="enrolments">Enrolments</option><option value="student-accounts">Student accounts</option><option value="monitoring">Attendance & sessions</option><option value="announcements">Announcements</option><option value="audit">Audit history</option>
+          <option value="overview">Overview</option><option value="academic">Departments & courses</option><option value="lecturers">Lecturers</option><option value="enrolments">Enrolments</option><option value="student-accounts">Student accounts</option><option value="monitoring">Attendance & sessions</option><option value="announcements">Announcements</option><option value="audit">Audit history</option><option value="branding">Branding studio</option>
         </select>
       </div>
       <nav aria-label="Admin dashboard sections" className="hidden sm:grid grid-cols-4 gap-2">
-        {[[ 'overview', 'Overview', BarChart3 ],[ 'academic', 'Departments & courses', BookMarked ],[ 'lecturers', 'Lecturers', UserCog ],[ 'enrolments', 'Enrolments', Users ],[ 'student-accounts', 'Student accounts', UserRound ],[ 'monitoring', 'Attendance & sessions', ClipboardList ],[ 'announcements', 'Announcements', Bell ],[ 'audit', 'Audit history', History ]].map(([key,label,Icon]:any)=><button key={key} type="button" onClick={()=>setTab(key)} aria-current={tab===key?'page':undefined} className={`min-w-0 rounded-xl border px-3 py-3 text-left text-xs font-bold inline-flex items-center gap-2 transition-colors ${tab===key?'bg-emerald-900 text-amber-300 border-emerald-800':'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-emerald-500'}`}><Icon className="w-4 h-4 shrink-0"/><span className="truncate">{label}</span></button>)}
+        {[[ 'overview', 'Overview', BarChart3 ],[ 'academic', 'Departments & courses', BookMarked ],[ 'lecturers', 'Lecturers', UserCog ],[ 'enrolments', 'Enrolments', Users ],[ 'student-accounts', 'Student accounts', UserRound ],[ 'monitoring', 'Attendance & sessions', ClipboardList ],[ 'announcements', 'Announcements', Bell ],[ 'audit', 'Audit history', History ],[ 'branding', 'Branding studio', Palette ]].map(([key,label,Icon]:any)=><button key={key} type="button" onClick={()=>setTab(key)} aria-current={tab===key?'page':undefined} className={`min-w-0 rounded-xl border px-3 py-3 text-left text-xs font-bold inline-flex items-center gap-2 transition-colors ${tab===key?'bg-emerald-900 text-amber-300 border-emerald-800':'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-emerald-500'}`}><Icon className="w-4 h-4 shrink-0"/><span className="truncate">{label}</span></button>)}
       </nav>
 
       {loading ? <div className="py-16 text-center text-sm text-slate-500"><RefreshCw className="w-6 h-6 mx-auto mb-2 animate-spin" />Loading system overview…</div> : tab === 'overview' ? (
@@ -678,6 +701,29 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
             <div className="flex items-center justify-between gap-2"><div><h2 className="font-extrabold text-slate-900 dark:text-white">Announcement history</h2></div><button type="button" onClick={()=>refresh(false)} className="rounded-lg border border-slate-200 dark:border-slate-700 p-2" aria-label="Refresh announcements"><RefreshCw className="w-4 h-4"/></button></div>
             {announcements.length===0 ? <p className="py-10 text-center text-xs text-slate-500">No announcements yet. Compose one to get started.</p> : <div className="space-y-3">{announcements.map((item:any)=><article key={item.id} className="rounded-2xl border border-slate-200 dark:border-slate-700 p-3 sm:p-4 space-y-2"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><h3 className="text-sm font-extrabold text-slate-900 dark:text-white break-words">{item.title}</h3><p className="text-[10px] text-slate-500 mt-1">{item.audience_type==='all_staff'?'All staff':item.audience_type==='all_lecturers'?'All verified lecturers':item.audience_type==='all_students'?'All students':item.audience_type==='department_students'?'Students · ' + (departments.find(d=>d.id===item.department_id)?.name || 'Selected department'):item.audience_type==='individual_student'?'One student · ' + (studentAccounts.find(a=>a.user_id===item.student_user_id)?.full_name || 'Account removed'):item.audience_type==='department'?(departments.find(d=>d.id===item.department_id)?.name || 'Selected department'):(catalogCourses.find(c=>c.id===item.course_id)?.code || 'Selected course')} · Updated {new Date(item.updated_at).toLocaleString()}</p></div><span className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-bold ${item.status==='published'?'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200':'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'}`}>{item.status==='published'?'Published':'Draft'}</span></div><p className="text-xs text-slate-600 dark:text-slate-300 whitespace-pre-wrap line-clamp-4">{item.body}</p>{item.status==='published' && <div className="flex gap-4 text-[10px] text-slate-500"><span>{item.recipient_count} delivered</span><span>{item.read_count} read</span></div>}<div className="flex flex-wrap gap-2 pt-1"><button type="button" onClick={()=>editAnnouncement(item)} className="rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-[10px] font-bold text-slate-700 dark:text-slate-200"><Pencil className="w-3 h-3 inline mr-1"/>Edit</button><button type="button" disabled={workingId==='announcement-delete'} onClick={()=>removeAnnouncement(item)} className="rounded-lg border border-rose-200 dark:border-rose-900 px-3 py-2 text-[10px] font-bold text-rose-700 dark:text-rose-300"><Trash2 className="w-3 h-3 inline mr-1"/>Delete</button></div></article>)}</div>}
           </section>
+        </div>
+      ) : tab === 'branding' ? (
+        <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-4">
+          <section className="rounded-3xl p-5 sm:p-7 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
+            <div><p className="text-[10px] uppercase tracking-[.2em] font-black text-emerald-700 dark:text-emerald-300">Campus identity</p><h2 className="text-xl font-black mt-1 text-slate-900 dark:text-white">Branding studio</h2><p className="text-xs text-slate-500 mt-2">Make CampusSign feel like your institution. Changes are shared by Student and Staff spaces.</p></div>
+            {brandingMessage && <p role="status" className="rounded-xl bg-emerald-50 dark:bg-emerald-950/40 p-3 text-xs text-emerald-800 dark:text-emerald-200">{brandingMessage}</p>}
+            {brandingError && <p role="alert" className="rounded-xl bg-rose-50 dark:bg-rose-950/40 p-3 text-xs text-rose-700 dark:text-rose-200">{brandingError}</p>}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label className="text-xs font-bold text-slate-600 dark:text-slate-300">Brand name<input value={branding.brand_name} maxLength={48} onChange={e=>setBranding({...branding,brand_name:e.target.value})} className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3"/></label>
+              <label className="text-xs font-bold text-slate-600 dark:text-slate-300">Tagline<input value={branding.tagline} maxLength={100} onChange={e=>setBranding({...branding,tagline:e.target.value})} className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3"/></label>
+              <label className="text-xs font-bold text-slate-600 dark:text-slate-300">Student app name<input value={branding.student_app_name} maxLength={48} onChange={e=>setBranding({...branding,student_app_name:e.target.value})} className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3"/></label>
+              <label className="text-xs font-bold text-slate-600 dark:text-slate-300">Staff app name<input value={branding.staff_app_name} maxLength={64} onChange={e=>setBranding({...branding,staff_app_name:e.target.value})} className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3"/></label>
+              <label className="text-xs font-bold text-slate-600 dark:text-slate-300 sm:col-span-2">Student welcome message<textarea rows={2} maxLength={180} value={branding.student_welcome} onChange={e=>setBranding({...branding,student_welcome:e.target.value})} className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3"/></label>
+              <label className="text-xs font-bold text-slate-600 dark:text-slate-300 sm:col-span-2">Staff welcome message<textarea rows={2} maxLength={180} value={branding.staff_welcome} onChange={e=>setBranding({...branding,staff_welcome:e.target.value})} className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3"/></label>
+              <label className="text-xs font-bold text-slate-600 dark:text-slate-300">Support email<input type="email" value={branding.support_email || ''} onChange={e=>setBranding({...branding,support_email:e.target.value})} placeholder="support@institution.edu" className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3"/></label>
+            </div>
+            <div className="border-t border-slate-100 dark:border-slate-800 pt-5"><h3 className="font-extrabold text-sm text-slate-900 dark:text-white">Colours and appearance</h3><div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+              {[['primary_color','Primary colour'],['accent_color','Accent colour'],['background_color','Background']].map(([key,label]:any)=><label key={key} className="rounded-2xl border border-slate-200 dark:border-slate-700 p-3 text-xs font-bold text-slate-600 dark:text-slate-300">{label}<div className="flex items-center gap-2 mt-2"><input type="color" value={branding[key]} onChange={e=>setBranding({...branding,[key]:e.target.value.toUpperCase()})} className="w-11 h-10 rounded-lg border-0 bg-transparent"/><input value={branding[key]} maxLength={7} onChange={e=>setBranding({...branding,[key]:e.target.value.toUpperCase()})} className="min-w-0 w-full rounded-lg bg-slate-50 dark:bg-slate-800 px-2 py-2 font-mono"/></div></label>)}
+            </div></div>
+            <div className="border-t border-slate-100 dark:border-slate-800 pt-5"><h3 className="font-extrabold text-sm text-slate-900 dark:text-white">Logo and app icon</h3><p className="text-xs text-slate-500 mt-1">Upload a PNG, JPG or WebP logo (maximum 2 MB). Your current logo remains active until you save.</p><div className="flex flex-wrap items-center gap-3 mt-3"><label className="inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-xs font-bold cursor-pointer hover:border-emerald-500"><ImagePlus className="w-4 h-4"/>{logoBusy?'Uploading…':'Choose logo'}<input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" disabled={logoBusy} onChange={e=>uploadBrandLogo(e.target.files?.[0])}/></label>{branding.logo_url && <button type="button" onClick={()=>setBranding({...branding,logo_url:null})} className="text-xs font-bold text-rose-600">Remove logo</button>}</div></div>
+            <button type="button" onClick={saveBranding} disabled={brandingBusy || logoBusy} className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-900 px-6 py-3.5 text-xs font-extrabold text-amber-300 disabled:opacity-50"><Save className="w-4 h-4"/>{brandingBusy?'Saving…':'Save branding changes'}</button>
+          </section>
+          <aside className="rounded-3xl p-5 bg-slate-950 text-white border border-slate-800 shadow-lg h-fit"><p className="text-[10px] uppercase tracking-[.2em] font-black text-emerald-300">Live preview</p><div className="mt-5 rounded-2xl p-5" style={{background:branding.primary_color}}><div className="w-14 h-14 rounded-2xl bg-white/10 p-2">{branding.logo_url?<img src={branding.logo_url} alt="Brand logo preview" className="w-full h-full object-contain"/>:<div className="w-full h-full rounded-xl border-2" style={{borderColor:branding.accent_color}}/>}</div><p className="mt-4 text-xs uppercase tracking-wider opacity-70">{branding.brand_name || 'Your institution'}</p><h3 className="text-2xl font-black mt-1">{branding.student_app_name || 'Student app'}</h3><p className="text-xs mt-2 opacity-80">{branding.student_welcome}</p><span className="inline-block mt-5 rounded-xl px-4 py-2 text-xs font-extrabold" style={{background:branding.accent_color,color:branding.primary_color}}>Student check-in</span></div><p className="text-[11px] text-slate-400 mt-4">Preview only. Published branding is shared by both app spaces.</p></aside>
         </div>
       ) : (
         <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm"><div className="mb-4"><h2 className="font-extrabold text-slate-900 dark:text-white">Audit history</h2></div>

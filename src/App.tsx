@@ -52,6 +52,9 @@ import StudentAccountPortal from './StudentAccountPortal';
    LOGO COMPONENT (Matching Forest Green & Academic Gold Emblem)
    ========================================================================== */
 function CampusSignLogo({ className = "w-10 h-10" }) {
+  let customLogo = '';
+  try { customLogo = window.localStorage.getItem('campussign-brand-logo') || ''; } catch { /* storage unavailable */ }
+  if (customLogo) return <img src={customLogo} alt="CampusSign logo" className={className + " object-contain"} />;
   return (
     <svg className={className} viewBox="0 0 500 500" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path 
@@ -151,15 +154,29 @@ function formatQrInterval(seconds) {
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('home'); // home | admin | student | docs
+  const [appSpace] = useState(() => { const value = new URLSearchParams(window.location.search).get('app') || import.meta.env.VITE_CAMPUSSIGN_APP; return value === 'student' || value === 'staff' ? value : 'hub'; });
+  const [activeTab, setActiveTab] = useState(() => appSpace === 'student' ? 'student' : appSpace === 'staff' ? 'admin' : 'home'); // hub | admin | student | docs
   const [showLaunchScreen, setShowLaunchScreen] = useState(true);
   useEffect(() => {
     const timer = window.setTimeout(() => setShowLaunchScreen(false), 1050);
     return () => window.clearTimeout(timer);
   }, []);
 
-  const [studentEntry, setStudentEntry] = useState(false);
+  const [studentEntry, setStudentEntry] = useState(appSpace === 'student');
   const [quickAttendance, setQuickAttendance] = useState(false);
+  const [branding, setBranding] = useState<any>(db.DEFAULT_CAMPUS_BRANDING);
+  useEffect(() => {
+    let active = true;
+    db.loadCampusBranding().then(value => {
+      if (!active) return;
+      setBranding(value);
+      try { if (value.logo_url) localStorage.setItem('campussign-brand-logo', value.logo_url); else localStorage.removeItem('campussign-brand-logo'); } catch { /* storage unavailable */ }
+      document.title = appSpace === 'student' ? value.student_app_name : appSpace === 'staff' ? value.staff_app_name : value.brand_name;
+      const theme = document.querySelector('meta[name="theme-color"]');
+      if (theme) theme.setAttribute('content', value.primary_color);
+    }).catch(error => console.warn('CampusSign branding could not be loaded; defaults remain active.', error));
+    return () => { active = false; };
+  }, [appSpace]);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     try {
       const saved = localStorage.getItem('campussign-theme');
@@ -295,12 +312,12 @@ export default function App() {
   };
 
   return (
-    <div className={`campus-app-shell min-h-screen ${isDarkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'} transition-colors duration-200 font-sans`}>
+    <div style={{ '--campus-primary': branding.primary_color, '--campus-accent': branding.accent_color, '--campus-background': branding.background_color } as React.CSSProperties} className={`campus-app-shell min-h-screen ${isDarkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'} transition-colors duration-200 font-sans`}>
       {showLaunchScreen && (
-        <div className="campus-launch-screen" aria-label="CampusSign starting" role="status">
+        <div className="campus-launch-screen" aria-label={`${branding.brand_name} starting`} role="status">
           <div className="campus-launch-mark"><CampusSignLogo className="w-16 h-16"/></div>
-          <p className="campus-launch-name">CampusSign</p>
-          <p className="campus-launch-caption">Attendance, clearly verified.</p>
+          <p className="campus-launch-name">{branding.brand_name}</p>
+          <p className="campus-launch-caption">{branding.tagline}</p>
           <span className="campus-launch-progress"><span/></span>
         </div>
       )}
@@ -314,7 +331,7 @@ export default function App() {
             <CampusSignLogo className="w-8 h-8 sm:w-9 sm:h-9 shrink-0" />
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-black text-white text-lg tracking-tight">CampusSign</span>
+                <span className="font-black text-white text-lg tracking-tight">{appSpace === 'student' ? branding.student_app_name : appSpace === 'staff' ? branding.staff_app_name : branding.brand_name}</span>
                 <span className="hidden sm:inline-block bg-amber-500 text-emerald-950 font-extrabold text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider">
                   SECURE ATTENDANCE
                 </span>
@@ -325,9 +342,11 @@ export default function App() {
 
           {/* Public entry actions and authenticated workspace navigation */}
           <div className="flex items-center gap-2 shrink-0">
-            {activeTab === 'home' ? (
+            {appSpace !== 'hub' ? (
+              <span className="text-[10px] font-bold tracking-wider uppercase text-emerald-200">{appSpace === 'student' ? 'Student space' : 'Staff workspace'}</span>
+            ) : activeTab === 'home' ? (
               <>
-                <button onClick={() => { setStudentEntry(true); setActiveTab('student'); }} className="px-3 sm:px-4 py-2 rounded-xl bg-amber-400 text-emerald-950 text-xs font-extrabold shadow-sm">Student access</button>
+                <button onClick={() => { setStudentEntry(true); setActiveTab('student'); }} className="px-3 sm:px-4 py-2 rounded-xl bg-amber-400 text-emerald-950 text-xs font-extrabold shadow-sm">Student check-in</button>
                 <button onClick={() => setActiveTab('admin')} className="px-3 sm:px-4 py-2 rounded-xl border border-emerald-700 text-emerald-100 hover:bg-emerald-900 text-xs font-bold">Staff access</button>
               </>
             ) : !quickAttendance ? (
@@ -348,38 +367,19 @@ export default function App() {
       <main key={activeTab} className={`${quickAttendance ? 'max-w-2xl' : 'max-w-7xl'} mx-auto w-full min-w-0 px-3 sm:px-6 lg:px-8 py-3 sm:py-8 page-enter`} aria-live="polite">
         {quickAttendance && <div className="mb-4 flex items-center justify-between"><div className="flex items-center gap-2"><CampusSignLogo className="w-8 h-8"/><span className="font-black text-sm">CampusSign <span className="font-medium text-slate-500">· Quick attendance</span></span></div><button onClick={() => { setQuickAttendance(false); setActiveTab("home"); }} className="text-xs font-bold text-emerald-800 dark:text-emerald-300">Home</button></div>}
         {activeTab === 'home' && (
-          <section className="max-w-4xl mx-auto space-y-5 sm:space-y-7 py-3 sm:py-8 page-enter">
+          <section className="max-w-4xl mx-auto py-10 sm:py-20 page-enter">
             <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-950 text-white border border-emerald-800 shadow-xl">
               <div className="absolute -right-16 -top-20 w-64 h-64 rounded-full bg-amber-400/10 blur-3xl" />
               <div className="absolute -left-16 -bottom-24 w-64 h-64 rounded-full bg-emerald-300/10 blur-3xl" />
-              <div className="relative p-6 sm:p-9">
+              <div className="relative p-7 sm:p-12">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/15 grid place-items-center"><CampusSignLogo className="w-9 h-9"/></div>
-                  <div><p className="text-[10px] uppercase tracking-[.2em] text-emerald-200 font-black">CampusSign</p><p className="text-xs text-emerald-100/70">Campus attendance, made simple</p></div>
+                  <div className="w-14 h-14 rounded-2xl bg-white/10 border border-white/15 grid place-items-center"><CampusSignLogo className="w-11 h-11"/></div>
+                  <div><p className="text-[10px] uppercase tracking-[.2em] text-emerald-200 font-black">{branding.brand_name}</p><p className="text-xs text-emerald-100/70">{branding.tagline}</p></div>
                 </div>
-                <h1 className="text-3xl sm:text-4xl font-black tracking-tight mt-8 leading-tight">Your campus day,<br/><span className="text-amber-300">all in one place.</span></h1>
-                <p className="text-sm text-emerald-100/80 mt-3 max-w-lg">Scan into class, verify your attendance and manage your academic activity from one secure space.</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-7">
-                  <button onClick={() => { setStudentEntry(false); setActiveTab('student'); }} className="min-h-14 px-5 py-4 rounded-2xl bg-amber-400 hover:bg-amber-300 text-emerald-950 font-extrabold text-sm shadow-lg inline-flex items-center justify-center gap-3"><Scan className="w-5 h-5"/> Student check-in <ArrowRight className="w-4 h-4"/></button>
-                  <button onClick={() => setActiveTab('admin')} className="min-h-14 px-5 py-4 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/20 text-white font-bold text-sm inline-flex items-center justify-center gap-3"><Building className="w-5 h-5"/> Staff workspace <ArrowRight className="w-4 h-4"/></button>
-                </div>
+                <h1 className="text-3xl sm:text-5xl font-black tracking-tight mt-10 leading-tight">Attendance,<br/><span className="text-amber-300">without the friction.</span></h1>
+                <p className="text-sm sm:text-base text-emerald-100/80 mt-4 max-w-xl leading-relaxed">A connected campus attendance system for students, lecturers and administrators. Choose your workspace from the top of this page.</p>
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <button onClick={() => { setStudentEntry(true); setActiveTab('student'); }} className="interactive-card text-left rounded-2xl p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center gap-3">
-                <span className="w-11 h-11 rounded-xl bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 grid place-items-center shrink-0"><GraduationCap className="w-5 h-5"/></span>
-                <span className="min-w-0"><strong className="block text-sm">Student account</strong><span className="block text-[11px] text-slate-500 mt-1">Sign in or register</span></span><ArrowRight className="w-4 h-4 ml-auto text-slate-400 shrink-0"/>
-              </button>
-              <div className="rounded-2xl p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center gap-3">
-                <span className="w-11 h-11 rounded-xl bg-amber-50 dark:bg-amber-950 text-amber-800 dark:text-amber-300 grid place-items-center shrink-0"><ShieldCheck className="w-5 h-5"/></span>
-                <span><strong className="block text-sm">Verified sessions</strong><span className="block text-[11px] text-slate-500 mt-1">Secure QR and identity checks</span></span>
-              </div>
-              <div className="rounded-2xl p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center gap-3">
-                <span className="w-11 h-11 rounded-xl bg-sky-50 dark:bg-sky-950 text-sky-800 dark:text-sky-300 grid place-items-center shrink-0"><BookOpen className="w-5 h-5"/></span>
-                <span><strong className="block text-sm">Academic activity</strong><span className="block text-[11px] text-slate-500 mt-1">Courses and attendance history</span></span>
-              </div>
-            </div>
-            <p className="text-center text-[11px] text-slate-500 dark:text-slate-400">A focused attendance workspace for students, lecturers and administrators.</p>
           </section>
         )}
         {activeTab === 'admin' && (
@@ -398,6 +398,7 @@ export default function App() {
             setStaffAccounts={setStaffAccounts}
             activeStaff={activeStaff}
             setActiveStaff={setActiveStaff}
+            branding={branding}
             onSimulateScan={handleSimulateScan}
             isDarkMode={isDarkMode}
           />
@@ -415,6 +416,7 @@ export default function App() {
             setLockedOutStudents={setLockedOutStudents}
             studentRegistry={studentRegistry}
             isDarkMode={isDarkMode}
+            branding={branding}
             openAccountInitially={studentEntry}
             quickMode={quickAttendance}
             onHome={() => { setQuickAttendance(false); setStudentEntry(false); setActiveTab('home'); }}
@@ -431,7 +433,7 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-2">
           <div className="flex items-center gap-2">
             <CampusSignLogo className="w-5 h-5" />
-            <span className="font-bold text-slate-700 dark:text-slate-300">CampusSign Verification Hub</span>
+            <span className="font-bold text-slate-700 dark:text-slate-300">{branding.brand_name} Verification Hub</span>
           </div>
           <p>© 2026 CampusSign · QR attendance and biometric verification</p>
         </div>
@@ -445,6 +447,7 @@ export default function App() {
    ADMIN PORTAL COMPONENT
    ========================================================================== */
 function AdminPortal({ 
+  branding,
   activeSession, 
   setActiveSession, 
   qrToken, 
@@ -1138,7 +1141,7 @@ The request has NOT been rejected or approved. Check the student's official univ
   }
 
   if (isAuthenticated && activeStaff?.role === 'admin') {
-    return <AdminWorkspace activeStaff={activeStaff} onLogout={handleLogout} />;
+    return <AdminWorkspace activeStaff={activeStaff} onLogout={handleLogout} branding={branding} />;
   }
 
   if (!isAuthenticated) {
@@ -1146,8 +1149,8 @@ The request has NOT been rejected or approved. Check the student's official univ
       <div className="max-w-md mx-auto my-12 bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-200 dark:border-slate-800 shadow-xl">
         <div className="text-center mb-6">
           <CampusSignLogo className="w-16 h-16 mx-auto mb-3" />
-          <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white">Staff & Lecturer Login</h2>
-          <p className="text-xs text-slate-500 mt-1">Sign in with your academic email</p>
+          <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white">{branding?.staff_app_name || 'Staff & Lecturer Login'}</h2>
+          <p className="text-xs text-slate-500 mt-1">{branding?.staff_welcome || 'Sign in with your academic email'}</p>
         </div>
 
         {loginError && (
@@ -2330,6 +2333,7 @@ function StudentPortal({
   setLockedOutStudents,
   studentRegistry,
   isDarkMode,
+  branding,
   openAccountInitially = false,
   quickMode = false,
   onHome = () => {},
@@ -2544,7 +2548,7 @@ function StudentPortal({
   };
 
   if (showAccountPortal) {
-    return <StudentAccountPortal onClose={onHome} onScan={() => { setShowAccountPortal(false); setStep(1); setIsScanningQR(true); }} onEnroll={(profile, courses) => { setShowAccountPortal(false); startStudentEnrollment(profile, courses); }} />;
+    return <StudentAccountPortal branding={branding} onClose={onHome} onScan={() => { setShowAccountPortal(false); setStep(1); setIsScanningQR(true); }} onEnroll={(profile, courses) => { setShowAccountPortal(false); startStudentEnrollment(profile, courses); }} />;
   }
 
   if (!quickMode && step === 1 && !showEnrollment && !isScanningQR) {
@@ -2564,7 +2568,7 @@ function StudentPortal({
   }
 
   if (showAccountPortal) {
-    return <StudentAccountPortal onClose={() => setShowAccountPortal(false)} onEnroll={(profile, courses) => { setShowAccountPortal(false); startStudentEnrollment(profile, courses); }} />;
+    return <StudentAccountPortal branding={branding} onClose={() => setShowAccountPortal(false)} onScan={() => { setShowAccountPortal(false); setStep(1); setIsScanningQR(true); }} onEnroll={(profile, courses) => { setShowAccountPortal(false); startStudentEnrollment(profile, courses); }} />;
   }
 
   if (showEnrollment) {

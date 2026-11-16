@@ -1,0 +1,21 @@
+{
+  "id": "/?app=staff",
+  "name": "CampusSign Staff Workspace",
+  "short_name": "CampusSign Staff",
+  "description": "Staff and lecturer workspace for CampusSign attendance management.",
+  "start_url": "/?app=staff",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "background_color": "#f8fafc",
+  "theme_color": "#064e3b",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icons/campussign.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

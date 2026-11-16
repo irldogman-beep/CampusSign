@@ -120,3 +120,15 @@ See `ACADEMIC-CATALOG-STEP11.md` and `RELEASE-NOTES-ACADEMIC-REDESIGN.md`. Apply
 ## Student accounts and dashboard (Step 13)
 
 See `STUDENT-ACCOUNT-SETUP.md` and `supabase-step13-student-accounts.sql`. Students can create an email/password account, submit their existing course enrolment requests, and then wait for admin verification against lecturer-approved roster records. Approved students get a private dashboard with their approved courses, attendance history, notifications and student-wide announcements. Student sign-up is routed into a separate student account table; it does not create a lecturer profile or grant lecturer permissions. Existing QR check-in remains available without a student account.
+
+
+## Student and Staff app spaces
+
+CampusSign now has dedicated entrypoints over one shared Supabase backend:
+
+- Student: `/?app=student`
+- Staff: `/?app=staff`
+
+The Android build workflow creates separate packages (`com.campussign.student` and `com.campussign.staff`) using the same authentication, attendance sessions, academic catalogue and records. See [the app and branding guide](CAMPUSSIGN-STUDENT-STAFF-AND-BRANDING.md).
+
+Verified administrators can configure the shared brand identity in **Admin → Branding studio**, including logo, colours, app names, welcome text and support email. The additive database setup is documented in `supabase-campus-branding.sql`.
