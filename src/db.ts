@@ -320,3 +320,23 @@ export async function loadAdminAttendanceTrends(days = 14) {
 export async function loadAdminCourseActivity(days = 30) {
   return unwrap<any[]>(await supabase.rpc('admin_course_activity', { p_days: days }));
 }
+
+
+// ---- administrator announcements ----
+export async function loadAdminAnnouncements() {
+  return unwrap<any[]>(await supabase.rpc('admin_list_announcements'));
+}
+export async function saveAdminAnnouncement(input: {
+  id?: string | null; title: string; body: string; audienceType: string;
+  departmentId?: string | null; courseId?: string | null; publish: boolean;
+}) {
+  return unwrap<any>(await supabase.rpc('admin_save_announcement', {
+    p_id: input.id || null, p_title: input.title, p_body: input.body,
+    p_audience_type: input.audienceType,
+    p_department: input.departmentId || null, p_course: input.courseId || null,
+    p_publish: input.publish,
+  }));
+}
+export async function deleteAdminAnnouncement(id: string) {
+  return unwrap<boolean>(await supabase.rpc('admin_delete_announcement', { p_id: id }));
+}
