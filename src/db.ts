@@ -390,3 +390,45 @@ export async function reviewDepartmentReroll(requestId: string, decision: 'appro
     p_request_id: requestId, p_decision: decision, p_admin_note: note,
   }));
 }
+
+
+// ---- public campus branding (writes restricted by database RLS to verified admins) ----
+export const DEFAULT_CAMPUS_BRANDING = {
+  id: 1, brand_name: 'CampusSign', tagline: 'Attendance, clearly verified.', logo_url: null,
+  primary_color: '#064E3B', accent_color: '#F59E0B', background_color: '#F8FAFC',
+  student_app_name: 'CampusSign Student', staff_app_name: 'CampusSign Staff Workspace',
+  student_welcome: 'Your classes, attendance and student services in one place.',
+  staff_welcome: 'Attendance, academic records and campus operations in one workspace.',
+  support_email: '',
+};
+
+export async function loadCampusBranding() {
+  const { data, error } = await supabase.from('campus_branding_settings')
+    .select('id,brand_name,tagline,logo_url,primary_color,accent_color,background_color,student_app_name,staff_app_name,student_welcome,staff_welcome,support_email,updated_at')
+    .eq('id', 1).maybeSingle();
+  if (error) throw error;
+  return { ...DEFAULT_CAMPUS_BRANDING, ...(data || {}) };
+}
+
+export async function saveCampusBranding(input: typeof DEFAULT_CAMPUS_BRANDING) {
+  const { data, error } = await supabase.from('campus_branding_settings').update({
+    brand_name: input.brand_name.trim(), tagline: input.tagline.trim(), logo_url: input.logo_url || null,
+    primary_color: input.primary_color, accent_color: input.accent_color, background_color: input.background_color,
+    student_app_name: input.student_app_name.trim(), staff_app_name: input.staff_app_name.trim(),
+    student_welcome: input.student_welcome.trim(), staff_welcome: input.staff_welcome.trim(),
+    support_email: input.support_email.trim() || null, updated_at: new Date().toISOString(),
+  }).eq('id', 1).select().single();
+  if (error) throw error;
+  return { ...DEFAULT_CAMPUS_BRANDING, ...data };
+}
+
+export async function uploadCampusLogo(file: File) {
+  const allowed = ['image/png', 'image/jpeg', 'image/webp'];
+  if (!allowed.includes(file.type)) throw new Error('Choose a PNG, JPG or WebP logo.');
+  if (file.size > 2 * 1024 * 1024) throw new Error('Logo must be 2 MB or smaller.');
+  const extension = file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg';
+  const path = `brand/${Date.now()}-${crypto.randomUUID()}.${extension}`;
+  const { error } = await supabase.storage.from('campus-branding').upload(path, file, { contentType: file.type, cacheControl: '3600', upsert: false });
+  if (error) throw error;
+  return supabase.storage.from('campus-branding').getPublicUrl(path).data.publicUrl;
+}
