@@ -261,7 +261,7 @@ export async function saveCatalogCourse(input: { id?: string | null; departmentI
   }));
 }
 export async function assignLecturerCourse(lecturerId: string, courseId: string, assigned: boolean, primary = false) {
-  unwrap(await supabase.rpc('admin_assign_lecturer_course', {
+  return unwrap<void>(await supabase.rpc('admin_assign_lecturer_course', {
     p_lecturer: lecturerId, p_course: courseId, p_assigned: assigned, p_primary: primary,
   }));
 }
