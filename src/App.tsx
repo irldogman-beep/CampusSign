@@ -1471,7 +1471,7 @@ The request has NOT been rejected or approved. Check the student's official univ
                             min="5"
                             max="1000"
                             value={sessionForm.radius}
-                            onChange={e => setSessionForm({ ...sessionForm, radius: e.target.value })}
+                            onChange={e => setSessionForm({ ...sessionForm, radius: Number(e.target.value) })}
                             className={FIELD}
                           />
                         </div>
@@ -1500,7 +1500,7 @@ The request has NOT been rejected or approved. Check the student's official univ
                         <label className={LABEL}>Auto-end after</label>
                         <select
                           value={sessionForm.duration}
-                          onChange={e => setSessionForm({ ...sessionForm, duration: e.target.value })}
+                          onChange={e => setSessionForm({ ...sessionForm, duration: Number(e.target.value) })}
                           className={FIELD}
                         >
                           <option value="0">Never (I will end it)</option>
