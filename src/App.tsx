@@ -154,7 +154,7 @@ function formatQrInterval(seconds) {
 }
 
 export default function App() {
-  const [appSpace] = useState(() => { const value = new URLSearchParams(window.location.search).get('app'); return value === 'student' || value === 'staff' ? value : 'hub'; });
+  const [appSpace] = useState(() => { const value = new URLSearchParams(window.location.search).get('app') || import.meta.env.VITE_CAMPUSSIGN_APP; return value === 'student' || value === 'staff' ? value : 'hub'; });
   const [activeTab, setActiveTab] = useState(() => appSpace === 'student' ? 'student' : appSpace === 'staff' ? 'admin' : 'home'); // hub | admin | student | docs
   const [showLaunchScreen, setShowLaunchScreen] = useState(true);
   useEffect(() => {
@@ -164,7 +164,7 @@ export default function App() {
 
   const [studentEntry, setStudentEntry] = useState(appSpace === 'student');
   const [quickAttendance, setQuickAttendance] = useState(false);
-  const [branding, setBranding] = useState(db.DEFAULT_CAMPUS_BRANDING);
+  const [branding, setBranding] = useState<any>(db.DEFAULT_CAMPUS_BRANDING);
   useEffect(() => {
     let active = true;
     db.loadCampusBranding().then(value => {
@@ -447,6 +447,7 @@ export default function App() {
    ADMIN PORTAL COMPONENT
    ========================================================================== */
 function AdminPortal({ 
+  branding,
   activeSession, 
   setActiveSession, 
   qrToken, 
@@ -1140,7 +1141,7 @@ The request has NOT been rejected or approved. Check the student's official univ
   }
 
   if (isAuthenticated && activeStaff?.role === 'admin') {
-    return <AdminWorkspace activeStaff={activeStaff} onLogout={handleLogout} />;
+    return <AdminWorkspace activeStaff={activeStaff} onLogout={handleLogout} branding={branding} />;
   }
 
   if (!isAuthenticated) {
