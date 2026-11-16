@@ -19,6 +19,7 @@ CampusSign is a browser-based university attendance application built with React
 - CSV export, dark/light theme, responsive layouts and reduced-motion support.
 - Administrator workspace with campus-wide aggregate analytics and lecturer verification controls (requires Step 10 and a manually bootstrapped admin account).
 - In-app notifications for new lecturer registrations, student enrolment requests and lecturer verification changes.
+- Administrator announcement centre with editable drafts, publishing, audience targeting for all verified lecturers, a department or a course, and delivery/read counts. Announcements appear in recipients' in-app notification inboxes; student-targeted announcements are not enabled because student self-enrolment currently does not create student sign-in accounts.
 - Append-only audit history for attendance edits/deletions, whole-session deletion, enrolment decisions and lecturer verification changes.
 
 ## Quick start on Windows
