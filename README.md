@@ -115,3 +115,8 @@ Notifications are in-app only and are refreshed periodically; no email/SMS/push 
 ## Academic catalogue redesign (Step 11)
 
 See `ACADEMIC-CATALOG-STEP11.md` and `RELEASE-NOTES-ACADEMIC-REDESIGN.md`. Apply `supabase-step11-academic-catalog.sql` after migrations 1–10. The admin workspace now manages departments and courses; lecturer registration selects one or more courses from the catalogue; student self-enrolment selects a department and a subset of its available courses. Test on a preview deployment before merging to production.
+
+
+## Student accounts and dashboard (Step 13)
+
+See `STUDENT-ACCOUNT-SETUP.md` and `supabase-step13-student-accounts.sql`. Students can create an email/password account, submit their existing course enrolment requests, and then wait for admin verification against lecturer-approved roster records. Approved students get a private dashboard with their approved courses, attendance history, notifications and student-wide announcements. Student sign-up is routed into a separate student account table; it does not create a lecturer profile or grant lecturer permissions. Existing QR check-in remains available without a student account.
