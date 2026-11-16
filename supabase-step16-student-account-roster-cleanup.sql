@@ -34,27 +34,19 @@ begin
    where n.notification_type = 'enrollment_request'
      and n.entity_type = 'enrollment_request'
      and n.entity_id = r.id::text
-     and upper(btrim(r.student_id)) = upper(btrim(v_account.student_id))
-     and lower(btrim(r.student_name)) = lower(btrim(v_account.full_name))
-     and lower(btrim(r.dept)) = lower(btrim(v_account.department));
+     and upper(btrim(r.student_id)) = upper(btrim(v_account.student_id));
 
   delete from public.student_enrollment_requests
-   where upper(btrim(student_id)) = upper(btrim(v_account.student_id))
-     and lower(btrim(student_name)) = lower(btrim(v_account.full_name))
-     and lower(btrim(dept)) = lower(btrim(v_account.department));
+   where upper(btrim(student_id)) = upper(btrim(v_account.student_id));
   get diagnostics v_requests = row_count;
 
   select count(*) into v_face_templates
     from public.face_templates ft
     join public.students st on st.id = ft.student_pk
-   where upper(btrim(st.student_id)) = upper(btrim(v_account.student_id))
-     and lower(btrim(st.name)) = lower(btrim(v_account.full_name))
-     and lower(btrim(st.dept)) = lower(btrim(v_account.department));
+   where upper(btrim(st.student_id)) = upper(btrim(v_account.student_id));
 
   delete from public.students
-   where upper(btrim(student_id)) = upper(btrim(v_account.student_id))
-     and lower(btrim(name)) = lower(btrim(v_account.full_name))
-     and lower(btrim(dept)) = lower(btrim(v_account.department));
+   where upper(btrim(student_id)) = upper(btrim(v_account.student_id));
   get diagnostics v_roster_entries = row_count;
 
   insert into public.audit_events(actor_id, actor_email, action, entity_type, entity_id, details)
