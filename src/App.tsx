@@ -1589,7 +1589,7 @@ The request has NOT been rejected or approved. Check the student's official univ
                 <div className="max-w-xs py-8">
                   <QrCode className="w-14 h-14 text-emerald-700 mx-auto mb-3" />
                   <h3 className="text-base font-extrabold text-white">No active session</h3>
-                  <p className="text-xs text-emerald-200 mt-1">Start a session and the check-in QR code appears here.</p>
+                  
                 </div>
               ) : !sessionLive ? (
                 <div className="p-6 bg-rose-950/80 rounded-3xl border border-rose-800 max-w-sm">
@@ -1841,7 +1841,7 @@ The request has NOT been rejected or approved. Check the student's official univ
               <ClipboardList className="w-5 h-5 text-amber-700 dark:text-amber-400 shrink-0 mt-0.5" />
               <div>
                 <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">Student enrolment inbox</h3>
-                <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">Students who select your course appear here. Approving a request adds the student to your roster and securely activates their submitted face template.</p>
+                
               </div>
             </div>
             {enrollmentRequests.length === 0 ? (
