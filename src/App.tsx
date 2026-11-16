@@ -2333,6 +2333,7 @@ function StudentPortal({
   setLockedOutStudents,
   studentRegistry,
   isDarkMode,
+  branding,
   openAccountInitially = false,
   quickMode = false,
   onHome = () => {},
