@@ -2569,7 +2569,7 @@ function StudentPortal({
 
   return (
     <div className="max-w-xl mx-auto space-y-6 page-enter">
-      
+      <div className="flex justify-end"><button type="button" onClick={() => setShowAccountPortal(true)} className="rounded-xl bg-emerald-950 text-amber-300 hover:bg-emerald-900 px-3 py-2.5 text-xs font-extrabold border border-emerald-800"><UserCheck className="w-4 h-4 inline mr-1.5" /> Student account & dashboard</button></div>
       {/* STEP PROGRESS BAR */}
       <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 mb-2">
@@ -2655,7 +2655,6 @@ function StudentPortal({
             <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
               <p className="text-[11px] text-slate-500 mb-2">First time using CampusSign?</p>
               <button onClick={startStudentEnrollment} className="w-full py-3 rounded-xl border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 font-extrabold text-xs transition-all hover:-translate-y-0.5">Create student profile & enrol courses <ArrowRight className="w-4 h-4 inline ml-1" /></button>
-              <button type="button" onClick={() => setShowAccountPortal(true)} className="w-full py-3 rounded-xl bg-emerald-950 text-amber-300 hover:bg-emerald-900 font-extrabold text-xs transition-all border border-emerald-800"><UserCheck className="w-4 h-4 inline mr-1.5" /> Student account & dashboard</button>
             </div>
           </div>
         </div>
