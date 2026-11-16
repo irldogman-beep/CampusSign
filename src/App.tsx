@@ -1149,8 +1149,8 @@ The request has NOT been rejected or approved. Check the student's official univ
       <div className="max-w-md mx-auto my-12 bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-200 dark:border-slate-800 shadow-xl">
         <div className="text-center mb-6">
           <CampusSignLogo className="w-16 h-16 mx-auto mb-3" />
-          <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white">Staff & Lecturer Login</h2>
-          <p className="text-xs text-slate-500 mt-1">Sign in with your academic email</p>
+          <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white">{branding?.staff_app_name || 'Staff & Lecturer Login'}</h2>
+          <p className="text-xs text-slate-500 mt-1">{branding?.staff_welcome || 'Sign in with your academic email'}</p>
         </div>
 
         {loginError && (
@@ -2547,7 +2547,7 @@ function StudentPortal({
   };
 
   if (showAccountPortal) {
-    return <StudentAccountPortal onClose={onHome} onScan={() => { setShowAccountPortal(false); setStep(1); setIsScanningQR(true); }} onEnroll={(profile, courses) => { setShowAccountPortal(false); startStudentEnrollment(profile, courses); }} />;
+    return <StudentAccountPortal branding={branding} onClose={onHome} onScan={() => { setShowAccountPortal(false); setStep(1); setIsScanningQR(true); }} onEnroll={(profile, courses) => { setShowAccountPortal(false); startStudentEnrollment(profile, courses); }} />;
   }
 
   if (!quickMode && step === 1 && !showEnrollment && !isScanningQR) {
@@ -2567,7 +2567,7 @@ function StudentPortal({
   }
 
   if (showAccountPortal) {
-    return <StudentAccountPortal onClose={() => setShowAccountPortal(false)} onEnroll={(profile, courses) => { setShowAccountPortal(false); startStudentEnrollment(profile, courses); }} />;
+    return <StudentAccountPortal branding={branding} onClose={() => setShowAccountPortal(false)} onScan={() => { setShowAccountPortal(false); setStep(1); setIsScanningQR(true); }} onEnroll={(profile, courses) => { setShowAccountPortal(false); startStudentEnrollment(profile, courses); }} />;
   }
 
   if (showEnrollment) {
