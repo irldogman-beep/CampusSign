@@ -1,34 +1,39 @@
-# Student accounts and dashboard (Step 13)
+# Student accounts and dashboard (Steps 13–14)
 
-## What this adds
+## Approval order
 
-- Student sign-up and sign-in using Supabase Auth email/password.
-- A separate `student_accounts` profile, created by the Auth trigger. Student metadata never grants roles or database access.
-- Pending / approved / rejected account verification.
-- Admin review against the existing approved lecturer roster using student ID, full registered name, and department.
-- A protected student dashboard showing approved courses, lecturer names, attendance history, unread notification count, and student-wide announcements.
-- An administrator can publish announcements to all approved student accounts as well as the existing lecturer audiences.
+CampusSign now uses a strict two-stage approval sequence for student self-registration:
 
-## Student onboarding flow
+1. A student creates an account with their student ID, registered name, department, level, email and password.
+2. An administrator reviews the identity details first. Existing roster matches are shown as supporting information, but a new student does not need a lecturer-created roster row before administrator approval.
+3. Only after administrator approval can the student submit course selections and face registration.
+4. The database creates lecturer enrolment requests and notifications only for an approved student account.
+5. The relevant lecturer reviews each course request. The request is also checked against the approved student account inside the lecturer list and review RPCs.
+6. Once lecturers approve courses, they appear in the student's dashboard and can be used for the existing attendance workflow.
 
-1. A student creates an account with their student ID, registered name, department, level, email, and password.
-2. If email confirmation is enabled, they confirm the email before signing in.
-3. The student submits course enrolment and face registration through the existing Student Portal flow. The lecturer(s) approve the course requests as before.
-4. An administrator opens **Student accounts** and verifies the account. Approval is enabled only when at least one lecturer-approved roster row matches the student's ID, name, and department.
-5. The student signs in and sees their approved courses and attendance history.
+## What is enforced
 
-Existing student roster and attendance records are not automatically assigned to accounts based on student ID alone. The admin approval check also compares the registered name and department. This is important because the existing roster contains a small number of repeated student IDs associated with different names.
+- `submit_student_enrollment` requires an authenticated student account with status `approved`, and verifies the submitted student ID, full name, department and level against that account.
+- `list_my_enrollment_requests` only returns requests that match an approved student account.
+- `review_student_enrollment` independently checks the same approval and identity match, so a lecturer cannot approve a hidden or legacy request by calling the RPC directly.
+- `admin_review_student_account` no longer waits for a lecturer-approved roster row. This removes the circular dependency and makes administrator approval the first gate.
+- Existing student roster, face-template and attendance rows are not modified by this migration.
+- Existing pending requests without an approved matching student account remain hidden from lecturer queues until the account is approved.
 
-## Important behaviour
+## Existing students
 
-- Student accounts are separate from lecturer profiles. The Auth trigger branches on the sign-up metadata account type; it does not give a student lecturer privileges.
+An existing student can create an account using the same student ID, full registered name, department and level already held by the institution. The administrator can check the existing roster matches and approve the account first. Once approved, the dashboard can show the existing courses and attendance history without requiring duplicate course requests.
+
+## Student accounts and dashboard
+
+- Student sign-up and sign-in use Supabase Auth email/password.
+- The Auth trigger creates a separate `student_accounts` row. Student metadata does not grant lecturer privileges.
 - Student account rows are not directly exposed through the Data API. Student and admin data is returned through authenticated, role-checked database functions.
-- A student cannot see dashboard records while the account is pending or rejected.
-- An account cannot be approved until at least one course roster record has been approved by a lecturer.
-- The existing QR check-in process remains available and does not require a student account.
-- This first account release does not add password reset UI or institutional SSO. Use Supabase Auth email confirmation and password recovery settings.
+- Pending and rejected accounts do not receive course or attendance dashboard data.
+- Administrators can publish announcements to approved student accounts.
+- The existing QR check-in process remains available as a separate attendance workflow.
 - Face matching accuracy remains a separate future improvement.
 
-## Rollout notes
+## Rollout
 
-The database migration has already been applied to the connected CampusSign Supabase project. It creates no student account rows and does not modify existing roster, face-template, or attendance records. New accounts are created only when students use the new sign-up screen.
+The Step 14 migration has been applied to the connected CampusSign Supabase project. It changes approval gates only; it does not create accounts or alter existing attendance and roster data.
