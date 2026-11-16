@@ -2560,7 +2560,7 @@ function StudentPortal({
             <div><h3 className="text-xl font-black text-slate-900 dark:text-white">Enrolment requests submitted!</h3><p className="text-sm text-slate-500 mt-2">Your profile and face template have been sent to the lecturers responsible for your selected courses.</p></div>
             <div className="grid grid-cols-2 gap-3"><div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800"><strong className="block text-2xl text-emerald-700 dark:text-emerald-400">{enrollmentResult?.requests_sent ?? selectedCourses.length}</strong><span className="text-[10px] text-slate-500">Lecturer requests</span></div><div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800"><strong className="block text-2xl text-emerald-700 dark:text-emerald-400">{selectedCourses.length}</strong><span className="text-[10px] text-slate-500">Courses selected</span></div></div>
             <p className="text-xs text-slate-500">Your lecturers must approve each request before you can use face-verified attendance for that course.</p>
-            <button onClick={() => { setShowEnrollment(false); setEnrollmentStage('profile'); setStudentEnrollmentForm({ studentId: '', name: '', dept: '', level: '100' }); setSelectedCourses([]); }} className="w-full py-3.5 rounded-xl bg-emerald-900 hover:bg-emerald-800 text-amber-300 font-extrabold text-sm">Return to student check-in</button>
+            <button onClick={() => { setShowEnrollment(false); setEnrollmentStage('profile'); setStudentEnrollmentForm({ studentId: '', name: '', dept: '', level: '100' }); setSelectedCourses([]); setShowAccountPortal(true); }} className="w-full py-3.5 rounded-xl bg-emerald-900 hover:bg-emerald-800 text-amber-300 font-extrabold text-sm">Return to student account</button>
           </div>
         )}
       </div>
@@ -2569,7 +2569,7 @@ function StudentPortal({
 
   return (
     <div className="max-w-xl mx-auto space-y-6 page-enter">
-      <div className="flex justify-end"><button type="button" onClick={() => setShowAccountPortal(true)} className="rounded-xl bg-emerald-950 text-amber-300 hover:bg-emerald-900 px-3 py-2.5 text-xs font-extrabold border border-emerald-800"><UserCheck className="w-4 h-4 inline mr-1.5" /> Student account & dashboard</button></div>
+      <div className="flex justify-end"><button type="button" onClick={() => setShowAccountPortal(true)} className="rounded-xl bg-emerald-950 text-amber-300 hover:bg-emerald-900 px-3 py-2.5 text-xs font-extrabold border border-emerald-800"><UserCheck className="w-4 h-4 inline mr-1.5" /> Student services · Account / registration</button></div>
       {/* STEP PROGRESS BAR */}
       <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 mb-2">
@@ -2653,8 +2653,7 @@ function StudentPortal({
               <ArrowRight className="w-4 h-4" />
             </button>
             <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
-              <p className="text-[11px] text-slate-500 mb-2">First time using CampusSign?</p>
-              <button onClick={startStudentEnrollment} className="w-full py-3 rounded-xl border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 font-extrabold text-xs transition-all hover:-translate-y-0.5">Create student profile & enrol courses <ArrowRight className="w-4 h-4 inline ml-1" /></button>
+              <p className="text-[11px] text-slate-500 text-center">New students and returning students can manage registration from Student services above. Course registration is separate from attendance check-in.</p>
             </div>
           </div>
         </div>
