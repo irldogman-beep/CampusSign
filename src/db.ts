@@ -34,6 +34,8 @@ const MESSAGES: Record<string, string> = {
   announcement_audience_invalid: 'Choose a valid announcement audience.',
   announcement_department_required: 'Choose a department for this announcement.',
   announcement_course_required: 'Choose a course for this announcement.',
+  announcement_student_required: 'Choose an approved student account for this announcement.',
+  student_account_not_found: 'The student account could not be found or has already been deleted.',
   announcement_not_found: 'This announcement no longer exists.',
   student_account_not_found: 'No student account is linked to this sign-in. Create a student account first.',
   student_account_already_reviewed: 'This student account has already been reviewed.',
@@ -315,6 +317,9 @@ export async function adminDeleteSession(id: string) {
 export async function adminDeleteStudent(id: string) {
   return unwrap<any>(await supabase.rpc('admin_delete_student', { p_student: id }));
 }
+export async function adminDeleteStudentAccount(userId: string) {
+  return unwrap<any>(await supabase.rpc('admin_delete_student_account', { p_user_id: userId }));
+}
 export async function adminDeleteLecturer(id: string) {
   return unwrap<any>(await supabase.rpc('admin_delete_lecturer', { p_lecturer: id }));
 }
@@ -338,13 +343,13 @@ export async function loadAdminAnnouncements() {
 }
 export async function saveAdminAnnouncement(input: {
   id?: string | null; title: string; body: string; audienceType: string;
-  departmentId?: string | null; courseId?: string | null; publish: boolean;
+  departmentId?: string | null; courseId?: string | null; studentUserId?: string | null; publish: boolean;
 }) {
   return unwrap<any>(await supabase.rpc('admin_save_announcement', {
     p_id: input.id || null, p_title: input.title, p_body: input.body,
     p_audience_type: input.audienceType,
     p_department: input.departmentId || null, p_course: input.courseId || null,
-    p_publish: input.publish,
+    p_student_user: input.studentUserId || null, p_publish: input.publish,
   }));
 }
 export async function deleteAdminAnnouncement(id: string) {
