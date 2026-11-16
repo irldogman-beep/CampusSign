@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import {
   AlertCircle, BarChart3, BadgeCheck, Bell, BookOpen, CheckCheck, Check, X,
   ClipboardList, History, LogOut, QrCode, RefreshCw, Search, ShieldAlert,
-  ShieldCheck, UserCog, Users, Building2, Plus, Pencil, BookMarked, Trash2, Activity
+  ShieldCheck, UserCog, Users, Building2, Plus, Pencil, BookMarked, Trash2, Activity, UserRound
 } from 'lucide-react';
 import * as db from './db';
 
@@ -138,6 +138,7 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
   const [departments, setDepartments] = useState<any[]>([]);
   const [catalogCourses, setCatalogCourses] = useState<any[]>([]);
   const [studentEnrolments, setStudentEnrolments] = useState<any[]>([]);
+  const [studentAccounts, setStudentAccounts] = useState<any[]>([]);
   const [recentAttendance, setRecentAttendance] = useState<any[]>([]);
   const [recentSessions, setRecentSessions] = useState<any[]>([]);
   const [attendanceTrends, setAttendanceTrends] = useState<any[]>([]);
@@ -173,6 +174,7 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
       ['departments', db.loadCatalogDepartments, setDepartments],
       ['course catalogue', () => db.loadCatalogCourses(null), setCatalogCourses],
       ['student enrolments', () => db.loadAdminStudentEnrolments(150), setStudentEnrolments],
+      ['student accounts', db.loadAdminStudentAccounts, setStudentAccounts],
       ['recent attendance', () => db.loadAdminRecentAttendance(150), setRecentAttendance],
       ['recent sessions', () => db.loadAdminRecentSessions(75), setRecentSessions],
       ['attendance trends', () => db.loadAdminAttendanceTrends(analyticsDays), setAttendanceTrends],
@@ -207,6 +209,21 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
     const timer = window.setTimeout(() => { setMessage(''); setError(''); }, 5000);
     return () => window.clearTimeout(timer);
   }, [message, error]);
+
+  const reviewStudentAccount = async (account: any, decision: 'approve' | 'reject') => {
+    const action = decision === 'approve' ? 'approve' : 'reject';
+    const prompt = action === 'approve'
+      ? 'Approve the student account for ' + account.full_name + ' (' + account.student_id + ')? This grants access to their matched course and attendance history.'
+      : 'Reject the student account for ' + account.full_name + ' (' + account.student_id + ')? They will not be able to view student records.';
+    if (!window.confirm(prompt)) return;
+    setWorkingId('student-account:' + account.user_id);
+    try {
+      await db.reviewStudentAccount(account.user_id, action);
+      setMessage(action === 'approve' ? 'Student account approved.' : 'Student account rejected.');
+      await refresh(false);
+    } catch (e) { setError(db.friendly(e)); }
+    finally { setWorkingId(''); }
+  };
 
   const changeVerification = async (lecturer: any) => {
     const next = !lecturer.is_verified;
@@ -312,7 +329,7 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
     try {
       const result = await db.saveAdminAnnouncement({ ...announcementForm, publish });
       setMessage(publish
-        ? `Announcement published to ${result.recipient_count} lecturer(s).`
+        ? `Announcement published to ${result.recipient_count} recipient(s).`
         : 'Announcement saved as a draft.');
       resetAnnouncementForm();
       await refresh(false);
@@ -369,7 +386,7 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
       {error && <div role="alert" className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-200 text-xs">{error}</div>}
 
       <div className="flex gap-2 overflow-x-auto p-1 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-fit max-w-full">
-        {[['overview', 'Overview', BarChart3], ['academic', 'Departments & courses', BookMarked], ['lecturers', 'Lecturers', UserCog], ['enrolments', 'Students', Users], ['monitoring', 'Attendance & sessions', ClipboardList], ['announcements', 'Announcements', Bell], ['audit', 'Audit history', History]].map(([key, label, Icon]: any) => <button key={key} onClick={() => setTab(key)} className={`px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap inline-flex items-center gap-2 ${tab === key ? 'bg-emerald-900 text-amber-300 shadow' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}><Icon className="w-4 h-4" />{label}</button>)}
+        {[['overview', 'Overview', BarChart3], ['academic', 'Departments & courses', BookMarked], ['lecturers', 'Lecturers', UserCog], ['enrolments', 'Enrolments', Users], ['student-accounts', 'Student accounts', UserRound], ['monitoring', 'Attendance & sessions', ClipboardList], ['announcements', 'Announcements', Bell], ['audit', 'Audit history', History]].map(([key, label, Icon]: any) => <button key={key} onClick={() => setTab(key)} className={`px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap inline-flex items-center gap-2 ${tab === key ? 'bg-emerald-900 text-amber-300 shadow' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}><Icon className="w-4 h-4" />{label}</button>)}
       </div>
 
       {loading ? <div className="py-16 text-center text-sm text-slate-500"><RefreshCw className="w-6 h-6 mx-auto mb-2 animate-spin" />Loading system overview…</div> : tab === 'overview' ? (
@@ -506,6 +523,25 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
             {studentEnrolments.filter((r:any)=>[r.student_name,r.student_id,r.department,r.course,r.lecturer_name].some(v=>String(v||'').toLowerCase().includes(monitorSearch.toLowerCase()))).map((r:any)=><tr key={r.enrolment_id}><td className="p-3"><strong className="block text-xs text-slate-800 dark:text-white">{r.student_name}</strong><span className="text-[10px] text-slate-500">{r.student_id}</span></td><td className="p-3 text-xs text-slate-600 dark:text-slate-300">{r.department} · {r.level}</td><td className="p-3 text-xs text-slate-600 dark:text-slate-300">{r.course}</td><td className="p-3 text-xs text-slate-600 dark:text-slate-300">{r.lecturer_name}</td><td className="p-3 text-[10px] font-bold">{r.face_enrolled ? <span className="text-emerald-600">Enrolled</span> : <span className="text-amber-600">Not enrolled</span>}</td><td className="p-3 text-[10px] text-slate-500">{r.created_at ? new Date(r.created_at).toLocaleDateString() : '—'}</td><td className="p-3"><button type="button" disabled={workingId==='delete:'+r.enrolment_id} onClick={()=>runDelete('student',r.enrolment_id,r.student_name,()=>db.adminDeleteStudent(r.enrolment_id))} className="text-rose-600 hover:text-rose-700 text-xs font-bold inline-flex items-center gap-1"><Trash2 className="w-3.5 h-3.5"/>Delete</button></td></tr>)}
           </tbody></table>{studentEnrolments.length===0 && <p className="py-8 text-center text-xs text-slate-500">No student enrolment records returned.</p>}</div>
         </section>
+
+      ) : tab === 'student-accounts' ? (
+        <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div><h2 className="font-extrabold text-slate-900 dark:text-white">Student account verification</h2><p className="text-[11px] text-slate-500 mt-1">Verify student sign-ins against lecturer-approved roster records. Account claims are matched by student ID, registered name and department.</p></div>
+            <button type="button" onClick={()=>refresh(false)} className="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2 text-xs font-bold"><RefreshCw className="w-3.5 h-3.5 inline mr-1"/>Refresh</button>
+          </div>
+          <div className="overflow-x-auto"><table className="w-full min-w-[850px] text-left"><thead><tr className="text-[10px] uppercase tracking-wider text-slate-500 border-b border-slate-100 dark:border-slate-800"><th className="p-3">Student</th><th className="p-3">Contact</th><th className="p-3">Academic details</th><th className="p-3">Matched roster</th><th className="p-3">Status</th><th className="p-3">Actions</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+          {studentAccounts.map((account:any)=><tr key={account.user_id}>
+            <td className="p-3"><strong className="block text-xs text-slate-900 dark:text-white">{account.full_name}</strong><span className="text-[10px] text-slate-500">{account.student_id}</span></td>
+            <td className="p-3 text-xs">{account.email}</td>
+            <td className="p-3 text-xs">{account.department}<span className="block text-[10px] text-slate-500">{account.level} Level</span></td>
+            <td className="p-3"><strong className="text-xs tabular-nums">{account.matching_roster_count}</strong><span className="block max-w-[240px] text-[10px] text-slate-500">{(account.matching_courses||[]).join(', ')||'No exact roster match yet'}</span></td>
+            <td className="p-3"><span className={"rounded-full px-2 py-1 text-[9px] font-bold " + (account.status==='approved'?'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200':account.status==='rejected'?'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-200':'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200')}>{account.status}</span><span className="block text-[9px] text-slate-500 mt-1">{new Date(account.created_at).toLocaleDateString()}</span></td>
+            <td className="p-3">{account.status==='pending'?<div className="flex gap-2"><button type="button" disabled={!Number(account.matching_roster_count)||workingId==='student-account:'+account.user_id} onClick={()=>reviewStudentAccount(account,'approve')} className="rounded-lg bg-emerald-800 text-white px-3 py-2 text-[10px] font-bold disabled:opacity-40"><Check className="w-3 h-3 inline mr-1"/>Approve</button><button type="button" disabled={workingId==='student-account:'+account.user_id} onClick={()=>reviewStudentAccount(account,'reject')} className="rounded-lg border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 px-3 py-2 text-[10px] font-bold">Reject</button></div>:<span className="text-[10px] text-slate-500">Reviewed</span>}</td>
+          </tr>)}
+          </tbody></table>{studentAccounts.length===0&&<p className="py-10 text-center text-xs text-slate-500">No student accounts have been created yet.</p>}</div>
+          <p className="text-[10px] text-slate-500">An account cannot be approved until at least one lecturer has approved an enrolment with matching student ID, name and department. No existing roster or attendance data is changed during account verification.</p>
+        </section>
       ) : tab === 'monitoring' ? (
         <div className="space-y-4">
           <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
@@ -537,12 +573,12 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
       ) : tab === 'announcements' ? (
         <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] gap-4">
           <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-            <div><h2 className="font-extrabold text-slate-900 dark:text-white">{announcementForm.id ? 'Edit announcement' : 'Compose announcement'}</h2><p className="text-[11px] text-slate-500 mt-1">Write an update for verified lecturers. Drafts are private to administrators until published.</p></div>
+            <div><h2 className="font-extrabold text-slate-900 dark:text-white">{announcementForm.id ? 'Edit announcement' : 'Compose announcement'}</h2><p className="text-[11px] text-slate-500 mt-1">Write updates for verified lecturers or approved student accounts. Drafts remain private to administrators until published.</p></div>
             {announcementForm.id && <div className="flex items-center justify-between rounded-xl bg-amber-50 dark:bg-amber-950/30 p-3 text-[11px] text-amber-800 dark:text-amber-200"><span>Editing selected announcement</span><button type="button" onClick={resetAnnouncementForm} className="font-bold underline">Cancel</button></div>}
             <div className="space-y-3">
               <label className="block"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Title</span><input maxLength={120} value={announcementForm.title} onChange={e=>setAnnouncementForm({...announcementForm,title:e.target.value})} placeholder="e.g. Semester attendance policy update" className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3 text-sm"/></label>
               <label className="block"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Message</span><textarea maxLength={5000} rows={7} value={announcementForm.body} onChange={e=>setAnnouncementForm({...announcementForm,body:e.target.value})} placeholder="Write the announcement details…" className="mt-1 w-full resize-y rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3 text-sm"/></label>
-              <label className="block"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Audience</span><select value={announcementForm.audienceType} onChange={e=>setAnnouncementForm({...announcementForm,audienceType:e.target.value,departmentId:'',courseId:''})} className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3 text-sm"><option value="all_lecturers">All verified lecturers</option><option value="department">Lecturers in one department</option><option value="course">Lecturers assigned to one course</option></select></label>
+              <label className="block"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Audience</span><select value={announcementForm.audienceType} onChange={e=>setAnnouncementForm({...announcementForm,audienceType:e.target.value,departmentId:'',courseId:''})} className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3 text-sm"><option value="all_lecturers">All verified lecturers</option><option value="all_students">All approved students</option><option value="department">Lecturers in one department</option><option value="course">Lecturers assigned to one course</option></select></label>
               {announcementForm.audienceType === 'department' && <label className="block"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Department</span><select value={announcementForm.departmentId} onChange={e=>setAnnouncementForm({...announcementForm,departmentId:e.target.value})} className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3 text-sm"><option value="">Choose department</option>{departments.filter(d=>d.is_active).map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</select></label>}
               {announcementForm.audienceType === 'course' && <label className="block"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Course</span><select value={announcementForm.courseId} onChange={e=>setAnnouncementForm({...announcementForm,courseId:e.target.value})} className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3 text-sm"><option value="">Choose course</option>{catalogCourses.filter(c=>c.is_active).map(c=><option key={c.id} value={c.id}>{c.code} · {c.title}</option>)}</select></label>}
               <p className="text-[10px] text-slate-500">Maximum 120 characters in the title and 5,000 in the message. Publishing sends an in-app notification to matching verified lecturer accounts.</p>
@@ -551,7 +587,7 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
           </section>
           <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
             <div className="flex items-center justify-between gap-2"><div><h2 className="font-extrabold text-slate-900 dark:text-white">Announcement history</h2><p className="text-[11px] text-slate-500 mt-1">Edit drafts or published messages and review delivery/read counts.</p></div><button type="button" onClick={()=>refresh(false)} className="rounded-lg border border-slate-200 dark:border-slate-700 p-2" aria-label="Refresh announcements"><RefreshCw className="w-4 h-4"/></button></div>
-            {announcements.length===0 ? <p className="py-10 text-center text-xs text-slate-500">No announcements yet. Compose one to get started.</p> : <div className="space-y-3">{announcements.map((item:any)=><article key={item.id} className="rounded-2xl border border-slate-200 dark:border-slate-700 p-3 sm:p-4 space-y-2"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><h3 className="text-sm font-extrabold text-slate-900 dark:text-white break-words">{item.title}</h3><p className="text-[10px] text-slate-500 mt-1">{item.audience_type==='all_lecturers'?'All verified lecturers':item.audience_type==='department'?(departments.find(d=>d.id===item.department_id)?.name || 'Selected department'):(catalogCourses.find(c=>c.id===item.course_id)?.code || 'Selected course')} · Updated {new Date(item.updated_at).toLocaleString()}</p></div><span className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-bold ${item.status==='published'?'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200':'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'}`}>{item.status==='published'?'Published':'Draft'}</span></div><p className="text-xs text-slate-600 dark:text-slate-300 whitespace-pre-wrap line-clamp-4">{item.body}</p>{item.status==='published' && <div className="flex gap-4 text-[10px] text-slate-500"><span>{item.recipient_count} delivered</span><span>{item.read_count} read</span></div>}<div className="flex flex-wrap gap-2 pt-1"><button type="button" onClick={()=>editAnnouncement(item)} className="rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-[10px] font-bold text-slate-700 dark:text-slate-200"><Pencil className="w-3 h-3 inline mr-1"/>Edit</button><button type="button" disabled={workingId==='announcement-delete'} onClick={()=>removeAnnouncement(item)} className="rounded-lg border border-rose-200 dark:border-rose-900 px-3 py-2 text-[10px] font-bold text-rose-700 dark:text-rose-300"><Trash2 className="w-3 h-3 inline mr-1"/>Delete</button></div></article>)}</div>}
+            {announcements.length===0 ? <p className="py-10 text-center text-xs text-slate-500">No announcements yet. Compose one to get started.</p> : <div className="space-y-3">{announcements.map((item:any)=><article key={item.id} className="rounded-2xl border border-slate-200 dark:border-slate-700 p-3 sm:p-4 space-y-2"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><h3 className="text-sm font-extrabold text-slate-900 dark:text-white break-words">{item.title}</h3><p className="text-[10px] text-slate-500 mt-1">{item.audience_type==='all_lecturers'?'All verified lecturers':item.audience_type==='all_students'?'All approved students':item.audience_type==='department'?(departments.find(d=>d.id===item.department_id)?.name || 'Selected department'):(catalogCourses.find(c=>c.id===item.course_id)?.code || 'Selected course')} · Updated {new Date(item.updated_at).toLocaleString()}</p></div><span className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-bold ${item.status==='published'?'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200':'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'}`}>{item.status==='published'?'Published':'Draft'}</span></div><p className="text-xs text-slate-600 dark:text-slate-300 whitespace-pre-wrap line-clamp-4">{item.body}</p>{item.status==='published' && <div className="flex gap-4 text-[10px] text-slate-500"><span>{item.recipient_count} delivered</span><span>{item.read_count} read</span></div>}<div className="flex flex-wrap gap-2 pt-1"><button type="button" onClick={()=>editAnnouncement(item)} className="rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-[10px] font-bold text-slate-700 dark:text-slate-200"><Pencil className="w-3 h-3 inline mr-1"/>Edit</button><button type="button" disabled={workingId==='announcement-delete'} onClick={()=>removeAnnouncement(item)} className="rounded-lg border border-rose-200 dark:border-rose-900 px-3 py-2 text-[10px] font-bold text-rose-700 dark:text-rose-300"><Trash2 className="w-3 h-3 inline mr-1"/>Delete</button></div></article>)}</div>}
           </section>
         </div>
       ) : (

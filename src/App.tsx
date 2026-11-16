@@ -44,6 +44,7 @@ import * as db from './db';
 import { getBestFix } from './geo';
 import { QR_DISPLAY_CHANNEL } from './QRDisplayWindow';
 import AdminWorkspace, { NotificationBell } from './AdminWorkspace';
+import StudentAccountPortal from './StudentAccountPortal';
 
 /* ==========================================================================
    LOGO COMPONENT (Matching Forest Green & Academic Gold Emblem)
@@ -2316,6 +2317,7 @@ function StudentPortal({
   const [receiptData, setReceiptData] = useState(null);
   const locRef = useRef(null); // location lookup started at the consent step
   const [submitting, setSubmitting] = useState(false);
+  const [showAccountPortal, setShowAccountPortal] = useState(false);
 
   // Student self-enrolment is independent of the live QR check-in flow.
   const [showEnrollment, setShowEnrollment] = useState(false);
@@ -2404,7 +2406,8 @@ function StudentPortal({
 
   const handleFaceCaptured = ({ photo, descriptors }) => submitCheckIn(photo, descriptors);
 
-  const startStudentEnrollment = async () => {
+  const startStudentEnrollment = async (profile: any = null) => {
+    if (profile) setStudentEnrollmentForm({ studentId: profile.student_id || '', name: profile.full_name || '', dept: profile.department || '', level: profile.level || '100' });
     setShowEnrollment(true);
     setEnrollmentStage('profile');
     setEnrollmentError('');
@@ -2496,6 +2499,10 @@ function StudentPortal({
     setStep(5); // Go to receipt screen
   };
 
+  if (showAccountPortal) {
+    return <StudentAccountPortal onClose={() => setShowAccountPortal(false)} onEnroll={(profile) => { setShowAccountPortal(false); startStudentEnrollment(profile); }} />;
+  }
+
   if (showEnrollment) {
     return (
       <div className="max-w-2xl mx-auto space-y-5 page-enter">
@@ -2562,7 +2569,7 @@ function StudentPortal({
 
   return (
     <div className="max-w-xl mx-auto space-y-6 page-enter">
-      
+      <div className="flex justify-end"><button type="button" onClick={() => setShowAccountPortal(true)} className="rounded-xl bg-emerald-950 text-amber-300 hover:bg-emerald-900 px-3 py-2.5 text-xs font-extrabold border border-emerald-800"><UserCheck className="w-4 h-4 inline mr-1.5" /> Student account & dashboard</button></div>
       {/* STEP PROGRESS BAR */}
       <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 mb-2">
