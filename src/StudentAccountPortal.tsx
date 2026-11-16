@@ -12,7 +12,7 @@ type Props = {
 };
 
 export default function StudentAccountPortal({ onClose, onEnroll }: Props) {
-  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const [mode, setMode] = useState<'login' | 'signup'>('signup');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [studentId, setStudentId] = useState('');
@@ -127,7 +127,7 @@ export default function StudentAccountPortal({ onClose, onEnroll }: Props) {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-2xl bg-amber-400/15 border border-amber-300/30 grid place-items-center text-amber-300"><GraduationCap className="w-6 h-6"/></div>
-            <div><p className="text-[10px] uppercase tracking-[.2em] text-emerald-200 font-black">CampusSign · Student services</p><h1 className="text-xl sm:text-2xl font-black mt-1">Student account</h1><p className="text-xs text-emerald-100/75 mt-1">Your courses, attendance and campus announcements.</p></div>
+            <div><p className="text-[10px] uppercase tracking-[.2em] text-emerald-200 font-black">CampusSign · Student services</p><h1 className="text-xl sm:text-2xl font-black mt-1">Student services</h1><p className="text-xs text-emerald-100/75 mt-1">Create your student account, finish registration or view your attendance.</p></div>
           </div>
           <div className="flex gap-2">
             {isSignedIn && <button type="button" onClick={signOut} disabled={busy} className="px-3 py-2 rounded-xl bg-white/10 border border-white/15 text-xs font-bold inline-flex items-center gap-2"><LogOut className="w-4 h-4"/>Sign out</button>}
@@ -146,7 +146,7 @@ export default function StudentAccountPortal({ onClose, onEnroll }: Props) {
             <button type="button" onClick={()=>{setMode('signup');setError('');}} className={`flex-1 rounded-lg py-2.5 text-xs font-bold ${mode==='signup'?'bg-emerald-900 text-amber-300':'text-slate-500'}`}>Create account</button>
           </div>
           <form onSubmit={submit} className="space-y-3">
-            <div><h2 className="text-lg font-extrabold text-slate-900 dark:text-white">{mode==='signup'?'Create your student account':'Welcome back'}</h2><p className="text-xs text-slate-500 mt-1">{mode==='signup'?'Use your official student details. An administrator will verify your account against the course roster.':'Sign in with the email and password you used when registering.'}</p></div>
+            <div><h2 className="text-lg font-extrabold text-slate-900 dark:text-white"{mode==='signup'?'Get started with CampusSign':'Welcome back'}</h2><p className="text-xs text-slate-500 mt-1">{mode==='signup'?'Create one account using your official student details. You will then complete your academic registration and face enrolment here.':'Sign in to continue registration or view your student dashboard.'}</p></div>
             {mode==='signup' && <>
               <label className="block"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Student ID</span><input required maxLength={40} value={studentId} onChange={e=>setStudentId(e.target.value.toUpperCase())} placeholder="Your matriculation number" className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3 text-sm"/></label>
               <label className="block"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Full registered name</span><input required maxLength={120} value={fullName} onChange={e=>setFullName(e.target.value)} placeholder="As it appears on your student record" className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3 text-sm"/></label>
@@ -157,7 +157,7 @@ export default function StudentAccountPortal({ onClose, onEnroll }: Props) {
             <label className="block"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Password</span><input required type="password" minLength={8} autoComplete={mode==='signup'?'new-password':'current-password'} value={password} onChange={e=>setPassword(e.target.value)} placeholder="At least 8 characters" className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3 text-sm"/></label>
             <button disabled={busy || !email.trim() || !password || (mode==='signup' && (!studentId.trim() || !fullName.trim() || !department))} className="w-full rounded-xl bg-emerald-900 text-amber-300 py-3.5 text-sm font-extrabold disabled:opacity-50">{busy?'Please wait…':mode==='signup'?'Create student account':'Sign in'}</button>
           </form>
-          {mode==='signup' && <p className="mt-4 text-[10px] text-slate-500 leading-relaxed">Creating an account does not automatically approve your identity or add courses. Your selected courses must be approved by their lecturers, and an administrator must verify that your details match the academic roster.</p>}
+          {mode==='signup' && <p className="mt-4 text-[10px] text-slate-500 leading-relaxed">Your account is your CampusSign login. After creating it, continue to academic registration to select courses and enrol your face. Lecturers review course requests, then an administrator verifies your account. If you are already on the academic roster, you may ask the administrator to verify your existing record without submitting duplicate course requests.</p>}
         </section>
       ) : (
         <div className="space-y-4">
@@ -166,7 +166,7 @@ export default function StudentAccountPortal({ onClose, onEnroll }: Props) {
               <div className="flex items-center gap-3 min-w-0"><div className="w-11 h-11 rounded-2xl bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 grid place-items-center"><UserRound className="w-5 h-5"/></div><div className="min-w-0"><h2 className="font-extrabold text-slate-900 dark:text-white">{profile.full_name}</h2><p className="text-xs text-slate-500">{profile.student_id} · {profile.department} · {profile.level} Level</p></div></div>
               <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-extrabold ${profile.status==='approved'?'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200':profile.status==='rejected'?'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-200':'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200'}`}>{profile.status==='approved'?<ShieldCheck className="w-3.5 h-3.5"/>:<Clock3 className="w-3.5 h-3.5"/>}{profile.status==='approved'?'Verified student account':profile.status==='rejected'?'Verification declined':'Awaiting administrator verification'}</span>
             </div>
-            {profile.status==='pending' && <div className="mt-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 p-4"><p className="text-xs text-amber-900 dark:text-amber-200 font-semibold">Your account is pending. To help the administrator verify it, submit your course enrolment and wait for the relevant lecturer(s) to approve it.</p><button type="button" onClick={()=>onEnroll(profile)} className="mt-3 rounded-xl bg-emerald-900 text-amber-300 px-4 py-2.5 text-xs font-bold">Complete course enrolment</button></div>}
+            {profile.status==='pending' && <div className="mt-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 p-4"><p className="text-xs text-amber-900 dark:text-amber-200 font-semibold">Your student account is created, but it is not yet verified. If you are a new student or still need to register courses, continue below. If your courses are already on the academic roster, you do not need to submit them again — ask your administrator to verify your existing record.</p><div className="mt-3 flex flex-col sm:flex-row gap-2"><button type="button" onClick={()=>onEnroll(profile)} className="rounded-xl bg-emerald-900 text-amber-300 px-4 py-2.5 text-xs font-bold">Continue academic registration</button><button type="button" onClick={()=>setNotice('Your administrator can verify your account against your existing academic roster. No duplicate course request has been submitted.')} className="rounded-xl border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 px-4 py-2.5 text-xs font-bold">My courses are already registered</button></div></div>}
             {profile.status==='rejected' && <p className="mt-4 text-xs text-rose-700 dark:text-rose-300">Your details could not be matched to the academic roster. Contact your department administrator to resolve this.</p>}
           </section>
 
