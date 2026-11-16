@@ -166,8 +166,17 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
   // Keep independent admin sections usable when one RPC/table is unavailable.
   // A failed audit or notification request must not blank the catalogue or lecturer list.
   const refreshInFlight = useRef(false);
+  const refreshPending = useRef(false);
+  const refreshPendingLoader = useRef(false);
   const refresh = async (showLoader = false) => {
-    if (refreshInFlight.current) return;
+    // Coalesce overlapping refresh requests instead of silently dropping them.
+    // This matters when a user saves/reviews something while the 30-second
+    // background refresh is still running.
+    if (refreshInFlight.current) {
+      refreshPending.current = true;
+      refreshPendingLoader.current = refreshPendingLoader.current || showLoader;
+      return;
+    }
     refreshInFlight.current = true;
     if (showLoader) setLoading(true);
     const failures: string[] = [];
@@ -202,6 +211,12 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
     } finally {
       refreshInFlight.current = false;
       setLoading(false);
+      if (refreshPending.current) {
+        const showPendingLoader = refreshPendingLoader.current;
+        refreshPending.current = false;
+        refreshPendingLoader.current = false;
+        void refresh(showPendingLoader);
+      }
     }
   };
 
