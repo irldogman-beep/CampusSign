@@ -29,6 +29,12 @@ const MESSAGES: Record<string, string> = {
   course_not_found: 'Course was not found.',
   admin_required: 'Administrator access required.',
   enrollment_rate_limited: 'Too many enrolment attempts. Please wait a few minutes before trying again.',
+  announcement_title_invalid: 'Announcement title must be between 3 and 120 characters.',
+  announcement_body_invalid: 'Announcement message must be between 3 and 5,000 characters.',
+  announcement_audience_invalid: 'Choose a valid announcement audience.',
+  announcement_department_required: 'Choose a department for this announcement.',
+  announcement_course_required: 'Choose a course for this announcement.',
+  announcement_not_found: 'This announcement no longer exists.',
 };
 
 export function friendly(e: any): string {
