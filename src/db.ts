@@ -34,7 +34,7 @@ const MESSAGES: Record<string, string> = {
   announcement_audience_invalid: 'Choose a valid announcement audience.',
   announcement_department_required: 'Choose a department for this announcement.',
   announcement_course_required: 'Choose a course for this announcement.',
-  announcement_student_required: 'Choose an approved student account for this announcement.',
+  announcement_student_required: 'Choose an active student account for this announcement.',
   announcement_not_found: 'This announcement no longer exists.',
   student_account_not_found: 'Student account could not be found. It may already have been deleted or may not be linked to this sign-in.',
   student_account_already_reviewed: 'This student account has already been reviewed.',
