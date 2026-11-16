@@ -52,6 +52,32 @@ export function NotificationBell({ notifications = [], onRead, onReadAll, onUnre
     };
   }, [open]);
 
+  const resetAnnouncementForm = () => setAnnouncementForm({ id: '', title: '', body: '', audienceType: 'all_lecturers', departmentId: '', courseId: '' });
+  const editAnnouncement = (item: any) => {
+    setAnnouncementForm({ id: item.id, title: item.title, body: item.body, audienceType: item.audience_type, departmentId: item.department_id || '', courseId: item.course_id || '' });
+    setTab('announcements');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  const saveAnnouncement = async (publish: boolean) => {
+    setWorkingId('announcement');
+    try {
+      const result = await db.saveAdminAnnouncement({ ...announcementForm, publish });
+      setMessage(publish
+        ? `Announcement published to ${result.recipient_count} lecturer(s).`
+        : 'Announcement saved as a draft.');
+      resetAnnouncementForm();
+      await refresh(false);
+    } catch (e) { setError(db.friendly(e)); }
+    finally { setWorkingId(''); }
+  };
+  const removeAnnouncement = async (item: any) => {
+    if (!window.confirm(`Delete “${item.title}”? This also removes its in-app announcement notifications.`)) return;
+    setWorkingId('announcement-delete');
+    try { await db.deleteAdminAnnouncement(item.id); setMessage('Announcement deleted.'); if (announcementForm.id === item.id) resetAnnouncementForm(); await refresh(false); }
+    catch (e) { setError(db.friendly(e)); }
+    finally { setWorkingId(''); }
+  };
+
   const openNotification = (item: any) => {
     if (!item.read_at) onRead?.(item.id);
     const handled = onOpen?.(item) === true;
@@ -133,6 +159,8 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
   const [lecturers, setLecturers] = useState<any[]>([]);
   const [audit, setAudit] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
+  const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [announcementForm, setAnnouncementForm] = useState({ id: '', title: '', body: '', audienceType: 'all_lecturers', departmentId: '', courseId: '' });
   const [departments, setDepartments] = useState<any[]>([]);
   const [catalogCourses, setCatalogCourses] = useState<any[]>([]);
   const [studentEnrolments, setStudentEnrolments] = useState<any[]>([]);
@@ -167,6 +195,7 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
       ['lecturers', db.loadAdminLecturers, setLecturers],
       ['audit history', () => db.loadAdminAudit(60), setAudit],
       ['notifications', () => db.loadNotifications(20), setNotifications],
+      ['announcements', db.loadAdminAnnouncements, setAnnouncements],
       ['departments', db.loadCatalogDepartments, setDepartments],
       ['course catalogue', () => db.loadCatalogCourses(null), setCatalogCourses],
       ['student enrolments', () => db.loadAdminStudentEnrolments(150), setStudentEnrolments],
@@ -340,7 +369,7 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
       {error && <div role="alert" className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-200 text-xs">{error}</div>}
 
       <div className="flex gap-2 overflow-x-auto p-1 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-fit max-w-full">
-        {[['overview', 'Overview', BarChart3], ['academic', 'Departments & courses', BookMarked], ['lecturers', 'Lecturers', UserCog], ['enrolments', 'Students', Users], ['monitoring', 'Attendance & sessions', ClipboardList], ['audit', 'Audit history', History]].map(([key, label, Icon]: any) => <button key={key} onClick={() => setTab(key)} className={`px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap inline-flex items-center gap-2 ${tab === key ? 'bg-emerald-900 text-amber-300 shadow' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}><Icon className="w-4 h-4" />{label}</button>)}
+        {[['overview', 'Overview', BarChart3], ['academic', 'Departments & courses', BookMarked], ['lecturers', 'Lecturers', UserCog], ['enrolments', 'Students', Users], ['monitoring', 'Attendance & sessions', ClipboardList], ['announcements', 'Announcements', Bell], ['audit', 'Audit history', History]].map(([key, label, Icon]: any) => <button key={key} onClick={() => setTab(key)} className={`px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap inline-flex items-center gap-2 ${tab === key ? 'bg-emerald-900 text-amber-300 shadow' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}><Icon className="w-4 h-4" />{label}</button>)}
       </div>
 
       {loading ? <div className="py-16 text-center text-sm text-slate-500"><RefreshCw className="w-6 h-6 mx-auto mb-2 animate-spin" />Loading system overview…</div> : tab === 'overview' ? (
@@ -505,6 +534,26 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
             </div>}
           </div>
         </section>
+      ) : tab === 'announcements' ? (
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] gap-4">
+          <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+            <div><h2 className="font-extrabold text-slate-900 dark:text-white">{announcementForm.id ? 'Edit announcement' : 'Compose announcement'}</h2><p className="text-[11px] text-slate-500 mt-1">Write an update for verified lecturers. Drafts are private to administrators until published.</p></div>
+            {announcementForm.id && <div className="flex items-center justify-between rounded-xl bg-amber-50 dark:bg-amber-950/30 p-3 text-[11px] text-amber-800 dark:text-amber-200"><span>Editing selected announcement</span><button type="button" onClick={resetAnnouncementForm} className="font-bold underline">Cancel</button></div>}
+            <div className="space-y-3">
+              <label className="block"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Title</span><input maxLength={120} value={announcementForm.title} onChange={e=>setAnnouncementForm({...announcementForm,title:e.target.value})} placeholder="e.g. Semester attendance policy update" className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3 text-sm"/></label>
+              <label className="block"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Message</span><textarea maxLength={5000} rows={7} value={announcementForm.body} onChange={e=>setAnnouncementForm({...announcementForm,body:e.target.value})} placeholder="Write the announcement details…" className="mt-1 w-full resize-y rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3 text-sm"/></label>
+              <label className="block"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Audience</span><select value={announcementForm.audienceType} onChange={e=>setAnnouncementForm({...announcementForm,audienceType:e.target.value,departmentId:'',courseId:''})} className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3 text-sm"><option value="all_lecturers">All verified lecturers</option><option value="department">Lecturers in one department</option><option value="course">Lecturers assigned to one course</option></select></label>
+              {announcementForm.audienceType === 'department' && <label className="block"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Department</span><select value={announcementForm.departmentId} onChange={e=>setAnnouncementForm({...announcementForm,departmentId:e.target.value})} className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3 text-sm"><option value="">Choose department</option>{departments.filter(d=>d.is_active).map(d=><option key={d.id} value={d.id}>{d.name}</option>)}</select></label>}
+              {announcementForm.audienceType === 'course' && <label className="block"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Course</span><select value={announcementForm.courseId} onChange={e=>setAnnouncementForm({...announcementForm,courseId:e.target.value})} className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3 text-sm"><option value="">Choose course</option>{catalogCourses.filter(c=>c.is_active).map(c=><option key={c.id} value={c.id}>{c.code} · {c.title}</option>)}</select></label>}
+              <p className="text-[10px] text-slate-500">Maximum 120 characters in the title and 5,000 in the message. Publishing sends an in-app notification to matching verified lecturer accounts.</p>
+              <div className="flex flex-col sm:flex-row gap-2"><button type="button" disabled={workingId==='announcement' || !announcementForm.title.trim() || !announcementForm.body.trim() || (announcementForm.audienceType==='department' && !announcementForm.departmentId) || (announcementForm.audienceType==='course' && !announcementForm.courseId)} onClick={()=>saveAnnouncement(false)} className="flex-1 rounded-xl border border-slate-300 dark:border-slate-700 px-4 py-3 text-xs font-bold text-slate-700 dark:text-slate-200 disabled:opacity-40">Save draft</button><button type="button" disabled={workingId==='announcement' || !announcementForm.title.trim() || !announcementForm.body.trim() || (announcementForm.audienceType==='department' && !announcementForm.departmentId) || (announcementForm.audienceType==='course' && !announcementForm.courseId)} onClick={()=>saveAnnouncement(true)} className="flex-1 rounded-xl bg-emerald-900 px-4 py-3 text-xs font-bold text-amber-300 disabled:opacity-40">{workingId==='announcement' ? 'Saving…' : 'Publish announcement'}</button></div>
+            </div>
+          </section>
+          <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
+            <div className="flex items-center justify-between gap-2"><div><h2 className="font-extrabold text-slate-900 dark:text-white">Announcement history</h2><p className="text-[11px] text-slate-500 mt-1">Edit drafts or published messages and review delivery/read counts.</p></div><button type="button" onClick={()=>refresh(false)} className="rounded-lg border border-slate-200 dark:border-slate-700 p-2" aria-label="Refresh announcements"><RefreshCw className="w-4 h-4"/></button></div>
+            {announcements.length===0 ? <p className="py-10 text-center text-xs text-slate-500">No announcements yet. Compose one to get started.</p> : <div className="space-y-3">{announcements.map((item:any)=><article key={item.id} className="rounded-2xl border border-slate-200 dark:border-slate-700 p-3 sm:p-4 space-y-2"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><h3 className="text-sm font-extrabold text-slate-900 dark:text-white break-words">{item.title}</h3><p className="text-[10px] text-slate-500 mt-1">{item.audience_type==='all_lecturers'?'All verified lecturers':item.audience_type==='department'?(departments.find(d=>d.id===item.department_id)?.name || 'Selected department'):(catalogCourses.find(c=>c.id===item.course_id)?.code || 'Selected course')} · Updated {new Date(item.updated_at).toLocaleString()}</p></div><span className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-bold ${item.status==='published'?'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200':'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'}`}>{item.status==='published'?'Published':'Draft'}</span></div><p className="text-xs text-slate-600 dark:text-slate-300 whitespace-pre-wrap line-clamp-4">{item.body}</p>{item.status==='published' && <div className="flex gap-4 text-[10px] text-slate-500"><span>{item.recipient_count} delivered</span><span>{item.read_count} read</span></div>}<div className="flex flex-wrap gap-2 pt-1"><button type="button" onClick={()=>editAnnouncement(item)} className="rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-[10px] font-bold text-slate-700 dark:text-slate-200"><Pencil className="w-3 h-3 inline mr-1"/>Edit</button><button type="button" disabled={workingId==='announcement-delete'} onClick={()=>removeAnnouncement(item)} className="rounded-lg border border-rose-200 dark:border-rose-900 px-3 py-2 text-[10px] font-bold text-rose-700 dark:text-rose-300"><Trash2 className="w-3 h-3 inline mr-1"/>Delete</button></div></article>)}</div>}
+          </section>
+        </div>
       ) : (
         <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm"><div className="mb-4"><h2 className="font-extrabold text-slate-900 dark:text-white">Audit history</h2><p className="text-[11px] text-slate-500 mt-1">Recent enrolment, verification and attendance changes. Biometric descriptors and photos are never included.</p></div>
           {audit.length === 0 ? <p className="py-10 text-center text-xs text-slate-500">No audit events recorded yet. New sensitive actions will appear here.</p> : <div className="space-y-2">{audit.map((event) => <article key={event.id} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700"><div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1"><strong className="text-xs text-slate-800 dark:text-slate-100">{String(event.action).replace(/\./g, ' ')}</strong><time className="text-[10px] text-slate-500">{new Date(event.created_at).toLocaleString()}</time></div><p className="text-[11px] text-slate-600 dark:text-slate-300 mt-1">{event.entity_type}{event.course ? ` · ${event.course}` : ''}{event.actor_email ? ` · by ${event.actor_email}` : ''}</p><pre className="mt-2 text-[10px] text-slate-500 whitespace-pre-wrap break-words">{JSON.stringify(event.details, null, 2)}</pre></article>)}</div>}
