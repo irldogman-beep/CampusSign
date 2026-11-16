@@ -52,32 +52,6 @@ export function NotificationBell({ notifications = [], onRead, onReadAll, onUnre
     };
   }, [open]);
 
-  const resetAnnouncementForm = () => setAnnouncementForm({ id: '', title: '', body: '', audienceType: 'all_lecturers', departmentId: '', courseId: '' });
-  const editAnnouncement = (item: any) => {
-    setAnnouncementForm({ id: item.id, title: item.title, body: item.body, audienceType: item.audience_type, departmentId: item.department_id || '', courseId: item.course_id || '' });
-    setTab('announcements');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-  const saveAnnouncement = async (publish: boolean) => {
-    setWorkingId('announcement');
-    try {
-      const result = await db.saveAdminAnnouncement({ ...announcementForm, publish });
-      setMessage(publish
-        ? `Announcement published to ${result.recipient_count} lecturer(s).`
-        : 'Announcement saved as a draft.');
-      resetAnnouncementForm();
-      await refresh(false);
-    } catch (e) { setError(db.friendly(e)); }
-    finally { setWorkingId(''); }
-  };
-  const removeAnnouncement = async (item: any) => {
-    if (!window.confirm(`Delete “${item.title}”? This also removes its in-app announcement notifications.`)) return;
-    setWorkingId('announcement-delete');
-    try { await db.deleteAdminAnnouncement(item.id); setMessage('Announcement deleted.'); if (announcementForm.id === item.id) resetAnnouncementForm(); await refresh(false); }
-    catch (e) { setError(db.friendly(e)); }
-    finally { setWorkingId(''); }
-  };
-
   const openNotification = (item: any) => {
     if (!item.read_at) onRead?.(item.id);
     const handled = onOpen?.(item) === true;
@@ -327,6 +301,32 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
     try { await db.deleteNotification(id); await refresh(false); }
     catch (e) { setError(db.friendly(e)); }
   };
+  const resetAnnouncementForm = () => setAnnouncementForm({ id: '', title: '', body: '', audienceType: 'all_lecturers', departmentId: '', courseId: '' });
+  const editAnnouncement = (item: any) => {
+    setAnnouncementForm({ id: item.id, title: item.title, body: item.body, audienceType: item.audience_type, departmentId: item.department_id || '', courseId: item.course_id || '' });
+    setTab('announcements');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  const saveAnnouncement = async (publish: boolean) => {
+    setWorkingId('announcement');
+    try {
+      const result = await db.saveAdminAnnouncement({ ...announcementForm, publish });
+      setMessage(publish
+        ? `Announcement published to ${result.recipient_count} lecturer(s).`
+        : 'Announcement saved as a draft.');
+      resetAnnouncementForm();
+      await refresh(false);
+    } catch (e) { setError(db.friendly(e)); }
+    finally { setWorkingId(''); }
+  };
+  const removeAnnouncement = async (item: any) => {
+    if (!window.confirm(`Delete “${item.title}”? This also removes its in-app announcement notifications.`)) return;
+    setWorkingId('announcement-delete');
+    try { await db.deleteAdminAnnouncement(item.id); setMessage('Announcement deleted.'); if (announcementForm.id === item.id) resetAnnouncementForm(); await refresh(false); }
+    catch (e) { setError(db.friendly(e)); }
+    finally { setWorkingId(''); }
+  };
+
   const openNotification = (item: any) => {
     if (item.notification_type === 'lecturer_review' || item.entity_type === 'lecturer') {
       setTab('lecturers');
