@@ -223,6 +223,9 @@ declare
   new_block text;
 begin
   v := pg_get_functiondef('public.admin_save_announcement(uuid,text,text,text,uuid,uuid,boolean)'::regprocedure);
+  v := replace(v,
+    'select user_id from public.student_accounts where status=''approved'';',
+    'select user_id from public.student_accounts where status in (''pending'',''approved'');');
   old_block := $old$  insert into public.app_notifications(recipient_id,recipient_role,notification_type,title,message,entity_type,entity_id)
   select t.user_id,case when p_audience_type='all_students' then 'student' else 'lecturer' end,
          'announcement',v_title,v_body,'announcement',v_id::text$old$;
