@@ -17,6 +17,8 @@ create unique index if not exists student_accounts_identity_active_idx
   where status <> 'rejected';
 create index if not exists student_accounts_status_created_idx
   on public.student_accounts(status, created_at desc);
+create index if not exists student_accounts_reviewed_by_idx
+  on public.student_accounts(reviewed_by);
 alter table public.student_accounts enable row level security;
 revoke all on public.student_accounts from anon, authenticated;
 
