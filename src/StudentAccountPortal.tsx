@@ -9,7 +9,8 @@ import * as db from './db';
 type Props = {
   onClose: () => void;
   onEnroll: (profile: any, courses: any[]) => void;
-  onScan?: () => void;\n  branding?: any;
+  onScan?: () => void;
+  branding?: any;
 };
 
 export default function StudentAccountPortal({ onClose, onEnroll, onScan, branding }: Props) {
