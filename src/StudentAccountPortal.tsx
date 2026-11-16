@@ -151,14 +151,14 @@ export default function StudentAccountPortal({ onClose, onEnroll, onScan }: Prop
   const isSignedIn = !!profile;
 
   return (
-    <div className="max-w-5xl mx-auto space-y-5 page-enter">
-      <section className="rounded-3xl bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-950 text-white p-5 sm:p-7 border border-emerald-800 shadow-xl">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="max-w-5xl mx-auto space-y-4 sm:space-y-5 page-enter px-0.5">
+      <section className="rounded-[1.75rem] bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-950 text-white p-4 sm:p-7 border border-emerald-800 shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-2xl bg-amber-400/15 border border-amber-300/30 grid place-items-center text-amber-300"><GraduationCap className="w-6 h-6"/></div>
             <div><p className="text-[10px] uppercase tracking-[.2em] text-emerald-200 font-black">CampusSign · Student services</p><h1 className="text-xl sm:text-2xl font-black mt-1">Student services</h1></div>
           </div>
-          <div className="flex gap-2">
+          <div className="grid grid-cols-2 sm:flex gap-2">
             {isSignedIn && onScan && <button type="button" onClick={onScan} className="px-3 py-2 rounded-xl bg-amber-400 text-emerald-950 text-xs font-extrabold inline-flex items-center gap-2"><Scan className="w-4 h-4"/>Scan attendance</button>}
             {isSignedIn && <button type="button" onClick={signOut} disabled={busy} className="px-3 py-2 rounded-xl bg-white/10 border border-white/15 text-xs font-bold inline-flex items-center gap-2"><LogOut className="w-4 h-4"/>Sign out</button>}
             <button type="button" onClick={onClose} className="px-3 py-2 rounded-xl bg-amber-400 text-emerald-950 text-xs font-extrabold">Back to check-in</button>
@@ -208,7 +208,7 @@ export default function StudentAccountPortal({ onClose, onEnroll, onScan }: Prop
           </section>
 
           {profile.status==='approved' && <>
-             <nav aria-label="Student dashboard sections" className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+             <nav aria-label="Student dashboard sections" className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
                {([
                  ['courses','Courses',BookOpen,courses.length],
                  ['attendance','Attendance',CalendarDays,attendance.length],
@@ -216,7 +216,7 @@ export default function StudentAccountPortal({ onClose, onEnroll, onScan }: Prop
                  ['profile','Profile',UserRound,null],
                ] as const).map(([key,label,Icon,count]) => (
                  <button key={key} type="button" onClick={()=>setActiveSection(key)} aria-pressed={activeSection===key}
-                   className={`min-w-0 rounded-xl border px-3 py-3 text-left transition-colors ${activeSection===key?'bg-emerald-900 text-amber-300 border-emerald-800 shadow-sm':'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300'}`}>
+                   className={`interactive-card min-w-0 rounded-2xl border px-3.5 py-3.5 sm:px-4 sm:py-4 text-left transition-colors ${activeSection===key?'bg-emerald-900 text-amber-300 border-emerald-800 shadow-sm':'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300'}`}>
                    <span className="flex items-center justify-between gap-2"><Icon className="w-4 h-4 shrink-0"/>{count!==null&&<span className="text-[10px] font-bold tabular-nums">{count}</span>}</span>
                    <span className="block mt-2 text-xs font-bold">{label}</span>
                  </button>
