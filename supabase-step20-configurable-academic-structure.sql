@@ -230,6 +230,7 @@ declare
   v_academic public.student_academic_profiles;
   v_courses jsonb;
   v_attendance jsonb;
+  v_course_attempts jsonb;
   v_unread integer;
   v_cohort_name text;
   v_level_name text;
@@ -255,7 +256,7 @@ begin
         'academic_status',coalesce(v_academic.academic_status,'active'),
         'admission_set',v_cohort_name,'current_level',v_level_name
       ),
-      'courses','[]'::jsonb,'attendance','[]'::jsonb,'unread_notifications',0
+      'courses','[]'::jsonb,'attendance','[]'::jsonb,'course_attempts',coalesce(v_course_attempts,'[]'::jsonb),'unread_notifications',0
     );
   end if;
 
@@ -269,6 +270,19 @@ begin
   where upper(btrim(s.student_id))=upper(btrim(v_account.student_id))
     and lower(btrim(s.name))=lower(btrim(v_account.full_name))
     and lower(btrim(s.dept))=lower(btrim(v_account.department));
+
+  select coalesce(jsonb_agg(jsonb_build_object(
+      'id',sca.id,'course_code',ac.code,'course_title',ac.title,
+      'term',at.name,'academic_period',ap.name,'attempt_number',sca.attempt_number,
+      'status',sca.status,'grade',sca.grade,'result_note',sca.result_note,
+      'created_at',sca.created_at
+    ) order by sca.created_at desc), '[]'::jsonb)
+  into v_course_attempts
+  from public.student_course_attempts sca
+  join public.academic_courses ac on ac.id=sca.course_id
+  join public.academic_terms at on at.id=sca.academic_term_id
+  join public.academic_periods ap on ap.id=at.academic_period_id
+  where sca.student_user_id=auth.uid();
 
   select coalesce(jsonb_agg(jsonb_build_object(
       'id',a.id,'course',a.course,'session_id',a.session_id,
@@ -295,7 +309,7 @@ begin
       'academic_status',coalesce(v_academic.academic_status,'active'),
       'admission_set',v_cohort_name,'current_level',v_level_name
     ),
-    'courses',v_courses,'attendance',v_attendance,'unread_notifications',v_unread
+    'courses',v_courses,'attendance',v_attendance,'course_attempts',coalesce(v_course_attempts,'[]'::jsonb),'unread_notifications',v_unread
   );
 end;
 $function$;
