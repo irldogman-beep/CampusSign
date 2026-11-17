@@ -515,7 +515,7 @@ export default function App() {
         )}
 
         {activeTab === 'docs' && (
-          <DocumentationView isDarkMode={isDarkMode} />
+          <DocumentationView isDarkMode={isDarkMode} logoUrl={branding.logo_url} />
         )}
       </main>
 
@@ -3080,12 +3080,12 @@ function StudentPortal({
 /* ==========================================================================
    DOCUMENTATION & ARCHITECTURE VIEW
    ========================================================================== */
-function DocumentationView({ isDarkMode }) {
+function DocumentationView({ isDarkMode, logoUrl = '' }) {
   return (
     <div className="max-w-4xl mx-auto space-y-8 bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-10 border border-slate-200 dark:border-slate-800 shadow-md">
       
       <div className="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
-        <CampusSignLogo logoUrl={branding.logo_url} className="w-12 h-12" />
+        <CampusSignLogo logoUrl={logoUrl} className="w-12 h-12" />
         <div>
           <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">CampusSign Architecture Guide</h2>
           <p className="text-xs text-slate-500">Integration, Real Database Connectors & API Specifications</p>
