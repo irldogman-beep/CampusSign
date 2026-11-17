@@ -393,6 +393,11 @@ export async function reviewStudentAccount(userId: string, decision: 'approve' |
     p_user_id: userId, p_decision: decision,
   }));
 }
+export async function reopenStudentAccount(userId: string, reason: string) {
+  return unwrap<any>(await supabase.rpc('admin_reopen_student_account', {
+    p_user_id: userId, p_reason: reason,
+  }));
+}
 
 
 // ---- department reroll workflow ----
