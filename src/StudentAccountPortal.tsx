@@ -152,8 +152,8 @@ export default function StudentAccountPortal({ onClose, onEnroll, onScan, brandi
   const isSignedIn = !!profile;
 
   return (
-    <div className="max-w-5xl mx-auto space-y-4 sm:space-y-5 page-enter px-0.5">
-      <section className="rounded-[1.75rem] bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-950 text-white p-4 sm:p-7 border border-emerald-800 shadow-xl">
+    <div className="cs-student-account max-w-5xl mx-auto space-y-4 sm:space-y-5 page-enter px-0.5">
+      <section className="cs-space-header cs-space-header--student">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-2xl bg-amber-400/15 border border-amber-300/30 grid place-items-center text-amber-300"><GraduationCap className="w-6 h-6"/></div>
