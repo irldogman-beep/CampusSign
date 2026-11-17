@@ -66,7 +66,16 @@ export default function StudentAccountPortal({ onClose, onEnroll, onScan, brandi
       if (optionalErrors.length) setError(optionalErrors.join(' '));
     } catch (e: any) {
       setDashboard(null);
-      setError(db.friendly(e));
+      const failure = String(e?.message || '');
+      if (failure.includes('student_account_not_found')) {
+        try { await supabase.auth.signOut(); } catch { /* keep the account form usable */ }
+        setError('This login is not linked to a Student account. Use the Staff workspace for a staff login, or create a Student account.');
+      } else if (failure.includes('authentication_required')) {
+        try { await supabase.auth.signOut(); } catch { /* keep the account form usable */ }
+        setError('Your Student session has expired. Please sign in again.');
+      } else {
+        setError(db.friendly(e));
+      }
     } finally {
       setLoading(false);
     }
@@ -302,6 +311,7 @@ export default function StudentAccountPortal({ onClose, onEnroll, onScan, brandi
                  <button type="button" onClick={()=>onEnroll(profile,courses)} className="w-full sm:w-auto rounded-xl bg-emerald-900 text-amber-300 px-4 py-2.5 text-xs font-bold">{courses.length===0?'Choose courses & register face':'Request another course'}</button>
                </div>
                {courses.length===0?<p className="py-8 text-center text-xs text-slate-500">No approved courses are linked to this account yet.</p>:<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{courses.map((course:any,i:number)=><article key={course.course+i} className="rounded-xl border border-slate-200 dark:border-slate-700 p-3 sm:p-4"><div className="flex items-start justify-between gap-2"><strong className="text-sm text-slate-900 dark:text-white break-words">{course.course}</strong><CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0"/></div><p className="text-[11px] text-slate-500 mt-2 break-words">{course.lecturer}</p><p className="text-[11px] mt-2 text-emerald-700 dark:text-emerald-300">{course.face_enrolled?'Face enrolment active':'Face enrolment pending'}</p></article>)}</div>}
+               {courses.some((course:any)=>!course.face_enrolled) && <p className="mt-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 p-3 text-[11px] leading-relaxed text-amber-800 dark:text-amber-200">At least one existing course still needs face enrolment. Contact that course's lecturer to complete it. Requesting an additional course will not change the face-enrolment status of courses you already have. </p>}
              </section>}
              {activeSection==='attendance' && <section className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-sm">
                <div className="mb-3"><h3 className="font-extrabold text-slate-900 dark:text-white">Attendance history</h3><p className="mt-1 text-[11px] text-slate-500">Your most recent attendance records.</p></div>
