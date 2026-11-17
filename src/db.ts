@@ -262,6 +262,26 @@ export async function loadAdminAudit(limit = 50) {
 }
 
 // ---- centrally managed academic catalogue ----
+export async function loadCatalogFaculties(): Promise<any[]> {
+  const { data, error } = await supabase.from('academic_faculties')
+    .select('id,code,name,is_active').order('name');
+  if (error) throw error;
+  return data || [];
+}
+export async function saveCatalogFaculty(input: { id?: string | null; code: string; name: string; active: boolean }) {
+  const payload = { code: input.code.trim().toUpperCase(), name: input.name.trim(), is_active: input.active, updated_at: new Date().toISOString() };
+  const query = input.id
+    ? supabase.from('academic_faculties').update(payload).eq('id', input.id)
+    : supabase.from('academic_faculties').insert(payload);
+  const { error } = await query;
+  if (error) throw error;
+}
+export async function assignDepartmentFaculty(departmentId: string, facultyId: string | null) {
+  const { error } = await supabase.from('academic_departments')
+    .update({ faculty_id: facultyId, updated_at: new Date().toISOString() }).eq('id', departmentId);
+  if (error) throw error;
+}
+
 export async function loadCatalogDepartments(): Promise<any[]> {
   return unwrap<any[]>(await supabase.rpc('catalog_departments'));
 }
