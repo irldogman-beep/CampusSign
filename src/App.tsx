@@ -343,7 +343,10 @@ export default function App() {
           {/* Public entry actions and authenticated workspace navigation */}
           <div className="flex items-center gap-2 shrink-0">
             {appSpace !== 'hub' ? (
-              <span className="cs-space-chip text-[10px] font-bold tracking-wider uppercase">{appSpace === 'student' ? 'STUDENT SPACE' : 'STAFF WORKSPACE'}</span>
+              <>
+                <span className="cs-space-chip text-[10px] font-bold tracking-wider uppercase">{appSpace === 'student' ? 'STUDENT SPACE' : 'STAFF WORKSPACE'}</span>
+                <button onClick={() => setIsDarkMode(!isDarkMode)} className="theme-toggle cs-theme-toggle p-2 rounded-xl" title={isDarkMode ? 'Switch to light theme' : 'Switch to dark theme'} aria-label={isDarkMode ? 'Switch to light theme' : 'Switch to dark theme'}>{isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}</button>
+              </>
             ) : activeTab === 'home' ? (
               <>
                 <button onClick={() => { setStudentEntry(true); setActiveTab('student'); }} className="cs-header-primary px-4 py-2.5 rounded-xl text-xs font-extrabold">Student check-in</button>
@@ -456,7 +459,7 @@ export default function App() {
       </main>
 
       {/* FOOTER */}
-      {!quickAttendance && <footer className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-6 mt-12 text-center text-xs text-slate-500 dark:text-slate-400">
+      {!quickAttendance && appSpace === 'hub' && <footer className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-6 mt-12 text-center text-xs text-slate-500 dark:text-slate-400">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-2">
           <div className="flex items-center gap-2">
             <CampusSignLogo className="w-5 h-5" />
