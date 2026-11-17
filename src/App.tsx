@@ -377,7 +377,7 @@ export default function App() {
                   VERIFIED CAMPUS ACCESS
                 </span>
               </div>
-              <p className="cs-brand-subtitle hidden sm:block text-[10px] font-medium">QR attendance · Identity verification</p>
+              <p className="cs-brand-subtitle hidden sm:block text-[10px] font-medium">{appSpace === 'student' ? branding.student_welcome : appSpace === 'staff' ? branding.staff_welcome : branding.tagline}</p>
             </div>
           </div>
 
