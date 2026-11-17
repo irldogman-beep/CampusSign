@@ -242,7 +242,7 @@ export default function StudentAccountPortal({ onClose, onEnroll, onTakeAttendan
   const courses = dashboard?.courses || [];
   const attendance = dashboard?.attendance || [];
   const unreadCount = notifications.filter(item => !item.read_at).length;
-  const attendanceCourses = Array.from(new Set(attendance.map((row: any) => String(row.course || '')).filter((course: string) => course.length > 0))).sort();
+  const attendanceCourses: string[] = [...new Set<string>(attendance.map((row: any) => String(row.course || '')).filter((course: string) => course.length > 0))].sort();
   const filteredAttendance = attendance.filter((row: any) =>
     (!attendanceCourseFilter || row.course === attendanceCourseFilter) &&
     (!attendanceDateFilter || String(row.created_at || '').slice(0, 10) === attendanceDateFilter)
