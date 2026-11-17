@@ -2,7 +2,7 @@ name: CampusSign CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main] # validate workspace navigation and packaged source archive
   push:
     branches: [main, "fix/**", "feature/**"]
 
