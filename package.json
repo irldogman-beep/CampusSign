@@ -31,5 +31,8 @@
     "vite": "^6.0.0",
     "@capacitor/cli": "^8.6.2",
     "@capacitor/android": "^8.6.2"
+  },
+  "overrides": {
+    "csstype": "3.1.3"
   }
 }
