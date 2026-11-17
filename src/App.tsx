@@ -214,7 +214,7 @@ export default function App() {
       try { if (value.logo_url) localStorage.setItem('campussign-brand-logo', value.logo_url); else localStorage.removeItem('campussign-brand-logo'); } catch { /* storage unavailable */ }
       document.title = appSpace === 'student' ? value.student_app_name : appSpace === 'staff' ? value.staff_app_name : value.brand_name;
       const theme = document.querySelector('meta[name="theme-color"]');
-      if (theme) theme.setAttribute('content', value.primary_color);
+      if (theme) theme.setAttribute('content', appSpace === 'student' ? value.student_primary_color : appSpace === 'staff' ? value.staff_primary_color : value.primary_color);
     }).catch(error => console.warn('CampusSign branding could not be loaded; defaults remain active.', error));
     return () => { active = false; };
   }, [appSpace]);
@@ -353,10 +353,10 @@ export default function App() {
   };
 
   return (
-    <div style={{ '--campus-primary': branding.primary_color, '--campus-accent': branding.accent_color, '--campus-background': branding.background_color, '--brand-header-bg': branding.background_color || '#F8FAFC', '--brand-header-text': branding.primary_color || '#064E3B' } as React.CSSProperties} className={`campus-app-shell min-h-screen ${isDarkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'} transition-colors duration-200 font-sans`}>
+    <div style={{ '--campus-primary': appSpace === 'student' ? (branding.student_primary_color || branding.primary_color) : appSpace === 'staff' ? (branding.staff_primary_color || branding.primary_color) : branding.primary_color, '--campus-accent': appSpace === 'student' ? (branding.student_accent_color || branding.accent_color) : appSpace === 'staff' ? (branding.staff_accent_color || branding.accent_color) : branding.accent_color, '--campus-background': appSpace === 'student' ? (branding.student_background_color || branding.background_color) : appSpace === 'staff' ? (branding.staff_background_color || branding.background_color) : branding.background_color, '--brand-header-bg': (appSpace === 'student' ? branding.student_background_color : appSpace === 'staff' ? branding.staff_background_color : branding.background_color) || '#F8FAFC', '--brand-header-text': (appSpace === 'student' ? branding.student_primary_color : appSpace === 'staff' ? branding.staff_primary_color : branding.primary_color) || '#064E3B' } as React.CSSProperties} className={`campus-app-shell min-h-screen ${isDarkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'} transition-colors duration-200 font-sans`}>
       {showLaunchScreen && (
         <div className="campus-launch-screen" aria-label={`${branding.brand_name} starting`} role="status">
-          <div className="campus-launch-mark"><CampusSignLogo logoUrl={branding.logo_url} className="w-16 h-16"/></div>
+          <div className="campus-launch-mark"><CampusSignLogo logoUrl={(appSpace === 'student' ? branding.student_logo_url : appSpace === 'staff' ? branding.staff_logo_url : null) || branding.logo_url} className="w-16 h-16"/></div>
           <p className="campus-launch-name">{branding.brand_name}</p>
           <p className="campus-launch-caption">{branding.tagline}</p>
           <span className="campus-launch-progress"><span/></span>
@@ -369,7 +369,7 @@ export default function App() {
           
           {/* Logo & Brand Name */}
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            <CampusSignLogo logoUrl={branding.logo_url} className="w-8 h-8 sm:w-9 sm:h-9 shrink-0" />
+            <CampusSignLogo logoUrl={(appSpace === 'student' ? branding.student_logo_url : appSpace === 'staff' ? branding.staff_logo_url : null) || branding.logo_url} className="w-8 h-8 sm:w-9 sm:h-9 shrink-0" />
             <div>
               <div className="flex items-center gap-2">
                 <span className="cs-brand-title font-black text-lg tracking-tight">{appSpace === 'student' ? branding.student_app_name : appSpace === 'staff' ? branding.staff_app_name : branding.brand_name}</span>
@@ -377,7 +377,7 @@ export default function App() {
                   VERIFIED CAMPUS ACCESS
                 </span>
               </div>
-              <p className="cs-brand-subtitle hidden sm:block text-[10px] font-medium">QR attendance · Identity verification</p>
+              <p className="cs-brand-subtitle hidden sm:block text-[10px] font-medium">{appSpace === 'student' ? branding.student_welcome : appSpace === 'staff' ? branding.staff_welcome : branding.tagline}</p>
             </div>
           </div>
 
@@ -423,13 +423,13 @@ export default function App() {
 
       {/* MAIN CONTENT CONTAINER */}
       <main key={activeTab} className={`${quickAttendance ? 'max-w-2xl' : 'max-w-7xl'} mx-auto w-full min-w-0 px-3 sm:px-6 lg:px-8 py-3 sm:py-8 page-enter`} aria-live="polite">
-        {quickAttendance && <div className="mb-4 flex items-center justify-between"><div className="flex items-center gap-2"><CampusSignLogo logoUrl={branding.logo_url} className="w-8 h-8"/><span className="font-black text-sm">CampusSign <span className="font-medium text-slate-500">· Quick attendance</span></span></div><button onClick={() => { setQuickAttendance(false); setStudentEntry(false); setActiveTab(appSpace === 'student' ? 'student' : appSpace === 'staff' ? 'admin' : 'home'); }} className="text-xs font-bold text-emerald-800 dark:text-emerald-300">{appSpace === 'student' ? 'Student services' : 'Home'}</button></div>}
+        {quickAttendance && <div className="mb-4 flex items-center justify-between"><div className="flex items-center gap-2"><CampusSignLogo logoUrl={(appSpace === 'student' ? branding.student_logo_url : appSpace === 'staff' ? branding.staff_logo_url : null) || branding.logo_url} className="w-8 h-8"/><span className="font-black text-sm">CampusSign <span className="font-medium text-slate-500">· Quick attendance</span></span></div><button onClick={() => { setQuickAttendance(false); setStudentEntry(false); setActiveTab(appSpace === 'student' ? 'student' : appSpace === 'staff' ? 'admin' : 'home'); }} className="text-xs font-bold text-emerald-800 dark:text-emerald-300">{appSpace === 'student' ? 'Student services' : 'Home'}</button></div>}
 
         {activeTab === 'home' && (
           <section className="cs-home page-enter">
             <div className="cs-home-copy">
               <div className="cs-home-eyebrow">
-                <span className="cs-home-emblem"><CampusSignLogo logoUrl={branding.logo_url} className="w-7 h-7"/></span>
+                <span className="cs-home-emblem"><CampusSignLogo logoUrl={(appSpace === 'student' ? branding.student_logo_url : appSpace === 'staff' ? branding.staff_logo_url : null) || branding.logo_url} className="w-7 h-7"/></span>
                 <span><strong>{branding.brand_name}</strong><small>{branding.tagline}</small></span>
               </div>
               <p className="cs-home-kicker">A smarter campus day starts here</p>
@@ -446,7 +446,7 @@ export default function App() {
               <div className="cs-art-orbit cs-art-orbit--two"/>
               <div className="cs-art-window">
                 <div className="cs-art-window-head">
-                  <span className="cs-art-window-brand"><CampusSignLogo logoUrl={branding.logo_url} className="w-6 h-6"/> {branding.brand_name}</span>
+                  <span className="cs-art-window-brand"><CampusSignLogo logoUrl={(appSpace === 'student' ? branding.student_logo_url : appSpace === 'staff' ? branding.staff_logo_url : null) || branding.logo_url} className="w-6 h-6"/> {branding.brand_name}</span>
                   <span className="cs-art-window-status"><i/> PRODUCT PREVIEW</span>
                 </div>
                 <div className="cs-art-session">
@@ -515,7 +515,7 @@ export default function App() {
         )}
 
         {activeTab === 'docs' && (
-          <DocumentationView isDarkMode={isDarkMode} logoUrl={branding.logo_url} />
+          <DocumentationView isDarkMode={isDarkMode} logoUrl={(appSpace === 'student' ? branding.student_logo_url : appSpace === 'staff' ? branding.staff_logo_url : null) || branding.logo_url} />
         )}
       </main>
 
@@ -523,7 +523,7 @@ export default function App() {
       {!quickAttendance && appSpace === 'hub' && <footer className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-6 mt-12 text-center text-xs text-slate-500 dark:text-slate-400">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-2">
           <div className="flex items-center gap-2">
-            <CampusSignLogo logoUrl={branding.logo_url} className="w-5 h-5" />
+            <CampusSignLogo logoUrl={(appSpace === 'student' ? branding.student_logo_url : appSpace === 'staff' ? branding.staff_logo_url : null) || branding.logo_url} className="w-5 h-5" />
             <span className="font-bold text-slate-700 dark:text-slate-300">{branding.brand_name} Verification Hub</span>
           </div>
           <p>© 2026 CampusSign · QR attendance and biometric verification</p>
@@ -1247,7 +1247,7 @@ The request has NOT been rejected or approved. Check the student's official univ
     return (
       <div className="cs-auth-layout cs-auth-layout--staff">
         <aside className="cs-auth-aside">
-          <div className="cs-auth-aside-mark"><CampusSignLogo logoUrl={branding.logo_url} className="w-10 h-10"/></div>
+          <div className="cs-auth-aside-mark"><CampusSignLogo logoUrl={branding.staff_logo_url || branding.logo_url} className="w-10 h-10"/></div>
           <p className="cs-auth-aside-kicker">{branding?.brand_name || 'CampusSign'} · STAFF</p>
           <h2>Run your campus with clarity.</h2>
           <p>One workspace for attendance sessions, course rosters and academic administration.</p>
@@ -1260,7 +1260,7 @@ The request has NOT been rejected or approved. Check the student's official univ
         </aside>
         <section className="cs-auth-card cs-auth-card--staff">
         <div className="text-center mb-6">
-          <CampusSignLogo logoUrl={branding.logo_url} className="w-16 h-16 mx-auto mb-3" />
+          <CampusSignLogo logoUrl={branding.staff_logo_url || branding.logo_url} className="w-16 h-16 mx-auto mb-3" />
           <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white">{branding?.staff_app_name || 'Staff & Lecturer Login'}</h2>
           <p className="text-xs text-slate-500 mt-1">{branding?.staff_welcome || 'Sign in with your academic email'}</p>
         </div>
@@ -2687,7 +2687,7 @@ function StudentPortal({
     return (
       <div className="max-w-3xl mx-auto space-y-5 page-enter">
         <section className="rounded-3xl bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-950 text-white p-6 sm:p-8 border border-emerald-800 shadow-xl">
-          <div className="flex items-center gap-3"><CampusSignLogo logoUrl={branding.logo_url} className="w-12 h-12"/><div><p className="text-[10px] uppercase tracking-[.2em] text-emerald-200 font-black">CampusSign · Student services</p><h1 className="text-2xl sm:text-3xl font-black mt-1">Welcome, student</h1></div></div>
+          <div className="flex items-center gap-3"><CampusSignLogo logoUrl={branding.student_logo_url || branding.logo_url} className="w-12 h-12"/><div><p className="text-[10px] uppercase tracking-[.2em] text-emerald-200 font-black">CampusSign · Student services</p><h1 className="text-2xl sm:text-3xl font-black mt-1">Welcome, student</h1></div></div>
           <p className="text-sm text-emerald-100/80 mt-4 max-w-xl">Sign in to your student dashboard to manage courses and view attendance, or use quick attendance when you have scanned a lecturer's QR code.</p>
         </section>
         <div className="grid sm:grid-cols-2 gap-4">
@@ -2793,7 +2793,7 @@ function StudentPortal({
       {/* STEP 1: REAL QR SCAN */}
       {step === 1 && (
         <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-lg text-center space-y-6">
-          <CampusSignLogo logoUrl={branding.logo_url} className="w-16 h-16 mx-auto" />
+          <CampusSignLogo logoUrl={branding.student_logo_url || branding.logo_url} className="w-16 h-16 mx-auto" />
           
           <div>
             <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">Student Verification Check-In</h2>
@@ -3032,7 +3032,7 @@ function StudentPortal({
           <div className="p-5 rounded-2xl bg-gradient-to-br from-emerald-950 to-slate-950 text-white border border-emerald-900 shadow-md space-y-3 text-xs">
             <div className="flex items-center justify-between pb-3 border-b border-emerald-800">
               <div className="flex items-center gap-2">
-                <CampusSignLogo logoUrl={branding.logo_url} className="w-6 h-6" />
+                <CampusSignLogo logoUrl={branding.student_logo_url || branding.logo_url} className="w-6 h-6" />
                 <span className="font-extrabold text-amber-400">CampusSign Token</span>
               </div>
               <span className="font-mono text-[10px] text-emerald-300">{receiptData.receiptNo}</span>
