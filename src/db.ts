@@ -485,15 +485,15 @@ export async function loadStudentAcademicProfiles(): Promise<any[]> {
   if (error) throw error; return data || [];
 }
 export async function saveStudentAcademicProfile(input: any) {
-  const { data: previous, error: previousError } = await supabase.from('student_academic_profiles').select('current_level_id,cohort_id').eq('student_user_id', input.student_user_id).maybeSingle();
+  const { data: previous, error: previousError } = await supabase.from('student_academic_profiles').select('current_level_id,cohort_id,academic_status').eq('student_user_id', input.student_user_id).maybeSingle();
   if (previousError) throw previousError;
   const payload = { student_user_id: input.student_user_id, cohort_id: input.cohort_id || null, current_level_id: input.current_level_id || null, academic_status: input.academic_status || 'active', status_reason: input.status_reason?.trim() || null, updated_at: new Date().toISOString() };
   const { error } = await supabase.from('student_academic_profiles').upsert(payload, { onConflict: 'student_user_id' });
   if (error) throw error;
-  if (!previous || previous.current_level_id !== payload.current_level_id || previous.cohort_id !== payload.cohort_id) {
+  if (!previous || previous.current_level_id !== payload.current_level_id || previous.cohort_id !== payload.cohort_id || previous.academic_status !== payload.academic_status) {
     const { error: eventError } = await supabase.from('student_progression_events').insert({
       student_user_id: input.student_user_id, from_level_id: previous?.current_level_id || null,
-      to_level_id: payload.current_level_id, event_type: input.event_type || 'initial_assignment',
+      to_level_id: payload.current_level_id, event_type: previous && previous.academic_status !== payload.academic_status && previous.current_level_id === payload.current_level_id && previous.cohort_id === payload.cohort_id ? 'status_changed' : (input.event_type || 'initial_assignment'),
       effective_on: input.effective_on || new Date().toISOString().slice(0, 10), note: input.note?.trim() || null,
     });
     if (eventError) throw eventError;
