@@ -152,12 +152,12 @@ export default function StudentAccountPortal({ onClose, onEnroll, onScan, brandi
   const isSignedIn = !!profile;
 
   return (
-    <div className="max-w-5xl mx-auto space-y-4 sm:space-y-5 page-enter px-0.5">
-      <section className="rounded-[1.75rem] bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-950 text-white p-4 sm:p-7 border border-emerald-800 shadow-xl">
+    <div className="cs-student-account max-w-5xl mx-auto space-y-4 sm:space-y-5 page-enter px-0.5">
+      <section className="cs-space-header cs-space-header--student">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-2xl bg-amber-400/15 border border-amber-300/30 grid place-items-center text-amber-300"><GraduationCap className="w-6 h-6"/></div>
-            <div><p className="text-[10px] uppercase tracking-[.2em] text-emerald-200 font-black">{branding?.brand_name || 'CampusSign'} · Student services</p><h1 className="text-xl sm:text-2xl font-black mt-1">Student services</h1></div>
+            <div><p className="text-[10px] uppercase tracking-[.2em] text-emerald-200 font-black">{branding?.brand_name || 'CampusSign'} · Student services</p><h1 className="text-xl sm:text-2xl font-black mt-1">{branding?.student_app_name || 'Student workspace'}</h1></div>
           </div>
           <div className="grid grid-cols-2 sm:flex gap-2">
             {isSignedIn && onScan && <button type="button" onClick={onScan} className="px-3 py-2 rounded-xl bg-amber-400 text-emerald-950 text-xs font-extrabold inline-flex items-center gap-2"><Scan className="w-4 h-4"/>Quick QR check-in</button>}
@@ -171,12 +171,25 @@ export default function StudentAccountPortal({ onClose, onEnroll, onScan, brandi
       {error && <div role="alert" className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-200 text-xs flex gap-2"><AlertTriangle className="w-4 h-4 shrink-0"/><span>{error}</span></div>}
 
       {loading ? <div className="py-16 text-center text-sm text-slate-500"><RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2"/>Loading your student account…</div> : !isSignedIn ? (
-        <section className="max-w-xl mx-auto rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 sm:p-7 shadow-lg">
-          <div className="flex gap-2 p-1 rounded-xl bg-slate-100 dark:bg-slate-800 mb-5">
-            <button type="button" onClick={()=>{setMode('login');setError('');}} className={`flex-1 rounded-lg py-2.5 text-xs font-bold ${mode==='login'?'bg-emerald-900 text-amber-300':'text-slate-500'}`}>Already have an account</button>
-            <button type="button" onClick={()=>{setMode('signup');setError('');}} className={`flex-1 rounded-lg py-2.5 text-xs font-bold ${mode==='signup'?'bg-emerald-900 text-amber-300':'text-slate-500'}`}>New student</button>
+        <section className="cs-auth-layout cs-auth-layout--student">
+          <aside className="cs-auth-aside">
+            <div className="cs-auth-aside-mark"><GraduationCap className="w-8 h-8"/></div>
+            <p className="cs-auth-aside-kicker">{branding?.brand_name || 'CAMPUSSIGN'} · STUDENT</p>
+            <h2>Your campus life,<br/>all in sync.</h2>
+            <p>Sign in to keep your courses, attendance and student services together in one secure place.</p>
+            <div className="cs-auth-aside-list">
+              <span><BookOpen className="w-4 h-4"/> Keep track of your courses</span>
+              <span><CalendarDays className="w-4 h-4"/> Follow your attendance record</span>
+              <span><ShieldCheck className="w-4 h-4"/> Protect your student identity</span>
+            </div>
+            <div className="cs-auth-aside-foot">Your student workspace, wherever campus takes you</div>
+          </aside>
+          <div className="cs-auth-card">
+          <div className="cs-auth-mode-toggle flex gap-2 p-1 rounded-xl mb-5">
+            <button type="button" onClick={()=>{setMode('login');setError('');}} className={`flex-1 rounded-lg py-2.5 text-xs font-bold ${mode==='login'?'is-active':''}`}>Sign in</button>
+            <button type="button" onClick={()=>{setMode('signup');setError('');}} className={`flex-1 rounded-lg py-2.5 text-xs font-bold ${mode==='signup'?'is-active':''}`}>Create account</button>
           </div>
-          <form onSubmit={submit} className="space-y-3">
+          <form onSubmit={submit} className="cs-auth-form space-y-3">
             <div><h2 className="text-lg font-extrabold text-slate-900 dark:text-white">{mode==='signup' ? `Get started with ${branding?.brand_name || 'CampusSign'}` : 'Welcome back'}</h2><p className="text-xs text-slate-500 mt-1">{branding?.student_welcome || 'Sign in to manage your courses and attendance.'}</p></div>
             {mode==='signup' && <>
               <label className="block"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Student ID</span><input required maxLength={40} value={studentId} onChange={e=>setStudentId(e.target.value.toUpperCase())} placeholder="Your matriculation number" className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3 text-sm"/></label>
@@ -186,10 +199,11 @@ export default function StudentAccountPortal({ onClose, onEnroll, onScan, brandi
             </>}
             <label className="block"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Email address</span><input required type="email" autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com" className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3 text-sm"/></label>
             <label className="block"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Password</span><input required type="password" minLength={8} autoComplete={mode==='signup'?'new-password':'current-password'} value={password} onChange={e=>setPassword(e.target.value)} placeholder="At least 8 characters" className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3 text-sm"/></label>
-            <button disabled={busy || !email.trim() || !password || (mode==='signup' && (!studentId.trim() || !fullName.trim() || !department))} className="w-full rounded-xl bg-emerald-900 text-amber-300 py-3.5 text-sm font-extrabold disabled:opacity-50">{busy?'Please wait…':mode==='signup'?'Create account & continue':'Sign in to Student services'}</button>
+            <button disabled={busy || !email.trim() || !password || (mode==='signup' && (!studentId.trim() || !fullName.trim() || !department))} className="cs-auth-submit w-full rounded-xl py-3.5 text-sm font-extrabold disabled:opacity-50">{busy?'Please wait…':mode==='signup'?'Create account & continue':'Sign in to Student services'}</button>
           </form>
-          {!isSignedIn && onScan && <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 text-center"><p className="text-xs font-semibold text-slate-600 dark:text-slate-300">Having trouble signing in?</p><button type="button" onClick={onScan} className="mt-2 inline-flex items-center gap-2 rounded-xl border border-emerald-200 dark:border-emerald-900 px-4 py-2.5 text-xs font-extrabold text-emerald-800 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"><Scan className="w-4 h-4"/>Continue with QR without signing in</button><p className="mt-2 text-[10px] text-slate-500">Use this only when a lecturer has displayed an attendance QR code.</p></div>}
+          {!isSignedIn && onScan && <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 text-center"><p className="text-xs font-semibold text-slate-600 dark:text-slate-300">Having trouble signing in?</p><button type="button" onClick={onScan} className="mt-2 inline-flex items-center gap-2 rounded-xl border border-emerald-200 dark:border-emerald-900 px-4 py-2.5 text-xs font-extrabold text-emerald-800 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"><Scan className="w-4 h-4"/>Use QR instead</button><p className="mt-2 text-[10px] text-slate-500">Use this only when a lecturer has displayed an attendance QR code.</p></div>}
           {mode==='signup' && <p className="mt-4 text-[10px] text-slate-500 leading-relaxed">Your account is your CampusSign login. First, an administrator checks and approves your student details. After approval, you can select courses and enrol your face; the relevant lecturers then review your course requests. If you already have academic records, the administrator can use them to verify you before you request any additional courses.</p>}
+          </div>
         </section>
       ) : (
         <div className="space-y-4">

@@ -447,8 +447,8 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
   ];
 
   return (
-    <div className="space-y-5 sm:space-y-7 animate-fade-up">
-      <section className="rounded-3xl bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-950 border border-emerald-800 p-5 sm:p-7 text-white shadow-xl overflow-hidden relative">
+    <div className="cs-admin-workspace space-y-5 sm:space-y-7 animate-fade-up">
+      <section className="cs-admin-welcome rounded-3xl p-5 sm:p-7 overflow-hidden relative">
         <div className="absolute -right-10 -top-16 w-56 h-56 rounded-full bg-amber-400/10 blur-3xl pointer-events-none" />
         <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0"><div className="w-12 h-12 rounded-2xl bg-amber-400/15 border border-amber-300/30 grid place-items-center text-amber-300"><ShieldCheck className="w-6 h-6" /></div><div className="min-w-0"><p className="text-[10px] uppercase tracking-[.2em] text-emerald-200 font-black">CampusSign · System administration</p><h1 className="text-xl sm:text-2xl font-black text-white mt-1">Welcome, {activeStaff.name}</h1></div></div>
@@ -465,8 +465,8 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
           <option value="overview">Overview</option><option value="academic">Departments & courses</option><option value="lecturers">Lecturers</option><option value="enrolments">Enrolments</option><option value="student-accounts">Student accounts</option><option value="monitoring">Attendance & sessions</option><option value="announcements">Announcements</option><option value="audit">Audit history</option><option value="branding">Branding studio</option>
         </select>
       </div>
-      <nav aria-label="Admin dashboard sections" className="hidden sm:grid grid-cols-4 gap-2">
-        {[[ 'overview', 'Overview', BarChart3 ],[ 'academic', 'Departments & courses', BookMarked ],[ 'lecturers', 'Lecturers', UserCog ],[ 'enrolments', 'Enrolments', Users ],[ 'student-accounts', 'Student accounts', UserRound ],[ 'monitoring', 'Attendance & sessions', ClipboardList ],[ 'announcements', 'Announcements', Bell ],[ 'audit', 'Audit history', History ],[ 'branding', 'Branding studio', Palette ]].map(([key,label,Icon]:any)=><button key={key} type="button" onClick={()=>setTab(key)} aria-current={tab===key?'page':undefined} className={`min-w-0 rounded-xl border px-3 py-3 text-left text-xs font-bold inline-flex items-center gap-2 transition-colors ${tab===key?'bg-emerald-900 text-amber-300 border-emerald-800':'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-emerald-500'}`}><Icon className="w-4 h-4 shrink-0"/><span className="truncate">{label}</span></button>)}
+      <nav aria-label="Admin dashboard sections" className="cs-admin-nav hidden sm:flex gap-2">
+        {[[ 'overview', 'Overview', BarChart3 ],[ 'academic', 'Departments & courses', BookMarked ],[ 'lecturers', 'Lecturers', UserCog ],[ 'enrolments', 'Enrolments', Users ],[ 'student-accounts', 'Student accounts', UserRound ],[ 'monitoring', 'Attendance & sessions', ClipboardList ],[ 'announcements', 'Announcements', Bell ],[ 'audit', 'Audit history', History ],[ 'branding', 'Branding studio', Palette ]].map(([key,label,Icon]:any)=><button key={key} type="button" onClick={()=>setTab(key)} aria-current={tab===key?'page':undefined} className={`cs-admin-nav-button min-w-0 rounded-xl border px-3 py-3 text-left text-xs font-bold inline-flex items-center gap-2 transition-colors ${tab===key?'is-active':''}`}><Icon className="w-4 h-4 shrink-0"/><span className="truncate">{label}</span></button>)}
       </nav>
 
       {loading ? <div className="py-16 text-center text-sm text-slate-500"><RefreshCw className="w-6 h-6 mx-auto mb-2 animate-spin" />Loading system overview…</div> : tab === 'overview' ? (

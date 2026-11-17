@@ -91,7 +91,7 @@ const INITIAL_STAFF = [
     name: 'Dr. Robert Vance',
     email: 'admin@university.edu',
     passwordHash: 'e1756a9fc05bc2b263b7b2a383bec14600498ca814b9eb83a6670d89a79265fe',
-    dept: 'Computer Science',
+    dept: 'CSC 302 · Introduction to Computing',
     course: 'CSC401 - Advanced Algorithms',
     isVerified: true
   },
@@ -323,7 +323,7 @@ export default function App() {
       )}
       
       {/* HEADER / NAVIGATION BAR */}
-      {!quickAttendance && <header className="sticky top-0 z-40 bg-emerald-950/90 backdrop-blur-md border-b border-emerald-900 shadow-md">
+      {!quickAttendance && <header className="cs-app-header sticky top-0 z-40">
         <div className="max-w-7xl mx-auto w-full px-3 sm:px-6 lg:px-8 min-h-14 sm:h-16 py-2 sm:py-0 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2">
           
           {/* Logo & Brand Name */}
@@ -331,32 +331,35 @@ export default function App() {
             <CampusSignLogo className="w-8 h-8 sm:w-9 sm:h-9 shrink-0" />
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-black text-white text-lg tracking-tight">{appSpace === 'student' ? branding.student_app_name : appSpace === 'staff' ? branding.staff_app_name : branding.brand_name}</span>
-                <span className="hidden sm:inline-block bg-amber-500 text-emerald-950 font-extrabold text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider">
-                  SECURE ATTENDANCE
+                <span className="cs-brand-title font-black text-lg tracking-tight">{appSpace === 'student' ? branding.student_app_name : appSpace === 'staff' ? branding.staff_app_name : branding.brand_name}</span>
+                <span className="cs-brand-badge hidden sm:inline-flex font-extrabold text-[9px] px-2.5 py-1 rounded-full uppercase tracking-wider">
+                  VERIFIED CAMPUS ACCESS
                 </span>
               </div>
-              <p className="hidden sm:block text-[10px] text-emerald-200 font-medium">QR Biometric Student Verification System</p>
+              <p className="cs-brand-subtitle hidden sm:block text-[10px] font-medium">QR attendance · Identity verification</p>
             </div>
           </div>
 
           {/* Public entry actions and authenticated workspace navigation */}
           <div className="flex items-center gap-2 shrink-0">
             {appSpace !== 'hub' ? (
-              <span className="text-[10px] font-bold tracking-wider uppercase text-emerald-200">{appSpace === 'student' ? 'Student space' : 'Staff workspace'}</span>
+              <>
+                <span className="cs-space-chip text-[10px] font-bold tracking-wider uppercase">{appSpace === 'student' ? 'STUDENT SPACE' : 'STAFF WORKSPACE'}</span>
+                <button onClick={() => setIsDarkMode(!isDarkMode)} className="theme-toggle cs-theme-toggle p-2 rounded-xl" title={isDarkMode ? 'Switch to light theme' : 'Switch to dark theme'} aria-label={isDarkMode ? 'Switch to light theme' : 'Switch to dark theme'}>{isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}</button>
+              </>
             ) : activeTab === 'home' ? (
               <>
-                <button onClick={() => { setStudentEntry(true); setActiveTab('student'); }} className="px-3 sm:px-4 py-2 rounded-xl bg-amber-400 text-emerald-950 text-xs font-extrabold shadow-sm">Student check-in</button>
-                <button onClick={() => setActiveTab('admin')} className="px-3 sm:px-4 py-2 rounded-xl border border-emerald-700 text-emerald-100 hover:bg-emerald-900 text-xs font-bold">Staff access</button>
+                <button onClick={() => { setStudentEntry(true); setActiveTab('student'); }} className="cs-header-primary px-4 py-2.5 rounded-xl text-xs font-extrabold">Student check-in</button>
+                <button onClick={() => setActiveTab('admin')} className="cs-header-secondary px-4 py-2.5 rounded-xl text-xs font-bold">Staff workspace</button>
               </>
             ) : !quickAttendance ? (
               <>
-                <div className="bg-emerald-900/80 p-0.5 sm:p-1 rounded-xl border border-emerald-800 flex items-center">
-                  <button onClick={() => { setStudentEntry(false); setActiveTab('home'); }} className="px-2 sm:px-3 py-1.5 text-xs font-bold rounded-lg text-emerald-100 hover:text-white">Home</button>
-                  <button onClick={() => setActiveTab('admin')} aria-pressed={activeTab === 'admin'} className={`px-2 sm:px-3 py-1.5 text-xs font-bold rounded-lg ${activeTab === 'admin' ? 'bg-amber-500 text-emerald-950' : 'text-emerald-200'}`}>Staff</button>
-                  <button onClick={() => { setStudentEntry(true); setActiveTab('student'); }} aria-pressed={activeTab === 'student'} className={`px-2 sm:px-3 py-1.5 text-xs font-bold rounded-lg ${activeTab === 'student' ? 'bg-amber-500 text-emerald-950' : 'text-emerald-200'}`}>Student</button>
+                <div className="cs-header-tabs p-0.5 sm:p-1 rounded-xl flex items-center">
+                  <button onClick={() => { setStudentEntry(false); setActiveTab('home'); }} className="cs-header-tab px-3 py-2 text-xs font-bold rounded-lg">Home</button>
+                  <button onClick={() => setActiveTab('admin')} aria-pressed={activeTab === 'admin'} className={`cs-header-tab px-3 py-2 text-xs font-bold rounded-lg ${activeTab === 'admin' ? 'is-active' : ''}`}>Staff</button>
+                  <button onClick={() => { setStudentEntry(true); setActiveTab('student'); }} aria-pressed={activeTab === 'student'} className={`cs-header-tab px-3 py-2 text-xs font-bold rounded-lg ${activeTab === 'student' ? 'is-active' : ''}`}>Student</button>
                 </div>
-                <button onClick={() => setIsDarkMode(!isDarkMode)} className="theme-toggle p-2 text-emerald-200 hover:text-amber-400 bg-emerald-900/50 border border-emerald-800 rounded-xl" title={isDarkMode ? 'Switch to light theme' : 'Switch to dark theme'} aria-label={isDarkMode ? 'Switch to light theme' : 'Switch to dark theme'}>{isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}</button>
+                <button onClick={() => setIsDarkMode(!isDarkMode)} className="theme-toggle cs-theme-toggle p-2 rounded-xl" title={isDarkMode ? 'Switch to light theme' : 'Switch to dark theme'} aria-label={isDarkMode ? 'Switch to light theme' : 'Switch to dark theme'}>{isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}</button>
               </>
             ) : null}
           </div>
@@ -366,19 +369,47 @@ export default function App() {
       {/* MAIN CONTENT CONTAINER */}
       <main key={activeTab} className={`${quickAttendance ? 'max-w-2xl' : 'max-w-7xl'} mx-auto w-full min-w-0 px-3 sm:px-6 lg:px-8 py-3 sm:py-8 page-enter`} aria-live="polite">
         {quickAttendance && <div className="mb-4 flex items-center justify-between"><div className="flex items-center gap-2"><CampusSignLogo className="w-8 h-8"/><span className="font-black text-sm">CampusSign <span className="font-medium text-slate-500">· Quick attendance</span></span></div><button onClick={() => { setQuickAttendance(false); setActiveTab("home"); }} className="text-xs font-bold text-emerald-800 dark:text-emerald-300">Home</button></div>}
+
         {activeTab === 'home' && (
-          <section className="max-w-4xl mx-auto py-10 sm:py-20 page-enter">
-            <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-950 text-white border border-emerald-800 shadow-xl">
-              <div className="absolute -right-16 -top-20 w-64 h-64 rounded-full bg-amber-400/10 blur-3xl" />
-              <div className="absolute -left-16 -bottom-24 w-64 h-64 rounded-full bg-emerald-300/10 blur-3xl" />
-              <div className="relative p-7 sm:p-12">
-                <div className="flex items-center gap-3">
-                  <div className="w-14 h-14 rounded-2xl bg-white/10 border border-white/15 grid place-items-center"><CampusSignLogo className="w-11 h-11"/></div>
-                  <div><p className="text-[10px] uppercase tracking-[.2em] text-emerald-200 font-black">{branding.brand_name}</p><p className="text-xs text-emerald-100/70">{branding.tagline}</p></div>
-                </div>
-                <h1 className="text-3xl sm:text-5xl font-black tracking-tight mt-10 leading-tight">Attendance,<br/><span className="text-amber-300">without the friction.</span></h1>
-                <p className="text-sm sm:text-base text-emerald-100/80 mt-4 max-w-xl leading-relaxed">A connected campus attendance system for students, lecturers and administrators. Choose your workspace from the top of this page.</p>
+          <section className="cs-home page-enter">
+            <div className="cs-home-copy">
+              <div className="cs-home-eyebrow">
+                <span className="cs-home-emblem"><CampusSignLogo className="w-7 h-7"/></span>
+                <span><strong>{branding.brand_name}</strong><small>{branding.tagline}</small></span>
               </div>
+              <p className="cs-home-kicker">A smarter campus day starts here</p>
+              <h1>Every class.<br/><span>Accounted for.</span></h1>
+              <p className="cs-home-description">A calmer, more reliable way to manage campus attendance. Students check in with confidence. Staff stay in control. Every record stays connected.</p>
+              <div className="cs-home-proof">
+                <span><i/> QR check-in</span>
+                <span><i/> Face verification</span>
+                <span><i/> Live attendance records</span>
+              </div>
+            </div>
+            <div className="cs-home-art" aria-label="Illustration of the CampusSign attendance workspace">
+              <div className="cs-art-orbit cs-art-orbit--one"/>
+              <div className="cs-art-orbit cs-art-orbit--two"/>
+              <div className="cs-art-window">
+                <div className="cs-art-window-head">
+                  <span className="cs-art-window-brand"><CampusSignLogo className="w-6 h-6"/> {branding.brand_name}</span>
+                  <span className="cs-art-window-status"><i/> PRODUCT PREVIEW</span>
+                </div>
+                <div className="cs-art-session">
+                  <div><small>SAMPLE SESSION</small><strong>Computer Science</strong><span>Room 204 · Sample display</span></div>
+                  <div className="cs-art-session-icon"><QrCode className="w-7 h-7"/></div>
+                </div>
+                <div className="cs-art-progress">
+                  <div><small>ATTENDANCE PROGRESS</small><strong>78% <span>of registered students</span></strong></div>
+                  <div className="cs-art-progress-track"><span/></div>
+                </div>
+                <div className="cs-art-roster">
+                  <div className="cs-art-roster-title"><strong>Example activity</strong><span>Today</span></div>
+                  <div><b className="cs-art-avatar">AO</b><span><strong>Example student</strong><small>QR check-in preview</small></span><em>Verified</em></div>
+                  <div><b className="cs-art-avatar cs-art-avatar--gold">MK</b><span><strong>Student verified</strong><small>Identity check preview</small></span><em>Verified</em></div>
+                </div>
+              </div>
+              <div className="cs-art-floating"><span><ShieldCheck className="w-5 h-5"/></span><div><strong>Student records</strong><small>Illustrative product preview</small></div></div>
+              <p className="cs-art-caption">Illustrative interface · sample data, not live attendance</p>
             </div>
           </section>
         )}
@@ -429,7 +460,7 @@ export default function App() {
       </main>
 
       {/* FOOTER */}
-      {!quickAttendance && <footer className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-6 mt-12 text-center text-xs text-slate-500 dark:text-slate-400">
+      {!quickAttendance && appSpace === 'hub' && <footer className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-6 mt-12 text-center text-xs text-slate-500 dark:text-slate-400">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-2">
           <div className="flex items-center gap-2">
             <CampusSignLogo className="w-5 h-5" />
@@ -1146,7 +1177,20 @@ The request has NOT been rejected or approved. Check the student's official univ
 
   if (!isAuthenticated) {
     return (
-      <div className="max-w-md mx-auto my-12 bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-200 dark:border-slate-800 shadow-xl">
+      <div className="cs-auth-layout cs-auth-layout--staff">
+        <aside className="cs-auth-aside">
+          <div className="cs-auth-aside-mark"><CampusSignLogo className="w-10 h-10"/></div>
+          <p className="cs-auth-aside-kicker">{branding?.brand_name || 'CampusSign'} · STAFF</p>
+          <h2>Run your campus with clarity.</h2>
+          <p>One workspace for attendance sessions, course rosters and academic administration.</p>
+          <div className="cs-auth-aside-list">
+            <span><QrCode className="w-4 h-4"/> Create and manage attendance sessions</span>
+            <span><Users className="w-4 h-4"/> Review students and enrolments</span>
+            <span><ShieldCheck className="w-4 h-4"/> Verified staff access</span>
+          </div>
+          <div className="cs-auth-aside-foot">Secure staff workspace</div>
+        </aside>
+        <section className="cs-auth-card cs-auth-card--staff">
         <div className="text-center mb-6">
           <CampusSignLogo className="w-16 h-16 mx-auto mb-3" />
           <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white">{branding?.staff_app_name || 'Staff & Lecturer Login'}</h2>
@@ -1293,15 +1337,16 @@ The request has NOT been rejected or approved. Check the student's official univ
             </div>
           </div>
         )}
+        </section>
       </div>
     );
   }
 
   return (
-    <div className="space-y-5 sm:space-y-8">
+    <div className="cs-staff-workspace space-y-5 sm:space-y-8">
       
       {/* ACCOUNT BAR */}
-      <div className="bg-emerald-900 text-white rounded-2xl px-4 py-3 border border-emerald-800 shadow-md flex items-center justify-between gap-3">
+      <div className="cs-staff-account-bar rounded-2xl px-4 py-3 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <div className="p-2 bg-emerald-950 rounded-xl border border-emerald-700 text-amber-400 shrink-0">
             <UserCheck className="w-5 h-5" />
