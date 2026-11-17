@@ -6,8 +6,8 @@ import {
   ShieldCheck, UserCog, Users, Building2, GraduationCap, Plus, Pencil, BookMarked, Trash2, Activity, UserRound, LayoutDashboard, Layers
 } from 'lucide-react';
 import * as db from './db';
-import AcademicManagement from './AcademicManagement';
-import AssessmentManagement from './AssessmentManagement';
+const AcademicManagement = React.lazy(() => import('./AcademicManagement'));
+const AssessmentManagement = React.lazy(() => import('./AssessmentManagement'));
 
 export function NotificationBell({ notifications = [], onRead, onReadAll, onUnread, onDelete, onOpen }: any) {
   const [open, setOpen] = useState(false);
@@ -711,9 +711,9 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
           </div>
         </div>
       ) : tab === 'academic-setup' ? (
-        <AcademicManagement />
+        <React.Suspense fallback={<div role="status" className="py-12 text-center text-xs text-slate-500">Loading academic structure…</div>}><AcademicManagement /></React.Suspense>
       ) : tab === 'assessments' ? (
-        <AssessmentManagement mode="admin" />
+        <React.Suspense fallback={<div role="status" className="py-12 text-center text-xs text-slate-500">Loading assessment workspace…</div>}><AssessmentManagement mode="admin" /></React.Suspense>
       ) : tab === 'enrolments' ? (
         <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

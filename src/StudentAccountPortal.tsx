@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { supabase } from './supabase';
 import * as db from './db';
-import StudentResults from './StudentResults';
+const StudentResults = React.lazy(() => import('./StudentResults'));
 
 type Props = {
   onClose: () => void;
@@ -357,7 +357,7 @@ export default function StudentAccountPortal({ onClose, onEnroll, onTakeAttendan
                <p className="text-[10px] text-slate-500 mb-3">A failed course can be retaken in a later term without repeating your entire level.</p>
                {(dashboard?.course_attempts||[]).length===0?<p className="py-4 text-xs text-slate-500">No course attempts have been recorded in the academic record yet.</p>:<div className="space-y-2">{dashboard.course_attempts.map((attempt:any)=><article key={attempt.id} className="rounded-xl border border-slate-200 dark:border-slate-700 p-3 flex items-start justify-between gap-3"><div className="min-w-0"><p className="text-xs font-bold text-slate-900 dark:text-white">{attempt.course_code} · {attempt.course_title}</p><p className="text-[10px] text-slate-500 mt-1">{attempt.academic_period} · {attempt.term} · Attempt {attempt.attempt_number}</p>{attempt.grade&&<p className="text-[10px] text-slate-500 mt-1">Grade: {attempt.grade}</p>}</div><span className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-bold ${attempt.status==='failed'?'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200':attempt.status==='passed'?'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200':'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}>{attempt.status==='failed'?'Carryover':attempt.status.replace('_',' ')}</span></article>)}</div>}
              </section>}
-             {activeSection==='results' && <StudentResults />}
+             {activeSection==='results' && <React.Suspense fallback={<div role="status" className="py-10 text-center text-xs text-slate-500">Loading your results…</div>}><StudentResults /></React.Suspense>}
              {activeSection==='attendance' && <section className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-sm">
                <div className="mb-3"><h3 className="font-extrabold text-slate-900 dark:text-white">Attendance history</h3><p className="mt-1 text-[11px] text-slate-500">Your most recent attendance records. Filter by course or date.</p></div>
                {attendance.length>0 && <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3"><label className="block text-[10px] font-bold text-slate-500">Course<select aria-label="Filter attendance by course" value={attendanceCourseFilter} onChange={e=>setAttendanceCourseFilter(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-xs"><option value="">All courses</option>{attendanceCourses.map(course=><option key={course} value={course}>{course}</option>)}</select></label><label className="block text-[10px] font-bold text-slate-500">Date<input aria-label="Filter attendance by date" type="date" value={attendanceDateFilter} onChange={e=>setAttendanceDateFilter(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-xs"/></label></div>}

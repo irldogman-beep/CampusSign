@@ -47,7 +47,7 @@ import { Capacitor } from '@capacitor/core';
 import { QR_DISPLAY_CHANNEL } from './QRDisplayWindow';
 import AdminWorkspace, { NotificationBell } from './AdminWorkspace';
 import StudentAccountPortal from './StudentAccountPortal';
-import AssessmentManagement from './AssessmentManagement';
+const AssessmentManagement = React.lazy(() => import('./AssessmentManagement'));
 
 /* ==========================================================================
    LOGO COMPONENT (Matching Forest Green & Academic Gold Emblem)
@@ -2078,7 +2078,7 @@ The request has NOT been rejected or approved. Check the student's official univ
         )}
 
         {/* TAB 3: LECTURER-SPECIFIC COURSE STUDENT DATABASE */}
-        {adminTab === 'assessments' && <AssessmentManagement mode="lecturer" />}
+        {adminTab === 'assessments' && <React.Suspense fallback={<div role="status" className="py-12 text-center text-xs text-slate-500">Loading assessment workspace…</div>}><AssessmentManagement mode="lecturer" /></React.Suspense>}
         {adminTab === 'registry' && (
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
