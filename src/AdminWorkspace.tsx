@@ -6,6 +6,7 @@ import {
   ShieldCheck, UserCog, Users, Building2, GraduationCap, Plus, Pencil, BookMarked, Trash2, Activity, UserRound
 } from 'lucide-react';
 import * as db from './db';
+import AcademicManagement from './AcademicManagement';
 
 export function NotificationBell({ notifications = [], onRead, onReadAll, onUnread, onDelete, onOpen }: any) {
   const [open, setOpen] = useState(false);
@@ -490,13 +491,14 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
       <div className="sm:hidden">
         <label className="sr-only" htmlFor="admin-section-select">Dashboard section</label>
         <select id="admin-section-select" value={tab} onChange={e=>setTab(e.target.value)} className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-3 text-sm font-bold">
-          <option value="overview">Overview</option><option value="academic">Departments & courses</option><option value="lecturers">Lecturers</option><option value="enrolments">Enrolments</option><option value="student-accounts">Student accounts</option><option value="monitoring">Attendance & sessions</option><option value="announcements">Announcements</option><option value="audit">Audit history</option><option value="branding">Branding studio</option>
+          <option value="overview">Overview</option><option value="academic">Departments & courses</option><option value="academic-setup">Academic structure & progression</option><option value="lecturers">Lecturers</option><option value="enrolments">Enrolments</option><option value="student-accounts">Student accounts</option><option value="monitoring">Attendance & sessions</option><option value="announcements">Announcements</option><option value="audit">Audit history</option><option value="branding">Branding studio</option>
         </select>
       </div>
       <nav aria-label="Admin dashboard sections" className="cs-admin-nav hidden sm:flex gap-2">
         {[
           { id: 'overview', label: 'Overview', icon: BarChart3 },
           { id: 'academic', label: 'Departments & courses', icon: BookMarked },
+          { id: 'academic-setup', label: 'Academic structure', icon: GraduationCap },
           { id: 'lecturers', label: 'Lecturers', icon: UserCog },
           { id: 'enrolments', label: 'Enrolments', icon: Users },
           { id: 'student-accounts', label: 'Student accounts', icon: UserRound },
@@ -663,6 +665,8 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
           </section>
           </div>
         </div>
+      ) : tab === 'academic-setup' ? (
+        <AcademicManagement />
       ) : tab === 'enrolments' ? (
         <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
