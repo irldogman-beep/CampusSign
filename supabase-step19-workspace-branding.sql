@@ -11,6 +11,13 @@ alter table public.campus_branding_settings
   add column if not exists staff_background_color text not null default '#F8FAFC',
   add column if not exists staff_logo_url text;
 alter table public.campus_branding_settings
+  drop constraint if exists campus_branding_settings_student_primary_color_check,
+  drop constraint if exists campus_branding_settings_student_accent_color_check,
+  drop constraint if exists campus_branding_settings_student_background_color_check,
+  drop constraint if exists campus_branding_settings_staff_primary_color_check,
+  drop constraint if exists campus_branding_settings_staff_accent_color_check,
+  drop constraint if exists campus_branding_settings_staff_background_color_check;
+alter table public.campus_branding_settings
   add constraint campus_branding_settings_student_primary_color_check check (student_primary_color ~ '^#[0-9A-Fa-f]{6}$'),
   add constraint campus_branding_settings_student_accent_color_check check (student_accent_color ~ '^#[0-9A-Fa-f]{6}$'),
   add constraint campus_branding_settings_student_background_color_check check (student_background_color ~ '^#[0-9A-Fa-f]{6}$'),
