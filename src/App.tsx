@@ -1070,9 +1070,9 @@ The request has NOT been rejected or approved. Check the student's official univ
     }
   };
 
-  // Filter attendance logs STRICTLY for the active lecturer's course/session
+  // Attendance history can show one session or all sessions owned by this lecturer.
   const shownSessionId = viewSessionId || activeSession.id;
-  const lecturerAttendanceLogs = attendanceLogs.filter(log => log.sessionId === shownSessionId);
+  const lecturerAttendanceLogs = attendanceLogs.filter(log => shownSessionId === '__all__' || log.sessionId === shownSessionId);
   const sessionLive = !!activeSession.id && !activeSession.isRevoked && !(activeSession.endsAt && Date.now() > activeSession.endsAt);
   const displaySnapshot = {
     sessionLive,
@@ -1127,7 +1127,9 @@ The request has NOT been rejected or approved. Check the student's official univ
   };
 
   const shownSession = sessionList.find(x => x.id === shownSessionId);
-  const sessionOptions = sessionList
+  const sessionOptions = [
+    ...(sessionList.length ? [{ id: '__all__', label: `All sessions · ${attendanceLogs.filter(log => sessionList.some(session => session.id === log.sessionId)).length} records` }] : []),
+    ...sessionList
     .filter(x => !activeStaff?.course || x.course === activeStaff.course)
     .map(x => {
       const when = new Date(x.created_at);
@@ -1136,7 +1138,8 @@ The request has NOT been rejected or approved. Check the student's official univ
         id: x.id,
         label: `${x.title || 'Untitled'} · ${when.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })} ${when.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · ${n} present`
       };
-    });
+    })
+  ];
 
   const selectedSession = sessionList.find(x => x.id === shownSessionId);
   const selectedSessionIsLive = !!selectedSession && !selectedSession.revoked &&
@@ -2861,13 +2864,13 @@ function StudentPortal({
       {/* STEP PROGRESS BAR */}
       <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 mb-2">
-          <span className={step >= 1 ? 'text-emerald-800 dark:text-emerald-400' : ''}>1. Token</span>
-          <span className={step >= 2 ? 'text-emerald-800 dark:text-emerald-400' : ''}>2. ID Match</span>
-          <span className={step >= 3 ? 'text-emerald-800 dark:text-emerald-400' : ''}>3. Consent</span>
-          <span className={step >= 4 ? 'text-emerald-800 dark:text-emerald-400' : ''}>4. Biometric</span>
-          <span className={step >= 5 ? 'text-emerald-800 dark:text-emerald-400' : ''}>5. Receipt</span>
+          <span aria-current={step===1?'step':undefined} className={step >= 1 ? 'text-emerald-800 dark:text-emerald-400' : ''}>1. QR code</span>
+          <span aria-current={step===2?'step':undefined} className={step >= 2 ? 'text-emerald-800 dark:text-emerald-400' : ''}>2. {accountStudent ? 'Account' : 'Student ID'}</span>
+          <span aria-current={step===3?'step':undefined} className={step >= 3 ? 'text-emerald-800 dark:text-emerald-400' : ''}>3. Consent</span>
+          <span aria-current={step===4?'step':undefined} className={step >= 4 ? 'text-emerald-800 dark:text-emerald-400' : ''}>4. Face check</span>
+          <span aria-current={step===5?'step':undefined} className={step >= 5 ? 'text-emerald-800 dark:text-emerald-400' : ''}>5. Receipt</span>
         </div>
-        <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+        <div role="progressbar" aria-label="Attendance check-in progress" aria-valuemin={1} aria-valuemax={5} aria-valuenow={step} aria-valuetext={`Step ${step} of 5: ${['QR code','Student ID','Consent','Face check','Receipt'][step - 1] || 'In progress'}`} className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
           <div 
             className="bg-gradient-to-r from-emerald-800 to-amber-500 h-full transition-all duration-300"
             style={{ width: `${(step / 5) * 100}%` }}
