@@ -495,7 +495,30 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
         </select>
       </div>
       <nav aria-label="Admin dashboard sections" className="cs-admin-nav hidden sm:flex gap-2">
-        {[[ 'overview', 'Overview', BarChart3 ],[ 'academic', 'Departments & courses', BookMarked ],[ 'lecturers', 'Lecturers', UserCog ],[ 'enrolments', 'Enrolments', Users ],[ 'student-accounts', 'Student accounts', UserRound ],[ 'monitoring', 'Attendance & sessions', ClipboardList ],[ 'announcements', 'Announcements', Bell ],[ 'audit', 'Audit history', History ],[ 'branding', 'Branding studio', Palette ]].map(([key,label,Icon]:any)=><button key={key} type="button" onClick={()=>setTab(key)} aria-current={tab===key?'page':undefined} className={`cs-admin-nav-button min-w-0 rounded-xl border px-3 py-3 text-left text-xs font-bold inline-flex items-center gap-2 transition-colors ${tab===key?'is-active':''}`}><Icon className="w-4 h-4 shrink-0"/><span className="truncate">{label}</span></button>)}
+        {[
+          { id: 'overview', label: 'Overview', icon: BarChart3 },
+          { id: 'academic', label: 'Departments & courses', icon: BookMarked },
+          { id: 'lecturers', label: 'Lecturers', icon: UserCog },
+          { id: 'enrolments', label: 'Enrolments', icon: Users },
+          { id: 'student-accounts', label: 'Student accounts', icon: UserRound },
+          { id: 'monitoring', label: 'Attendance & sessions', icon: ClipboardList },
+          { id: 'announcements', label: 'Announcements', icon: Bell },
+          { id: 'audit', label: 'Audit history', icon: History },
+          { id: 'branding', label: 'Branding studio', icon: Palette },
+        ].map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            type="button"
+            data-admin-section={id}
+            onClick={(event) => { event.preventDefault(); event.stopPropagation(); setTab(id); }}
+            aria-current={tab === id ? 'page' : undefined}
+            aria-pressed={tab === id}
+            className={`cs-admin-nav-button min-w-0 rounded-xl border px-3 py-3 text-left text-xs font-bold inline-flex items-center gap-2 transition-colors ${tab === id ? 'is-active' : ''}`}
+          >
+            <Icon className="w-4 h-4 shrink-0" />
+            <span className="truncate">{label}</span>
+          </button>
+        ))}
       </nav>
 
       {loading ? <div className="py-16 text-center text-sm text-slate-500"><RefreshCw className="w-6 h-6 mx-auto mb-2 animate-spin" />Loading system overview…</div> : tab === 'overview' ? (
@@ -789,9 +812,15 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
           </section>
           <aside className="rounded-3xl p-5 bg-slate-950 text-white border border-slate-800 shadow-lg h-fit"><p className="text-[10px] uppercase tracking-[.2em] font-black text-emerald-300">Live preview</p><div className="mt-4 rounded-xl border px-3 py-3 flex items-center gap-2" style={{background:branding[workspacePrefix+'_background_color'],color:branding[workspacePrefix+'_primary_color'],borderColor:branding[workspacePrefix+'_primary_color'] + '30'}}>{workspaceLogo?<img src={workspaceLogo} alt="Brand mark" className="w-8 h-8 object-contain"/>:<div className="w-8 h-8 rounded-lg border-2" style={{borderColor:branding[workspacePrefix+'_accent_color']}}/>}<div className="min-w-0"><strong className="block text-xs font-black truncate">{branding.brand_name || 'Your institution'}</strong><span className="block text-[9px] font-bold tracking-wider opacity-70">{brandingWorkspace.toUpperCase()} SPACE · TOP BAR</span></div></div><div className="mt-5 rounded-2xl p-5" style={{background:branding[workspacePrefix+'_primary_color']}}><div className="w-14 h-14 rounded-2xl bg-white/10 p-2">{workspaceLogo?<img src={workspaceLogo} alt="Brand logo preview" className="w-full h-full object-contain"/>:<div className="w-full h-full rounded-xl border-2" style={{borderColor:branding[workspacePrefix+'_accent_color']}}/>}</div><p className="mt-4 text-xs uppercase tracking-wider opacity-70">{branding.brand_name || 'Your institution'}</p><h3 className="text-2xl font-black mt-1">{brandingWorkspace==='student' ? (branding.student_app_name || 'Student app') : (branding.staff_app_name || 'Staff app')}</h3><p className="text-xs mt-2 opacity-80">{brandingWorkspace==='student' ? branding.student_welcome : branding.staff_welcome}</p><span className="inline-block mt-5 rounded-xl px-4 py-2 text-xs font-extrabold" style={{background:branding[workspacePrefix+'_accent_color'],color:branding[workspacePrefix+'_primary_color']}}>{brandingWorkspace==='student' ? 'Student check-in' : 'Staff workspace'}</span></div><p className="text-[11px] text-slate-400 mt-4">Preview only. Workspace-specific colours and logos apply only to the selected workspace.</p></aside>
         </div>
-      ) : (
+      ) : tab === 'audit' ? (
         <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm"><div className="mb-4"><h2 className="font-extrabold text-slate-900 dark:text-white">Audit history</h2></div>
           {audit.length === 0 ? <p className="py-10 text-center text-xs text-slate-500">No audit events recorded yet. New sensitive actions will appear here.</p> : <div className="space-y-2">{audit.map((event) => <article key={event.id} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700"><div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1"><strong className="text-xs text-slate-800 dark:text-slate-100">{String(event.action).replace(/\./g, ' ')}</strong><time className="text-[10px] text-slate-500">{new Date(event.created_at).toLocaleString()}</time></div><p className="text-[11px] text-slate-600 dark:text-slate-300 mt-1">{event.entity_type}{event.course ? ` · ${event.course}` : ''}{event.actor_email ? ` · by ${event.actor_email}` : ''}</p><pre className="mt-2 text-[10px] text-slate-500 whitespace-pre-wrap break-words">{JSON.stringify(event.details, null, 2)}</pre></article>)}</div>}
+        </section>
+      ) : (
+        <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+          <h2 className="font-extrabold text-slate-900 dark:text-white">Section unavailable</h2>
+          <p className="mt-2 text-xs text-slate-500">The selected admin section could not be recognised. Return to Overview and choose the section again.</p>
+          <button type="button" onClick={() => setTab('overview')} className="mt-4 rounded-xl bg-emerald-900 px-4 py-2 text-xs font-bold text-white">Back to Overview</button>
         </section>
       )}
       
