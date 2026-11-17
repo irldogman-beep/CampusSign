@@ -162,6 +162,49 @@ export default function App() {
     return () => window.clearTimeout(timer);
   }, []);
 
+  const [updateInfo, setUpdateInfo] = useState(null);
+  const [updateCheckState, setUpdateCheckState] = useState('checking');
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform() || appSpace === 'hub') return;
+    let cancelled = false;
+    const checkForUpdates = async () => {
+      try {
+        const response = await fetch('https://api.github.com/repos/irldogman-beep/CampusSign/releases/latest', {
+          headers: { Accept: 'application/vnd.github+json' },
+          cache: 'no-store'
+        });
+        if (!response.ok) throw new Error('Update service unavailable');
+        const release = await response.json();
+        const latestVersion = String(release.tag_name || '').replace(/^v/, '');
+        const currentVersion = String(import.meta.env.VITE_APP_VERSION || '1.2.0.0');
+        const numbers = value => (value.match(/\\d+/g) || []).map(Number);
+        const latestParts = numbers(latestVersion);
+        const currentParts = numbers(currentVersion);
+        const isNewer = latestParts.some((part, index) => {
+          const current = currentParts[index] || 0;
+          if (part !== current) return part > current;
+          return false;
+        }) && (() => {
+          for (let i = 0; i < Math.max(latestParts.length, currentParts.length); i++) {
+            const a = latestParts[i] || 0, b = currentParts[i] || 0;
+            if (a !== b) return a > b;
+          }
+          return false;
+        })();
+        const appAssetName = appSpace === 'student' ? 'CampusSign-Student.apk' : 'CampusSign-Staff.apk';
+        const asset = (release.assets || []).find(item => item.name === appAssetName);
+        if (!cancelled) {
+          setUpdateInfo(isNewer && asset ? { version: latestVersion, url: asset.browser_download_url, notes: release.body || '' } : null);
+          setUpdateCheckState('checked');
+        }
+      } catch (error) {
+        console.warn('CampusSign update check failed; the app will continue normally.', error);
+        if (!cancelled) setUpdateCheckState('unavailable');
+      }
+    };
+    checkForUpdates();
+    return () => { cancelled = true; };
+  }, [appSpace]);
   const [studentEntry, setStudentEntry] = useState(appSpace === 'student');
   const [quickAttendance, setQuickAttendance] = useState(false);
   const [branding, setBranding] = useState<any>(db.DEFAULT_CAMPUS_BRANDING);
@@ -365,6 +408,20 @@ export default function App() {
           </div>
         </div>
       </header>}
+
+      {updateInfo && !quickAttendance && (
+        <div className="sticky top-0 z-50 px-3 sm:px-6 py-2 bg-emerald-950 text-white shadow-lg">
+          <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-extrabold">CampusSign update available · {updateInfo.version}</p>
+              <p className="text-xs text-emerald-100">A newer version is ready. Download and install it to update this app.</p>
+            </div>
+            <a href={updateInfo.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-4 py-2 text-xs font-extrabold text-emerald-950">
+              <Download className="w-4 h-4" /> Download update
+            </a>
+          </div>
+        </div>
+      )}
 
       {/* MAIN CONTENT CONTAINER */}
       <main key={activeTab} className={`${quickAttendance ? 'max-w-2xl' : 'max-w-7xl'} mx-auto w-full min-w-0 px-3 sm:px-6 lg:px-8 py-3 sm:py-8 page-enter`} aria-live="polite">
