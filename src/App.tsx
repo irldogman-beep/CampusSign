@@ -177,7 +177,7 @@ export default function App() {
         const release = await response.json();
         const latestVersion = String(release.tag_name || '').replace(/^v/, '');
         const currentVersion = String(import.meta.env.VITE_APP_VERSION || '1.2.0.0');
-        const numbers = value => (value.match(/\\d+/g) || []).map(Number);
+        const numbers = value => (value.match(/\d+/g) || []).map(Number);
         const latestParts = numbers(latestVersion);
         const currentParts = numbers(currentVersion);
         const isNewer = latestParts.some((part, index) => {
