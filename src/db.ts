@@ -382,6 +382,9 @@ export async function deleteAdminAnnouncement(id: string) {
 export async function loadStudentDashboard() {
   return unwrap<any>(await supabase.rpc('student_get_dashboard'));
 }
+export async function loadStudentEnrollmentRequests() {
+  return unwrap<any[]>(await supabase.rpc('student_list_enrollment_requests'));
+}
 export async function loadAdminStudentAccounts() {
   return unwrap<any[]>(await supabase.rpc('admin_list_student_accounts'));
 }
