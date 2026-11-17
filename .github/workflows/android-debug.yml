@@ -3,7 +3,7 @@ name: CampusSign Android (Student + Staff debug APKs)
 on:
   workflow_dispatch:
   push:
-    branches: [feature/android-app-foundation, feature/student-staff-spaces-and-branding]
+    branches: [feature/android-app-foundation, feature/student-staff-spaces-and-branding, feature/campussign-visual-redesign]
 
 permissions:
   contents: read
