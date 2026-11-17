@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  AlertTriangle, Bell, BookOpen, CalendarDays, CheckCircle2, Clock3,
+  AlertTriangle, Bell, BookOpen, CalendarDays, CheckCircle2, Clock3, ClipboardList,
   GraduationCap, Scan, LogOut, RefreshCw, ShieldCheck, UserRound
 } from 'lucide-react';
 import { supabase } from './supabase';
@@ -26,13 +26,14 @@ export default function StudentAccountPortal({ onClose, onEnroll, onTakeAttendan
   const [departmentLoadError, setDepartmentLoadError] = useState('');
   const [dashboard, setDashboard] = useState<any>(null);
   const [notifications, setNotifications] = useState<any[]>([]);
+  const [enrollmentRequests, setEnrollmentRequests] = useState<any[]>([]);
   const [busy, setBusy] = useState(false);
   const [inboxBusy, setInboxBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [expandedNotification, setExpandedNotification] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState<'courses' | 'results' | 'attendance' | 'inbox' | 'profile'>('courses');
+  const [activeSection, setActiveSection] = useState<'courses' | 'results' | 'attendance' | 'requests' | 'inbox' | 'profile'>('courses');
   const [rerollStatus, setRerollStatus] = useState<any>(null);
   const [rerollDepartment, setRerollDepartment] = useState('');
   const [rerollReason, setRerollReason] = useState('');
@@ -46,9 +47,10 @@ export default function StudentAccountPortal({ onClose, onEnroll, onTakeAttendan
       const data = await db.loadStudentDashboard();
       setDashboard(data);
 
-      const [inboxResult, rerollResult] = await Promise.allSettled([
+      const [inboxResult, rerollResult, requestsResult] = await Promise.allSettled([
         db.loadNotifications(30),
         db.loadDepartmentRerollStatus(),
+        db.loadStudentEnrollmentRequests(),
       ]);
       const optionalErrors: string[] = [];
       if (inboxResult.status === 'fulfilled') {
@@ -63,6 +65,12 @@ export default function StudentAccountPortal({ onClose, onEnroll, onTakeAttendan
       } else {
         setRerollStatus(null);
         optionalErrors.push('Department-change status could not be loaded.');
+      }
+      if (requestsResult.status === 'fulfilled') {
+        setEnrollmentRequests(requestsResult.value);
+      } else {
+        setEnrollmentRequests([]);
+        optionalErrors.push('Course-request status could not be loaded.');
       }
       if (optionalErrors.length) setError(optionalErrors.join(' '));
     } catch (e: any) {
@@ -300,6 +308,7 @@ export default function StudentAccountPortal({ onClose, onEnroll, onTakeAttendan
                  ['courses','Courses',BookOpen,courses.length],
                  ['results','Results',GraduationCap,null],
                  ['attendance','Attendance',CalendarDays,attendance.length],
+                 ['requests','Course requests',ClipboardList,enrollmentRequests.length],
                  ['inbox','Inbox',Bell,notifications.length],
                  ['profile','Profile',UserRound,null],
                ] as const).map(([key,label,Icon,count]) => (
@@ -337,6 +346,16 @@ export default function StudentAccountPortal({ onClose, onEnroll, onTakeAttendan
                {notifications.length===0?<p className="py-6 text-xs text-slate-500">No messages yet.</p>:<div className="space-y-2">{notifications.map((item:any)=><article key={item.id} className={`rounded-xl border p-3 ${item.read_at?'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50':'border-emerald-200 dark:border-emerald-900 bg-emerald-50/60 dark:bg-emerald-950/30'}`}>
                  <button type="button" aria-expanded={expandedNotification===item.id} onClick={()=>{setExpandedNotification(current=>current===item.id?null:item.id);if(!item.read_at)markRead(item.id);}} className="w-full min-w-0 text-left"><span className="flex items-start justify-between gap-2"><strong className="text-xs text-slate-900 dark:text-white break-words">{item.title}</strong><span className="text-[10px] text-slate-500 shrink-0">{new Date(item.created_at).toLocaleDateString()}</span></span><span className="block text-[10px] text-slate-500 mt-1">{item.read_at?'Read':'New'}</span></button>
                  {expandedNotification===item.id&&<p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300 mt-3 whitespace-pre-wrap break-words">{item.message}</p>}
+               </article>)}</div>}
+             </section>}
+             {activeSection==='requests' && <section className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-sm">
+               <div className="mb-3"><h3 className="font-extrabold text-slate-900 dark:text-white">Course enrolment requests</h3><p className="mt-1 text-[11px] text-slate-500">Track the requests you have sent to lecturers.</p></div>
+               {enrollmentRequests.length===0 ? <p className="py-8 text-center text-xs text-slate-500">No course requests have been submitted from this account yet. When you request a course, its review status will appear here.</p> : <div className="space-y-2">{enrollmentRequests.map((request:any)=><article key={request.id} className="rounded-xl border border-slate-200 dark:border-slate-700 p-3 sm:p-4">
+                 <div className="flex flex-wrap items-start justify-between gap-2"><div className="min-w-0"><p className="text-sm font-bold text-slate-900 dark:text-white break-words">{request.course}</p><p className="mt-1 text-[11px] text-slate-500">Lecturer: {request.lecturer_name}</p><p className="mt-1 text-[10px] text-slate-500">Submitted {new Date(request.created_at).toLocaleString()}</p></div>
+                   <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold ${request.status==='approved'?'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200':request.status==='rejected'?'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-200':request.needs_identity_review?'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200':'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}>{request.status==='approved'?'Approved':request.status==='rejected'?'Not approved':request.needs_identity_review?'Identity review needed':'Awaiting lecturer review'}</span>
+                 </div>
+                 {request.needs_identity_review && request.status==='pending' && <p className="mt-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 p-2.5 text-[10px] leading-relaxed text-amber-800 dark:text-amber-200">A lecturer has flagged this request for an additional identity check. This does not mean your request has been rejected. Please wait for the lecturer to complete the review.</p>}
+                 {request.reviewed_at && <p className="mt-2 text-[10px] text-slate-500">Reviewed {new Date(request.reviewed_at).toLocaleString()}</p>}
                </article>)}</div>}
              </section>}
              {activeSection==='profile' && <section className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-sm">
