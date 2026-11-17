@@ -140,8 +140,15 @@ export default function StudentAccountPortal({ onClose, onEnroll, onScan, brandi
   const signOut = async () => {
     setBusy(true);
     try {
-      await supabase.auth.signOut();
-      setDashboard(null); setNotifications([]); setNotice('You have signed out.');
+      const { error: signOutError } = await supabase.auth.signOut();
+      if (signOutError) throw signOutError;
+      setDashboard(null);
+      setNotifications([]);
+      setRerollStatus(null);
+      setMode('login');
+      setPassword('');
+      setError('');
+      setNotice('You have signed out. Sign in again to continue.');
     } catch (e) { setError(db.friendly(e)); }
     finally { setBusy(false); }
   };
@@ -162,7 +169,7 @@ export default function StudentAccountPortal({ onClose, onEnroll, onScan, brandi
           <div className="grid grid-cols-2 sm:flex gap-2">
             {isSignedIn && onScan && <button type="button" onClick={onScan} className="px-3 py-2 rounded-xl bg-amber-400 text-emerald-950 text-xs font-extrabold inline-flex items-center gap-2"><Scan className="w-4 h-4"/>Quick QR check-in</button>}
             {isSignedIn && <button type="button" onClick={signOut} disabled={busy} className="px-3 py-2 rounded-xl bg-white/10 border border-white/15 text-xs font-bold inline-flex items-center gap-2"><LogOut className="w-4 h-4"/>Sign out</button>}
-            <button type="button" onClick={onClose} className="px-3 py-2 rounded-xl bg-amber-400 text-emerald-950 text-xs font-extrabold">Back to CampusSign</button>
+            <button type="button" onClick={onClose} className="px-3 py-2 rounded-xl bg-amber-400 text-emerald-950 text-xs font-extrabold">Back to student services</button>
           </div>
         </div>
       </section>
