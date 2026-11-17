@@ -796,3 +796,34 @@ body {
   .campus-app-shell main .cs-space-header--student h1 { font-size: 16px !important; }
   .campus-app-shell main .cs-home-copy h1 { font-size: clamp(2.75rem, 12vw, 4rem) !important; }
 }
+
+/* Keep the redesigned components connected to the live Admin Branding Studio. */
+.cs-header-primary,
+.cs-auth-form button[type="submit"],
+.cs-auth-submit,
+.cs-auth-card button[type="submit"],
+.cs-admin-nav-button.is-active,
+.campus-app-shell nav[aria-label="Student dashboard sections"] button[aria-pressed="true"] {
+  background: var(--brand-primary, #174d3b) !important;
+  border-color: var(--brand-primary, #174d3b) !important;
+}
+.cs-header-primary { color: #fff !important; }
+.cs-header-secondary { color: var(--brand-primary, #174d3b) !important; }
+.cs-home-copy h1 span,
+.cs-home-kicker { color: var(--brand-primary, #6a907c); }
+.cs-home-proof i { background: var(--brand-accent, #dfad48); }
+.cs-auth-aside {
+  background: linear-gradient(
+    155deg,
+    color-mix(in srgb, var(--brand-primary, #174d3b) 86%, white) 0%,
+    var(--brand-primary, #174d3b) 58%,
+    color-mix(in srgb, var(--brand-primary, #174d3b) 70%, black) 100%
+  );
+}
+.cs-auth-aside-list svg,
+.cs-auth-aside-mark { color: var(--brand-accent, #e5c77f); }
+.cs-auth-mode-toggle button.is-active { color: var(--brand-primary, #174d3b) !important; }
+.cs-art-session-icon { color: var(--brand-primary, #357453); }
+.cs-art-progress-track span { background: linear-gradient(90deg, var(--brand-primary, #477f5d), color-mix(in srgb, var(--brand-primary, #477f5d) 40%, white)); }
+.cs-admin-nav-button.is-active { color: #fff !important; }
+.cs-admin-workspace .bg-emerald-900.text-amber-300 { background: var(--brand-primary, #174d3b) !important; }
