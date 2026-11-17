@@ -2828,7 +2828,9 @@ function StudentPortal({
               Verify Record Matches Roster
             </button>
           </form>
-
+          <button type="button" onClick={() => { setStep(1); setStudentIdInput(''); setMatchedStudent(null); setLookupError(''); }} className="w-full rounded-xl border border-slate-200 dark:border-slate-700 py-3 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">
+            Scan a different attendance QR
+          </button>
         </div>
       )}
 
@@ -2838,6 +2840,9 @@ function StudentPortal({
           <div className="text-center">
             <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto mb-2" />
             <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">Confirm Identity & Privacy</h2>
+            <button type="button" onClick={() => { setMatchedStudent(null); setFaceError(''); setStudentIdInput(''); setStep(2); }} className="mt-2 text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:underline">
+              Not your record? Change student ID
+            </button>
           </div>
 
           <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-2 text-xs">
