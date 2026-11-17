@@ -91,7 +91,7 @@ const INITIAL_STAFF = [
     name: 'Dr. Robert Vance',
     email: 'admin@university.edu',
     passwordHash: 'e1756a9fc05bc2b263b7b2a383bec14600498ca814b9eb83a6670d89a79265fe',
-    dept: 'Computer Science',
+    dept: 'CSC 302 · Introduction to Computing',
     course: 'CSC401 - Advanced Algorithms',
     isVerified: true
   },
@@ -389,10 +389,10 @@ export default function App() {
               <div className="cs-art-window">
                 <div className="cs-art-window-head">
                   <span className="cs-art-window-brand"><CampusSignLogo className="w-6 h-6"/> {branding.brand_name}</span>
-                  <span className="cs-art-window-status"><i/> SESSION LIVE</span>
+                  <span className="cs-art-window-status"><i/> PRODUCT PREVIEW</span>
                 </div>
                 <div className="cs-art-session">
-                  <div><small>ACTIVE CLASS SESSION</small><strong>Computer Science</strong><span>CSC 302 · Lecture Hall</span></div>
+                  <div><small>SAMPLE SESSION</small><strong>Computer Science</strong><span>Room 204 · Sample display</span></div>
                   <div className="cs-art-session-icon"><QrCode className="w-7 h-7"/></div>
                 </div>
                 <div className="cs-art-progress">
@@ -400,12 +400,12 @@ export default function App() {
                   <div className="cs-art-progress-track"><span/></div>
                 </div>
                 <div className="cs-art-roster">
-                  <div className="cs-art-roster-title"><strong>Recent check-ins</strong><span>Today</span></div>
-                  <div><b className="cs-art-avatar">AO</b><span><strong>Student verified</strong><small>Face and QR confirmed</small></span><em>Verified</em></div>
-                  <div><b className="cs-art-avatar cs-art-avatar--gold">MK</b><span><strong>Student verified</strong><small>Location confirmed</small></span><em>Verified</em></div>
+                  <div className="cs-art-roster-title"><strong>Example activity</strong><span>Today</span></div>
+                  <div><b className="cs-art-avatar">AO</b><span><strong>Example student</strong><small>QR check-in preview</small></span><em>Verified</em></div>
+                  <div><b className="cs-art-avatar cs-art-avatar--gold">MK</b><span><strong>Student verified</strong><small>Identity check preview</small></span><em>Verified</em></div>
                 </div>
               </div>
-              <div className="cs-art-floating"><span><ShieldCheck className="w-5 h-5"/></span><div><strong>Records protected</strong><small>Securely stored attendance</small></div></div>
+              <div className="cs-art-floating"><span><ShieldCheck className="w-5 h-5"/></span><div><strong>Student records</strong><small>Illustrative product preview</small></div></div>
             </div>
           </section>
         )}
