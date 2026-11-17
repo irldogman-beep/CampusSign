@@ -423,8 +423,9 @@ export default function App() {
         </div>
       )}
 
+      <a href="#main-content" className="cs-skip-link">Skip to main content</a>
       {/* MAIN CONTENT CONTAINER */}
-      <main key={activeTab} className={`${quickAttendance ? 'max-w-2xl' : 'max-w-7xl'} mx-auto w-full min-w-0 px-3 sm:px-6 lg:px-8 py-3 sm:py-8 page-enter`} aria-live="polite">
+      <main id="main-content" tabIndex={-1} key={activeTab} className={`${quickAttendance ? 'max-w-2xl' : 'max-w-7xl'} mx-auto w-full min-w-0 px-3 sm:px-6 lg:px-8 py-3 sm:py-8 page-enter`} aria-live="polite">
         {quickAttendance && <div className="mb-4 flex items-center justify-between"><div className="flex items-center gap-2"><CampusSignLogo logoUrl={(appSpace === 'student' ? branding.student_logo_url : appSpace === 'staff' ? branding.staff_logo_url : null) || branding.logo_url} className="w-8 h-8"/><span className="font-black text-sm">CampusSign <span className="font-medium text-slate-500">· Quick attendance</span></span></div><button onClick={() => { setQuickAttendance(false); setStudentEntry(false); setActiveTab(appSpace === 'student' ? 'student' : appSpace === 'staff' ? 'admin' : 'home'); }} className="text-xs font-bold text-emerald-800 dark:text-emerald-300">{appSpace === 'student' ? 'Student services' : 'Home'}</button></div>}
 
         {activeTab === 'home' && (
@@ -1557,9 +1558,10 @@ The request has NOT been rejected or approved. Check the student's official univ
 
                 <form onSubmit={handleCreateSession} className="space-y-4">
                   <div>
-                    <label className={LABEL}>Session name</label>
+                    <label htmlFor="session-title" className={LABEL}>Session name</label>
                     <input
                       type="text"
+                      id="session-title"
                       required
                       placeholder='e.g. "Test attendance"'
                       value={sessionForm.title}
@@ -1569,9 +1571,10 @@ The request has NOT been rejected or approved. Check the student's official univ
                   </div>
 
                   <div>
-                    <label className={LABEL}>Venue (optional)</label>
+                    <label htmlFor="session-venue" className={LABEL}>Venue (optional)</label>
                     <input
                       type="text"
+                      id="session-venue"
                       placeholder="e.g. Hall B"
                       value={sessionForm.venue}
                       onChange={e => setSessionForm({ ...sessionForm, venue: e.target.value })}
@@ -1596,8 +1599,9 @@ The request has NOT been rejected or approved. Check the student's official univ
 
                       {sessionForm.faceRequired && (
                         <div>
-                          <label className={LABEL}>Face strictness</label>
+                          <label htmlFor="session-face-strictness" className={LABEL}>Face strictness</label>
                           <select
+                            id="session-face-strictness"
                             value={sessionForm.strictness}
                             onChange={e => setSessionForm({ ...sessionForm, strictness: e.target.value })}
                             className={FIELD}
@@ -1610,8 +1614,9 @@ The request has NOT been rejected or approved. Check the student's official univ
                       )}
 
                       <div>
-                        <label className={LABEL}>Location check</label>
+                        <label htmlFor="session-location-mode" className={LABEL}>Location check</label>
                         <select
+                          id="session-location-mode"
                           value={sessionForm.locationMode}
                           onChange={e => setSessionForm({ ...sessionForm, locationMode: e.target.value })}
                           className={FIELD}
@@ -1624,9 +1629,10 @@ The request has NOT been rejected or approved. Check the student's official univ
 
                       {sessionForm.locationMode !== 'off' && (
                         <div>
-                          <label className={LABEL}>Allowed distance (metres)</label>
+                          <label htmlFor="session-location-radius" className={LABEL}>Allowed distance (metres)</label>
                           <input
                             type="number"
+                            id="session-location-radius"
                             inputMode="numeric"
                             min="5"
                             max="1000"
@@ -1638,8 +1644,9 @@ The request has NOT been rejected or approved. Check the student's official univ
                       )}
 
                       <div>
-                        <label className={LABEL}>QR code lifetime</label>
+                        <label htmlFor="session-qr-lifetime" className={LABEL}>QR code lifetime</label>
                         <select
+                          id="session-qr-lifetime"
                           value={sessionForm.qrIntervalSeconds}
                           onChange={e => setSessionForm({ ...sessionForm, qrIntervalSeconds: e.target.value })}
                           className={FIELD}
@@ -1657,8 +1664,9 @@ The request has NOT been rejected or approved. Check the student's official univ
                       </div>
 
                       <div>
-                        <label className={LABEL}>Auto-end after</label>
+                        <label htmlFor="session-duration" className={LABEL}>Auto-end after</label>
                         <select
+                          id="session-duration"
                           value={sessionForm.duration}
                           onChange={e => setSessionForm({ ...sessionForm, duration: Number(e.target.value) })}
                           className={FIELD}
