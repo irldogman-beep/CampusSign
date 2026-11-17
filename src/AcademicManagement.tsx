@@ -75,7 +75,7 @@ export default function AcademicManagement() {
   const savePeriod = (event: React.FormEvent) => {
     event.preventDefault();
     void run(async () => {
-      const savedId = await db.saveAcademicPeriod({ ...periodForm, is_current: false });
+      const savedId = await db.saveAcademicPeriod({ ...periodForm, is_current: periodForm.is_current });
       if (periodForm.is_current) await db.setCurrentAcademicPeriod(savedId);
       setPeriodForm({ id: '', name: '', starts_on: '', ends_on: '', is_current: false });
     }, 'Academic period saved.');
