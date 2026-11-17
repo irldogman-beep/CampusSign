@@ -31,3 +31,16 @@ if (!manifest.includes('android.hardware.camera.any')) {
 
 await writeFile(manifestPath, manifest, 'utf8');
 console.log('Android camera and location permissions declared.');
+
+const gradlePath = resolve('android/app/build.gradle');
+let gradle = await readFile(gradlePath, 'utf8');
+const versionCode = Number(process.env.CAMPUSSIGN_VERSION_CODE || 1);
+const versionName = process.env.CAMPUSSIGN_VERSION_NAME || '1.2.0';
+if (!Number.isSafeInteger(versionCode) || versionCode < 1) throw new Error('Invalid Android version code.');
+if (!/versionCode\s+\\d+/.test(gradle) || !/versionName\s+['"][^'"]+['"]/.test(gradle)) {
+  throw new Error('Could not locate Android versionCode/versionName in generated Gradle config.');
+}
+gradle = gradle.replace(/versionCode\s+\\d+/, 'versionCode ' + versionCode);
+gradle = gradle.replace(/versionName\s+['"][^'"]+['"]/, "versionName '" + versionName + "'");
+await writeFile(gradlePath, gradle, 'utf8');
+console.log('Android package version configured:', versionName, '(code ' + versionCode + ').');

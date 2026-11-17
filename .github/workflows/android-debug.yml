@@ -1,12 +1,12 @@
-name: CampusSign Android (Student + Staff debug APKs)
+name: CampusSign Android (Student + Staff APKs)
 
 on:
   workflow_dispatch:
   push:
-    branches: [feature/android-app-foundation, feature/student-staff-spaces-and-branding, feature/campussign-visual-redesign]
+    branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-android:
@@ -19,6 +19,9 @@ jobs:
     env:
       CAMPUSSIGN_APP: ${{ matrix.app }}
       VITE_CAMPUSSIGN_APP: ${{ matrix.app }}
+      CAMPUSSIGN_VERSION_CODE: ${{ github.run_number }}
+      CAMPUSSIGN_VERSION_NAME: 1.2.0.${{ github.run_number }}
+      VITE_APP_VERSION: 1.2.0.${{ github.run_number }}
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -41,7 +44,7 @@ jobs:
         run: npm run build
       - name: Generate dedicated Android project
         run: npx cap add android
-      - name: Declare native camera and location permissions
+      - name: Declare native permissions and package version
         run: node .github/scripts/configure-android.mjs
       - name: Sync web assets into Android project
         run: npx cap sync android
@@ -51,7 +54,32 @@ jobs:
       - name: Upload focused APK
         uses: actions/upload-artifact@v4
         with:
-          name: campussign-android-${{ matrix.app }}-debug
+          name: campussign-android-${{ matrix.app }}
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
+
+  publish-release:
+    if: github.ref == 'refs/heads/main'
+    needs: build-android
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download both APK artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: campussign-android-*
+          path: release-apks
+          merge-multiple: false
+      - name: Prepare named APKs
+        run: |
+          cp release-apks/campussign-android-student/app-debug.apk CampusSign-Student.apk
+          cp release-apks/campussign-android-staff/app-debug.apk CampusSign-Staff.apk
+      - name: Publish versioned APK release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.2.0.${{ github.run_number }}
+          name: CampusSign Android v1.2.0 build ${{ github.run_number }}
+          generate_release_notes: true
+          files: |
+            CampusSign-Student.apk
+            CampusSign-Staff.apk
