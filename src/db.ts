@@ -428,7 +428,7 @@ export const DEFAULT_CAMPUS_BRANDING = {
 
 export async function loadCampusBranding() {
   const { data, error } = await supabase.from('campus_branding_settings')
-    .select('id,brand_name,tagline,logo_url,primary_color,accent_color,background_color,student_app_name,staff_app_name,student_welcome,staff_welcome,support_email,updated_at')
+    .select('id,brand_name,tagline,logo_url,primary_color,accent_color,background_color,student_app_name,staff_app_name,student_welcome,staff_welcome,support_email,student_primary_color,student_accent_color,student_background_color,student_logo_url,staff_primary_color,staff_accent_color,staff_background_color,staff_logo_url,updated_at')
     .eq('id', 1).maybeSingle();
   if (error) throw error;
   return { ...DEFAULT_CAMPUS_BRANDING, ...(data || {}) };

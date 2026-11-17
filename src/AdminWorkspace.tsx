@@ -477,10 +477,9 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
 
   return (
     <div className="cs-admin-workspace space-y-5 sm:space-y-7 animate-fade-up">
-      <section className="cs-admin-welcome rounded-3xl p-5 sm:p-7 overflow-hidden relative">
-        <div className="absolute -right-10 -top-16 w-56 h-56 rounded-full bg-amber-400/10 blur-3xl pointer-events-none" />
-        <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0"><div className="w-12 h-12 rounded-2xl bg-amber-400/15 border border-amber-300/30 grid place-items-center text-amber-300"><ShieldCheck className="w-6 h-6" /></div><div className="min-w-0"><p className="text-[10px] uppercase tracking-[.2em] text-emerald-200 font-black">CampusSign · System administration</p><h1 className="text-xl sm:text-2xl font-black text-white mt-1">Welcome, {activeStaff.name}</h1></div></div>
+      <section className="cs-admin-welcome rounded-2xl px-4 py-3 sm:px-5 sm:py-3.5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="min-w-0"><p className="text-[10px] uppercase tracking-[.16em] text-emerald-200 font-black">Administration</p><h1 className="text-base sm:text-lg font-extrabold text-white mt-0.5">Welcome, {activeStaff.name}</h1></div>
           <div className="flex items-center gap-2 self-end sm:self-auto"><NotificationBell notifications={notifications} onRead={readOne} onReadAll={readAll} onUnread={unreadOne} onDelete={deleteOneNotification} onOpen={openNotification} /><button onClick={() => refresh(true)} className="p-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15" aria-label="Refresh dashboard"><RefreshCw className="w-4 h-4" /></button><button onClick={onLogout} className="px-3 py-2.5 rounded-xl bg-rose-950/70 hover:bg-rose-900 border border-rose-700 text-rose-100 text-xs font-bold inline-flex items-center gap-2"><LogOut className="w-4 h-4" />Sign out</button></div>
         </div>
       </section>
