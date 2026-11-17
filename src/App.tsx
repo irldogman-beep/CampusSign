@@ -454,7 +454,7 @@ export default function App() {
             onHome={() => {
               setQuickAttendance(false);
               setStudentEntry(false);
-              setActiveTab(appSpace === 'student' ? 'student' : 'home');
+              setActiveTab(appSpace === 'student' ? 'student' : appSpace === 'staff' ? 'admin' : 'home');
             }}
           />
         )}
@@ -2434,7 +2434,22 @@ function StudentPortal({
   const [isAdditionalCourseRequest, setIsAdditionalCourseRequest] = useState(false);
   const [existingCourseNames, setExistingCourseNames] = useState<string[]>([]);
 
-  useEffect(() => { if (quickMode) { setStep(checkin ? 2 : 1); setShowAccountPortal(false); } }, [quickMode, checkin]);
+  useEffect(() => {
+    if (quickMode) {
+      setStep(checkin ? 2 : 1);
+      setShowAccountPortal(false);
+    } else {
+      // Leaving the QR-only route always returns to the Student services entry
+      // screen instead of leaving the user on a stale ID/verification step.
+      setStep(1);
+      setShowAccountPortal(false);
+      setStudentIdInput('');
+      setRetryCount(0);
+      setLookupError('');
+      setMatchedStudent(null);
+      setFaceError('');
+    }
+  }, [quickMode, checkin]);
   useEffect(() => {
     if (openAccountInitially) setShowAccountPortal(true);
   }, [openAccountInitially]);
