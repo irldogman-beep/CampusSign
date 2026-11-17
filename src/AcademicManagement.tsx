@@ -75,8 +75,8 @@ export default function AcademicManagement() {
   const savePeriod = (event: React.FormEvent) => {
     event.preventDefault();
     void run(async () => {
-      await db.saveAcademicPeriod({ ...periodForm, is_current: false });
-      if (periodForm.is_current) await db.setCurrentAcademicPeriod(periodForm.id || undefined, periodForm.name);
+      const savedId = await db.saveAcademicPeriod({ ...periodForm, is_current: false });
+      if (periodForm.is_current) await db.setCurrentAcademicPeriod(savedId);
       setPeriodForm({ id: '', name: '', starts_on: '', ends_on: '', is_current: false });
     }, 'Academic period saved.');
   };
@@ -186,6 +186,7 @@ export default function AcademicManagement() {
         <select className={field} required value={profileForm.student_user_id} onChange={e=>chooseStudent(e.target.value)}><option value="">Choose student</option>{students.map(s=><option key={s.user_id} value={s.user_id}>{s.full_name} · {s.student_id}</option>)}</select>
         <select className={field} value={profileForm.cohort_id} onChange={e=>setProfileForm({...profileForm,cohort_id:e.target.value})}><option value="">Admission set not assigned</option>{cohorts.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>
         <select className={field} value={profileForm.current_level_id} onChange={e=>setProfileForm({...profileForm,current_level_id:e.target.value})}><option value="">Current level not assigned</option>{levels.filter(l=>l.is_active).sort((a,b)=>a.sequence-b.sequence).map(l=><option key={l.id} value={l.id}>{l.name}</option>)}</select>
+        <select className={field} value={profileForm.academic_status} onChange={e=>setProfileForm({...profileForm,academic_status:e.target.value})}><option value="active">Active student</option><option value="inactive">Inactive</option><option value="withdrawn">Withdrawn</option><option value="expelled">Expelled</option><option value="graduating">Graduating</option><option value="graduated">Graduated</option></select>
         <select className={field} value={profileForm.event_type} onChange={e=>setProfileForm({...profileForm,event_type:e.target.value})}><option value="initial_assignment">Initial assignment</option><option value="promoted">Promoted</option><option value="repeated">Repeated level</option><option value="transferred">Transferred</option><option value="returned">Returned to study</option><option value="status_changed">Status change</option></select>
         <input className={field} type="date" required value={profileForm.effective_on} onChange={e=>setProfileForm({...profileForm,effective_on:e.target.value})}/>
         <input className={field} placeholder="Reason / note (optional)" value={profileForm.note} onChange={e=>setProfileForm({...profileForm,note:e.target.value})}/>
