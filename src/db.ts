@@ -455,7 +455,7 @@ export async function saveCampusBranding(input: typeof DEFAULT_CAMPUS_BRANDING) 
   ] as const;
   for (const field of colorFields) {
     if (!/^#[0-9A-Fa-f]{6}$/.test(String(input[field] || ''))) {
-      throw new Error(`Please enter a valid 6-digit hex colour for ${field.replaceAll('_',' ')}.`);
+      throw new Error(`Please enter a valid 6-digit hex colour for ${field.replace(/_/g,' ')}.`);
     }
   }
   const { data: auth, error: authError } = await supabase.auth.getUser();
