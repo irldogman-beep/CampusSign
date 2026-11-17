@@ -700,6 +700,7 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
             </div>}
           </div>
         </section>
+        </div>
       ) : tab === 'announcements' ? (
         <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] gap-4">
           <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
