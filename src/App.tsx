@@ -575,6 +575,7 @@ function AdminPortal({
   const [viewSessionId, setViewSessionId] = useState('');
   const [showSessionForm, setShowSessionForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [attendancePage, setAttendancePage] = useState(1);
   const [retentionDays, setRetentionDays] = useState(30);
   const [enrollmentRequests, setEnrollmentRequests] = useState([]);
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -1211,6 +1212,10 @@ The request has NOT been rejected or approved. Check the student's official univ
     [log.registeredName, log.studentId, log.dept, log.course, log.receiptNo]
       .some(value => String(value ?? '').toLowerCase().includes(normalizedSearch))
   );
+  const attendancePageSize = 25;
+  const attendancePageCount = Math.max(1, Math.ceil(filteredLogs.length / attendancePageSize));
+  const safeAttendancePage = Math.min(attendancePage, attendancePageCount);
+  const visibleLogs = filteredLogs.slice((safeAttendancePage - 1) * attendancePageSize, safeAttendancePage * attendancePageSize);
 
   // Filter student database STRICTLY for the active lecturer's course roster
   const normalizedRegistrySearch = registrySearch.trim().toLowerCase();
@@ -1889,8 +1894,9 @@ The request has NOT been rejected or approved. Check the student's official univ
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row gap-2.5">
               <select
+                aria-label="Choose attendance session"
                 value={shownSessionId}
-                onChange={e => setViewSessionId(e.target.value)}
+                onChange={e => { setViewSessionId(e.target.value); setAttendancePage(1); }}
                 className={FIELD + ' sm:max-w-sm'}
               >
                 {sessionOptions.length === 0 && <option value="">No sessions yet</option>}
@@ -1909,9 +1915,10 @@ The request has NOT been rejected or approved. Check the student's official univ
                 <Search className="w-4 h-4 absolute left-3.5 top-4 text-slate-400" />
                 <input
                   type="text"
+                  aria-label="Search attendance by student name or ID"
                   placeholder="Search name or ID"
                   value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
+                  onChange={e => { setSearchQuery(e.target.value); setAttendancePage(1); }}
                   className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-base sm:text-sm focus:ring-2 focus:ring-emerald-600 outline-none"
                 />
               </div>
@@ -1919,6 +1926,10 @@ The request has NOT been rejected or approved. Check the student's official univ
             <p className="text-[11px] text-slate-500 dark:text-slate-400">
               Delete entire list removes the selected session and all check-ins saved under it. Live sessions must be ended first.
             </p>
+            {filteredLogs.length > 0 && <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2.5">
+              <p role="status" className="text-[11px] text-slate-500">Showing {(safeAttendancePage - 1) * attendancePageSize + 1}–{Math.min(safeAttendancePage * attendancePageSize, filteredLogs.length)} of {filteredLogs.length} records</p>
+              <div className="flex items-center gap-2"><button type="button" onClick={() => setAttendancePage(page => Math.max(1, page - 1))} disabled={safeAttendancePage <= 1} className="rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-[11px] font-bold disabled:opacity-40">Previous</button><span className="text-[10px] text-slate-500 tabular-nums">Page {safeAttendancePage} of {attendancePageCount}</span><button type="button" onClick={() => setAttendancePage(page => Math.min(attendancePageCount, page + 1))} disabled={safeAttendancePage >= attendancePageCount} className="rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-[11px] font-bold disabled:opacity-40">Next</button></div>
+            </div>}
 
             {filteredLogs.length === 0 ? (
               <div className="py-12 text-center text-slate-400 text-xs">
@@ -1928,7 +1939,7 @@ The request has NOT been rejected or approved. Check the student's official univ
             ) : (
               <>
               <div className="md:hidden space-y-2.5">
-                {filteredLogs.map((log, idx) => (
+                {visibleLogs.map((log, idx) => (
                   <div key={log.id || idx} className="flex items-center gap-3 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40">
                     {log.facePhoto ? (
                       <img src={log.facePhoto} alt="" className="w-11 h-11 rounded-full object-cover border-2 border-emerald-600 shrink-0" />
@@ -1970,7 +1981,7 @@ The request has NOT been rejected or approved. Check the student's official univ
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-                    {filteredLogs.map((log, idx) => (
+                    {visibleLogs.map((log, idx) => (
                       <tr key={log.id || idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
                         <td className="p-3">
                           {log.facePhoto ? <img src={log.facePhoto} alt="Biometric Signature" className="w-10 h-10 rounded-full object-cover border-2 border-emerald-600 shadow-sm" /> : <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700" />}
