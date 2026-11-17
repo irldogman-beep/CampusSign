@@ -47,6 +47,7 @@ import { Capacitor } from '@capacitor/core';
 import { QR_DISPLAY_CHANNEL } from './QRDisplayWindow';
 import AdminWorkspace, { NotificationBell } from './AdminWorkspace';
 import StudentAccountPortal from './StudentAccountPortal';
+import AssessmentManagement from './AssessmentManagement';
 
 /* ==========================================================================
    LOGO COMPONENT (Matching Forest Green & Academic Gold Emblem)
@@ -580,7 +581,7 @@ function AdminPortal({
   const [editingLog, setEditingLog] = useState(null);
   const [editAttendanceForm, setEditAttendanceForm] = useState({ studentName: '', dept: '', status: 'Verified' });
 
-  const [adminTab, setAdminTab] = useState('session'); // session | roster | registry | requests
+  const [adminTab, setAdminTab] = useState('session'); // session | roster | registry | requests | assessments
 
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
   const [newStudentForm, setNewStudentForm] = useState({
@@ -1812,6 +1813,18 @@ The request has NOT been rejected or approved. Check the student's official univ
             </button>
 
             <button
+              onClick={() => setAdminTab('assessments')}
+              className={`px-3 sm:px-4 py-2.5 sm:py-2 text-xs font-bold rounded-xl transition-all flex min-w-0 justify-center items-center gap-2 ${
+                adminTab === 'assessments'
+                  ? 'bg-emerald-900 text-amber-400 shadow'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+              }`}
+            >
+              <FileCheck className="w-4 h-4" />
+              <span>CA & Results</span>
+            </button>
+
+            <button
               onClick={() => setAdminTab('requests')}
               className={`px-3 sm:px-4 py-2.5 sm:py-2 text-xs font-bold rounded-xl transition-all flex min-w-0 justify-center items-center gap-2 ${
                 adminTab === 'requests'
@@ -2034,6 +2047,7 @@ The request has NOT been rejected or approved. Check the student's official univ
         )}
 
         {/* TAB 3: LECTURER-SPECIFIC COURSE STUDENT DATABASE */}
+        {adminTab === 'assessments' && <AssessmentManagement mode="lecturer" />}
         {adminTab === 'registry' && (
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
