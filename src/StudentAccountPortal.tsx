@@ -204,7 +204,9 @@ export default function StudentAccountPortal({ onClose, onEnroll, onScan, brandi
             <div><p className="text-[10px] uppercase tracking-[.2em] text-emerald-200 font-black">{branding?.brand_name || 'CampusSign'} · Student services</p><h1 className="text-xl sm:text-2xl font-black mt-1">{branding?.student_app_name || 'Student workspace'}</h1></div>
           </div>
           <div className="flex items-center justify-end">
-            {isSignedIn && <button type="button" onClick={signOut} disabled={busy} className="inline-flex items-center gap-2 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 px-4 py-2.5 text-xs font-extrabold text-rose-700 dark:text-rose-200 disabled:opacity-50"><LogOut className="w-4 h-4"/>{busy ? 'Signing out…' : 'Sign out'}</button>}
+            {isSignedIn
+              ? <button type="button" onClick={signOut} disabled={busy} className="inline-flex items-center gap-2 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 px-4 py-2.5 text-xs font-extrabold text-rose-700 dark:text-rose-200 disabled:opacity-50"><LogOut className="w-4 h-4"/>{busy ? 'Signing out…' : 'Sign out'}</button>
+              : <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-300">Back to student services</button>}
           </div>
         </div>
       </section>
