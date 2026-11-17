@@ -1247,7 +1247,7 @@ The request has NOT been rejected or approved. Check the student's official univ
     return (
       <div className="cs-auth-layout cs-auth-layout--staff">
         <aside className="cs-auth-aside">
-          <div className="cs-auth-aside-mark"><CampusSignLogo logoUrl={(appSpace === 'student' ? branding.student_logo_url : appSpace === 'staff' ? branding.staff_logo_url : null) || branding.logo_url} className="w-10 h-10"/></div>
+          <div className="cs-auth-aside-mark"><CampusSignLogo logoUrl={branding.staff_logo_url || branding.logo_url} className="w-10 h-10"/></div>
           <p className="cs-auth-aside-kicker">{branding?.brand_name || 'CampusSign'} · STAFF</p>
           <h2>Run your campus with clarity.</h2>
           <p>One workspace for attendance sessions, course rosters and academic administration.</p>
@@ -1260,7 +1260,7 @@ The request has NOT been rejected or approved. Check the student's official univ
         </aside>
         <section className="cs-auth-card cs-auth-card--staff">
         <div className="text-center mb-6">
-          <CampusSignLogo logoUrl={(appSpace === 'student' ? branding.student_logo_url : appSpace === 'staff' ? branding.staff_logo_url : null) || branding.logo_url} className="w-16 h-16 mx-auto mb-3" />
+          <CampusSignLogo logoUrl={branding.staff_logo_url || branding.logo_url} className="w-16 h-16 mx-auto mb-3" />
           <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white">{branding?.staff_app_name || 'Staff & Lecturer Login'}</h2>
           <p className="text-xs text-slate-500 mt-1">{branding?.staff_welcome || 'Sign in with your academic email'}</p>
         </div>
@@ -2687,7 +2687,7 @@ function StudentPortal({
     return (
       <div className="max-w-3xl mx-auto space-y-5 page-enter">
         <section className="rounded-3xl bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-950 text-white p-6 sm:p-8 border border-emerald-800 shadow-xl">
-          <div className="flex items-center gap-3"><CampusSignLogo logoUrl={(appSpace === 'student' ? branding.student_logo_url : appSpace === 'staff' ? branding.staff_logo_url : null) || branding.logo_url} className="w-12 h-12"/><div><p className="text-[10px] uppercase tracking-[.2em] text-emerald-200 font-black">CampusSign · Student services</p><h1 className="text-2xl sm:text-3xl font-black mt-1">Welcome, student</h1></div></div>
+          <div className="flex items-center gap-3"><CampusSignLogo logoUrl={branding.student_logo_url || branding.logo_url} className="w-12 h-12"/><div><p className="text-[10px] uppercase tracking-[.2em] text-emerald-200 font-black">CampusSign · Student services</p><h1 className="text-2xl sm:text-3xl font-black mt-1">Welcome, student</h1></div></div>
           <p className="text-sm text-emerald-100/80 mt-4 max-w-xl">Sign in to your student dashboard to manage courses and view attendance, or use quick attendance when you have scanned a lecturer's QR code.</p>
         </section>
         <div className="grid sm:grid-cols-2 gap-4">
@@ -2793,7 +2793,7 @@ function StudentPortal({
       {/* STEP 1: REAL QR SCAN */}
       {step === 1 && (
         <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-lg text-center space-y-6">
-          <CampusSignLogo logoUrl={(appSpace === 'student' ? branding.student_logo_url : appSpace === 'staff' ? branding.staff_logo_url : null) || branding.logo_url} className="w-16 h-16 mx-auto" />
+          <CampusSignLogo logoUrl={branding.student_logo_url || branding.logo_url} className="w-16 h-16 mx-auto" />
           
           <div>
             <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">Student Verification Check-In</h2>
@@ -3032,7 +3032,7 @@ function StudentPortal({
           <div className="p-5 rounded-2xl bg-gradient-to-br from-emerald-950 to-slate-950 text-white border border-emerald-900 shadow-md space-y-3 text-xs">
             <div className="flex items-center justify-between pb-3 border-b border-emerald-800">
               <div className="flex items-center gap-2">
-                <CampusSignLogo logoUrl={(appSpace === 'student' ? branding.student_logo_url : appSpace === 'staff' ? branding.staff_logo_url : null) || branding.logo_url} className="w-6 h-6" />
+                <CampusSignLogo logoUrl={branding.student_logo_url || branding.logo_url} className="w-6 h-6" />
                 <span className="font-extrabold text-amber-400">CampusSign Token</span>
               </div>
               <span className="font-mono text-[10px] text-emerald-300">{receiptData.receiptNo}</span>
