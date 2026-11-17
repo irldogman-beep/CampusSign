@@ -219,15 +219,14 @@ export default function StudentAccountPortal({ onClose, onEnroll, onTakeAttendan
 
   return (
     <div className="cs-student-account max-w-5xl mx-auto space-y-4 sm:space-y-5 page-enter px-0.5">
-      {!isSignedIn && <section className="cs-space-header cs-space-header--student">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-400/15 border border-amber-300/30 grid place-items-center text-amber-300"><GraduationCap className="w-5 h-5"/></div>
-            <div><p className="text-[10px] uppercase tracking-[.2em] text-emerald-200 font-black">{branding?.brand_name || 'CampusSign'} · Student services</p><h1 className="text-lg sm:text-xl font-black mt-1">{branding?.student_app_name || 'Student workspace'}</h1></div>
-          </div>
-          <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-300">Back to student services</button>
+      <section className="cs-space-header cs-space-header--student">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0"><p className="text-[10px] uppercase tracking-[.18em] text-emerald-200 font-black">{branding?.brand_name || 'CampusSign'} · Student</p><h1 className="text-lg sm:text-xl font-black mt-0.5">{branding?.student_app_name || 'Student workspace'}</h1></div>
+          {isSignedIn
+            ? <button type="button" onClick={signOut} disabled={busy} className="inline-flex items-center gap-2 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 px-4 py-2.5 text-xs font-extrabold text-rose-700 dark:text-rose-200 disabled:opacity-50"><LogOut className="w-4 h-4"/>{busy ? 'Signing out…' : 'Sign out'}</button>
+            : <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-300">Back</button>}
         </div>
-      </section>}
+      </section>
 
       {notice && <div role="status" className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-emerald-800 dark:text-emerald-200 text-xs">{notice}</div>}
       {error && <div role="alert" className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-200 text-xs flex gap-2"><AlertTriangle className="w-4 h-4 shrink-0"/><span>{error}</span></div>}
@@ -275,9 +274,9 @@ export default function StudentAccountPortal({ onClose, onEnroll, onTakeAttendan
             </button>
           </div>}
 
-          <section className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-4 py-3 shadow-sm">
+          <section className="px-1">
             <div className="flex flex-wrap items-center justify-between gap-2 min-w-0">
-              <div className="min-w-0"><h2 className="text-sm font-extrabold text-slate-900 dark:text-white">{profile.full_name}</h2><p className="text-[11px] text-slate-500 break-all">{profile.student_id}</p></div>
+              <div className="min-w-0"><p className="text-sm font-extrabold text-slate-900 dark:text-white">{profile.full_name}</p><p className="text-[11px] text-slate-500 break-all">{profile.student_id}</p></div>
               {profile.status !== 'approved' && <span className={`text-[10px] font-bold ${profile.status==='rejected'?'text-rose-600 dark:text-rose-300':'text-amber-700 dark:text-amber-300'}`}>{profile.status==='rejected'?'Verification declined':'Awaiting verification'}</span>}
             </div>
             {profile.status==='pending' && <div className="mt-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 p-4"><p className="text-xs text-amber-900 dark:text-amber-200 font-semibold">Step 1 of 2 · Administrator verification. Your details are waiting for an administrator to review them. Course selection, face registration and lecturer review will unlock only after your account is approved. If you already have courses on the academic roster, the administrator can verify your account against those records.</p><button type="button" onClick={refresh} className="mt-3 rounded-xl border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 px-4 py-2.5 text-xs font-bold">Check approval status</button></div>}
