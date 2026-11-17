@@ -851,3 +851,56 @@ body {
 @media (max-width: 640px) {
   .cs-art-caption { right: 0; bottom: -15px; font-size: 7px; }
 }
+
+
+/* Workspace sidebars: persistent desktop navigation with compact mobile menus. */
+.cs-workspace-layout { min-width: 0; }
+.cs-workspace-sidebar {
+  min-width: 0;
+  box-shadow: 0 8px 24px rgb(15 45 34 / 5%);
+}
+.cs-workspace-sidebar nav { min-width: 0; }
+.cs-workspace-sidebar button {
+  min-width: 0;
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+}
+.cs-admin-nav-button,
+.cs-student-nav-button {
+  min-height: 42px;
+  border: 1px solid transparent;
+  color: var(--cs-muted);
+  background: transparent;
+  justify-content: flex-start;
+  text-align: left;
+}
+.cs-admin-nav-button:hover,
+.cs-student-nav-button:hover {
+  color: var(--cs-ink);
+  background: color-mix(in srgb, var(--brand-primary, #075b45) 7%, transparent);
+}
+.cs-admin-nav-button.is-active,
+.cs-student-nav-button.is-active {
+  color: var(--brand-primary, #075b45);
+  background: color-mix(in srgb, var(--brand-primary, #075b45) 11%, white);
+  border-color: color-mix(in srgb, var(--brand-primary, #075b45) 18%, white);
+  box-shadow: inset 3px 0 0 var(--brand-primary, #075b45);
+}
+.dark .cs-admin-nav-button.is-active,
+.dark .cs-student-nav-button.is-active {
+  color: #d1fae5;
+  background: color-mix(in srgb, var(--brand-primary, #075b45) 22%, #0f172a);
+  border-color: color-mix(in srgb, var(--brand-primary, #075b45) 42%, #334155);
+  box-shadow: inset 3px 0 0 var(--brand-accent, #f3b640);
+}
+@media (max-width: 1023px) {
+  .cs-workspace-sidebar { position: static; }
+  .cs-workspace-sidebar nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 480px) {
+  .cs-workspace-sidebar { padding: .65rem; }
+  .cs-workspace-sidebar nav { gap: .4rem; }
+  .cs-admin-nav-button,
+  .cs-student-nav-button { padding: .65rem .7rem; font-size: .7rem; }
+}
