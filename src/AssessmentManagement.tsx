@@ -164,7 +164,7 @@ export default function AssessmentManagement({ mode = 'admin' }: { mode?: 'admin
           <button className={primary} disabled={busy || !selectedCourse || !selectedTerm}>{busy ? 'Saving…' : form.id ? 'Update assessment' : 'Save assessment'}</button>
         </div>
       </form>
-      <p className="text-[10px] text-slate-500">Weight limits are checked by the database. For example, if CA is worth 30% overall, all CA components together must not exceed 30%? No: the category is scaled to 100% internally; the institution's CA/exam split is not yet configurable in this version. Configure the CA and exam category totals separately up to 100%.</p>
+      <p className="text-[10px] text-slate-500">Weight limits are checked by the database. CA components and examination components are tracked separately, each with its own 100% limit. The institution-wide CA/exam split (for example, 30% CA and 70% examination) is not yet configured, so these entries are assessment records rather than a final course grade.</p>
     </section>
 
     <section className={panel}>
