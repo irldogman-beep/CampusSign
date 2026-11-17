@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import {
   AlertCircle, BarChart3, BadgeCheck, Bell, BookOpen, CheckCheck, Check, X,
   ClipboardList, History, LogOut, QrCode, RefreshCw, Search, ShieldAlert, Palette, ImagePlus, Save,
-  ShieldCheck, UserCog, Users, Building2, Plus, Pencil, BookMarked, Trash2, Activity, UserRound
+  ShieldCheck, UserCog, Users, Building2, GraduationCap, Plus, Pencil, BookMarked, Trash2, Activity, UserRound
 } from 'lucide-react';
 import * as db from './db';
 
