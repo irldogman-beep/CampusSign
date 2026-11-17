@@ -1871,6 +1871,10 @@ The request has NOT been rejected or approved. Check the student's official univ
         </aside>
         <div className="min-w-0 space-y-4">
 
+        {adminTab === 'session' && <section className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 p-4 sm:p-5">
+          <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">Session & QR attendance</h3>
+          <p className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">Your session creation form and live QR display are shown above this menu. Use the other sections to review attendance lists, manage your course roster, record CA/examination marks or respond to enrolment requests.</p>
+        </section>}
         {adminTab !== 'session' && <>
         {/* TAB 1: ISOLATED SESSION ATTENDANCE LOG */}
         {adminTab === 'roster' && (
