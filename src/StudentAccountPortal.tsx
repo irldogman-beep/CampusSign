@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   AlertTriangle, Bell, BookOpen, CalendarDays, CheckCircle2, Clock3, ClipboardList,
-  GraduationCap, Scan, LogOut, RefreshCw, ShieldCheck, UserRound
+  GraduationCap, Scan, LogOut, RefreshCw, ShieldCheck, UserRound, Eye, EyeOff
 } from 'lucide-react';
 import { supabase } from './supabase';
 import * as db from './db';
@@ -18,6 +18,7 @@ export default function StudentAccountPortal({ onClose, onEnroll, onTakeAttendan
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [studentId, setStudentId] = useState('');
   const [fullName, setFullName] = useState('');
   const [department, setDepartment] = useState('');
@@ -291,7 +292,7 @@ export default function StudentAccountPortal({ onClose, onEnroll, onTakeAttendan
               <label className="block"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Academic level</span><select value={level} onChange={e=>setLevel(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3 text-sm">{['100','200','300','400','500','600'].map(v=><option key={v} value={v}>{v} Level</option>)}</select></label>
             </>}
             <label className="block"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Email address</span><input required type="email" autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com" className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3 text-sm"/></label>
-            <label className="block"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Password</span><input required type="password" minLength={8} autoComplete={mode==='signup'?'new-password':'current-password'} value={password} onChange={e=>setPassword(e.target.value)} placeholder="At least 8 characters" className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3 text-sm"/></label>
+            <label className="block"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Password</span><span className="mt-1 flex items-center rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 focus-within:ring-2 focus-within:ring-emerald-700/20"><input required type={showPassword?'text':'password'} minLength={8} autoComplete={mode==='signup'?'new-password':'current-password'} value={password} onChange={e=>setPassword(e.target.value)} placeholder="At least 8 characters" className="min-w-0 flex-1 border-0 bg-transparent px-3 py-3 text-sm outline-none focus:ring-0"/><button type="button" onClick={()=>setShowPassword(value=>!value)} aria-label={showPassword?'Hide password':'Show password'} aria-pressed={showPassword} className="shrink-0 rounded-lg px-3 py-2 text-slate-500 hover:text-emerald-700 dark:hover:text-emerald-300"><span className="inline-flex items-center gap-1.5 text-[10px] font-bold">{showPassword?<EyeOff className="w-4 h-4"/>:<Eye className="w-4 h-4"/>}{showPassword?'Hide':'Show'}</span></button></span>{mode==='signup'&&<span className="mt-1 block text-[10px] text-slate-500">Use at least 8 characters. You can reveal it briefly to check for typing mistakes.</span>}</label>
             <button disabled={busy || !email.trim() || !password || (mode==='signup' && (!studentId.trim() || !fullName.trim() || !department || departments.length===0))} className="cs-auth-submit w-full rounded-xl py-3.5 text-sm font-extrabold disabled:opacity-50">{busy?'Please wait…':mode==='signup'?'Create student account':'Sign in to Student services'}</button>
           </form>
 
