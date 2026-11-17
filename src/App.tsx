@@ -409,6 +409,7 @@ export default function App() {
                 </div>
               </div>
               <div className="cs-art-floating"><span><ShieldCheck className="w-5 h-5"/></span><div><strong>Student records</strong><small>Illustrative product preview</small></div></div>
+              <p className="cs-art-caption">Illustrative interface · sample data, not live attendance</p>
             </div>
           </section>
         )}
@@ -1179,7 +1180,7 @@ The request has NOT been rejected or approved. Check the student's official univ
       <div className="cs-auth-layout cs-auth-layout--staff">
         <aside className="cs-auth-aside">
           <div className="cs-auth-aside-mark"><CampusSignLogo className="w-10 h-10"/></div>
-          <p className="cs-auth-aside-kicker">CAMPUSSIGN · STAFF</p>
+          <p className="cs-auth-aside-kicker">{branding?.brand_name || 'CampusSign'} · STAFF</p>
           <h2>Run your campus with clarity.</h2>
           <p>One workspace for attendance sessions, course rosters and academic administration.</p>
           <div className="cs-auth-aside-list">
