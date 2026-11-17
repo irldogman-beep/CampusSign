@@ -312,7 +312,7 @@ export default function App() {
   };
 
   return (
-    <div style={{ '--campus-primary': branding.primary_color, '--campus-accent': branding.accent_color, '--campus-background': branding.background_color } as React.CSSProperties} className={`campus-app-shell min-h-screen ${isDarkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'} transition-colors duration-200 font-sans`}>
+    <div style={{ '--campus-primary': branding.primary_color, '--campus-accent': branding.accent_color, '--campus-background': branding.background_color, '--brand-header-bg': branding.background_color || '#F8FAFC', '--brand-header-text': branding.primary_color || '#064E3B' } as React.CSSProperties} className={`campus-app-shell min-h-screen ${isDarkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'} transition-colors duration-200 font-sans`}>
       {showLaunchScreen && (
         <div className="campus-launch-screen" aria-label={`${branding.brand_name} starting`} role="status">
           <div className="campus-launch-mark"><CampusSignLogo className="w-16 h-16"/></div>
@@ -345,6 +345,20 @@ export default function App() {
             {appSpace !== 'hub' ? (
               <>
                 <span className="cs-space-chip text-[10px] font-bold tracking-wider uppercase">{appSpace === 'student' ? 'STUDENT SPACE' : 'STAFF WORKSPACE'}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (appSpace === 'student') {
+                      setStudentEntry(true);
+                      setActiveTab('student');
+                    } else {
+                      setActiveTab('admin');
+                    }
+                  }}
+                  className="cs-header-primary px-3 py-2 rounded-xl text-[10px] sm:text-xs font-extrabold"
+                >
+                  {appSpace === 'student' ? 'Student sign in' : 'Staff sign in'}
+                </button>
                 <button onClick={() => setIsDarkMode(!isDarkMode)} className="theme-toggle cs-theme-toggle p-2 rounded-xl" title={isDarkMode ? 'Switch to light theme' : 'Switch to dark theme'} aria-label={isDarkMode ? 'Switch to light theme' : 'Switch to dark theme'}>{isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}</button>
               </>
             ) : activeTab === 'home' ? (
@@ -450,7 +464,11 @@ export default function App() {
             branding={branding}
             openAccountInitially={studentEntry}
             quickMode={quickAttendance}
-            onHome={() => { setQuickAttendance(false); setStudentEntry(false); setActiveTab('home'); }}
+            onHome={() => {
+              setQuickAttendance(false);
+              setStudentEntry(false);
+              setActiveTab(appSpace === 'student' ? 'student' : 'home');
+            }}
           />
         )}
 
@@ -783,10 +801,18 @@ function AdminPortal({
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setIsAuthenticated(false);
-    setStaffIdInput('');
-    setPasswordInput('');
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      setIsAuthenticated(false);
+      setStaffIdInput('');
+      setPasswordInput('');
+      setLoginError('');
+      setFailedLogins(0);
+      setLockedUntil(0);
+    } catch (error) {
+      setLoginError(db.friendly(error));
+    }
   };
 
   const handleRegisterStaff = async (e) => {
@@ -2421,6 +2447,9 @@ function StudentPortal({
   const [existingCourseNames, setExistingCourseNames] = useState<string[]>([]);
 
   useEffect(() => { if (quickMode) { setStep(checkin ? 2 : 1); setShowAccountPortal(false); } }, [quickMode, checkin]);
+  useEffect(() => {
+    if (openAccountInitially) setShowAccountPortal(true);
+  }, [openAccountInitially]);
 
   // The session comes from the QR the student actually scanned (signed + time-limited)
   const session = checkin ? checkin.session : null;
@@ -2593,7 +2622,7 @@ function StudentPortal({
   };
 
   if (showAccountPortal) {
-    return <StudentAccountPortal branding={branding} onClose={onHome} onScan={() => { setShowAccountPortal(false); setStep(1); setIsScanningQR(true); }} onEnroll={(profile, courses) => { setShowAccountPortal(false); startStudentEnrollment(profile, courses); }} />;
+    return <StudentAccountPortal branding={branding} onClose={() => { setShowAccountPortal(false); onHome(); }} onScan={() => { setShowAccountPortal(false); setStep(1); setIsScanningQR(true); }} onEnroll={(profile, courses) => { setShowAccountPortal(false); startStudentEnrollment(profile, courses); }} />;
   }
 
   if (!quickMode && step === 1 && !showEnrollment && !isScanningQR) {
@@ -2610,10 +2639,6 @@ function StudentPortal({
         <button onClick={onHome} className="w-full text-xs font-bold text-slate-500 hover:text-emerald-700 py-2">Back to CampusSign home</button>
       </div>
     );
-  }
-
-  if (showAccountPortal) {
-    return <StudentAccountPortal branding={branding} onClose={() => setShowAccountPortal(false)} onScan={() => { setShowAccountPortal(false); setStep(1); setIsScanningQR(true); }} onEnroll={(profile, courses) => { setShowAccountPortal(false); startStudentEnrollment(profile, courses); }} />;
   }
 
   if (showEnrollment) {
