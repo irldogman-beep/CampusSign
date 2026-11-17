@@ -288,7 +288,14 @@ export default function StudentAccountPortal({ onClose, onEnroll, onTakeAttendan
           </section>
 
           {profile.status==='approved' && <>
-             <nav aria-label="Student dashboard sections" className="cs-student-nav flex items-center gap-1 overflow-x-auto">
+             <div className="cs-workspace-layout grid grid-cols-1 lg:grid-cols-[210px_minmax(0,1fr)] gap-4 lg:gap-6 items-start">
+               <aside className="cs-workspace-sidebar lg:sticky lg:top-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 sm:p-4 space-y-3">
+                 <div className="px-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+                   <p className="text-[10px] font-black uppercase tracking-[.16em] text-emerald-700 dark:text-emerald-300">Student menu</p>
+                   <h2 className="text-sm font-extrabold text-slate-900 dark:text-white mt-1">My workspace</h2>
+                   <p className="text-[10px] text-slate-500 mt-1">Your courses, results and account.</p>
+                 </div>
+             <nav aria-label="Student dashboard sections" className="cs-student-nav grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-1 gap-2">
                {([
                  ['courses','Courses',BookOpen,courses.length],
                  ['results','Results',GraduationCap,null],
@@ -297,13 +304,16 @@ export default function StudentAccountPortal({ onClose, onEnroll, onTakeAttendan
                  ['profile','Profile',UserRound,null],
                ] as const).map(([key,label,Icon,count]) => (
                  <button key={key} type="button" onClick={()=>setActiveSection(key)} aria-pressed={activeSection===key}
-                   className={`cs-student-nav-button inline-flex items-center justify-center gap-2 shrink-0 rounded-xl px-3.5 py-3 text-xs font-bold transition-colors ${activeSection===key?'is-active':''}`}>
+                   className={`cs-student-nav-button inline-flex items-center justify-center gap-2 shrink-0 rounded-xl px-3 py-3 text-xs font-bold justify-start transition-colors ${activeSection===key?'is-active':''}`}>
                    <Icon className="w-4 h-4 shrink-0"/>
                    <span>{label}</span>
                    {count!==null&&<span className="text-[10px] font-bold tabular-nums opacity-75">{count}</span>}
                  </button>
                ))}
              </nav>
+               </aside>
+               <div className="min-w-0 space-y-4">
+
              {activeSection==='courses' && <section className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-sm">
                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
                  <h3 className="font-extrabold text-slate-900 dark:text-white">My courses</h3>
@@ -363,6 +373,8 @@ export default function StudentAccountPortal({ onClose, onEnroll, onTakeAttendan
                  )}
                </div>
              </section>}
+               </div>
+             </div>
            </>}
  
         </div>
