@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import {
   AlertCircle, BarChart3, BadgeCheck, Bell, BookOpen, CheckCheck, Check, X,
   ClipboardList, History, LogOut, QrCode, RefreshCw, Search, ShieldAlert, Palette, ImagePlus, Save,
-  ShieldCheck, UserCog, Users, Building2, GraduationCap, Plus, Pencil, BookMarked, Trash2, Activity, UserRound
+  ShieldCheck, UserCog, Users, Building2, GraduationCap, Plus, Pencil, BookMarked, Trash2, Activity, UserRound, LayoutDashboard, Layers
 } from 'lucide-react';
 import * as db from './db';
 import AcademicManagement from './AcademicManagement';
@@ -15,10 +15,13 @@ export function NotificationBell({ notifications = [], onRead, onReadAll, onUnre
   const [panelPosition, setPanelPosition] = useState<{ top: number; right: number; maxHeight: number } | null>(null);
   const bellRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const unread = notifications.filter((item: any) => !item.read_at).length;
 
   useEffect(() => {
     if (!open) return;
+    // This is a non-modal popover, so focus moves into it but is not trapped.
+    panelRef.current?.querySelector<HTMLElement>('button')?.focus();
     const updatePosition = () => {
       const rect = bellRef.current?.getBoundingClientRect();
       if (!rect) return;
@@ -37,7 +40,7 @@ export function NotificationBell({ notifications = [], onRead, onReadAll, onUnre
       setSelected(null);
     };
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') { setOpen(false); setSelected(null); }
+      if (event.key === 'Escape') { setOpen(false); setSelected(null); triggerRef.current?.focus(); }
     };
     updatePosition();
     document.addEventListener('pointerdown', handlePointerDown);
@@ -79,14 +82,14 @@ export function NotificationBell({ notifications = [], onRead, onReadAll, onUnre
 
   return (
     <div ref={bellRef} className="relative shrink-0">
-      <button type="button" onClick={() => { setOpen(value => !value); setSelected(null); }}
+      <button ref={triggerRef} type="button" onClick={() => { setOpen(value => !value); setSelected(null); }}
         className="relative p-2.5 rounded-xl border border-emerald-700 bg-emerald-950/70 text-emerald-100 hover:text-amber-300"
-        aria-label={`Notifications${unread ? `, ${unread} unread` : ''}`} aria-expanded={open} aria-haspopup="dialog">
+        aria-label={`Notifications${unread ? `, ${unread} unread` : ''}`} aria-expanded={open} aria-haspopup="dialog" aria-controls="campussign-notifications-panel">
         <Bell className="w-4 h-4" />
         {unread > 0 && <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black grid place-items-center">{unread > 9 ? '9+' : unread}</span>}
       </button>
       {open && panelPosition && createPortal(
-        <section ref={panelRef} role="dialog" aria-label="Notifications"
+        <section id="campussign-notifications-panel" ref={panelRef} role="dialog" aria-label="Notifications"
           style={{ position: 'fixed', top: panelPosition.top, right: panelPosition.right, maxHeight: panelPosition.maxHeight }}
           className="z-[10000] w-[min(24rem,calc(100vw-1rem))] rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl overflow-hidden text-left flex flex-col">
           <div className="p-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2 shrink-0">
@@ -514,12 +517,12 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
         {[
           { id: 'overview', label: 'Overview', icon: BarChart3 },
           { id: 'academic', label: 'Departments & courses', icon: BookMarked },
-          { id: 'academic-setup', label: 'Academic structure', icon: GraduationCap },
+          { id: 'academic-setup', label: 'Academic structure', icon: Layers },
           { id: 'assessments', label: 'CA & examinations', icon: ClipboardList },
           { id: 'lecturers', label: 'Lecturers', icon: UserCog },
           { id: 'enrolments', label: 'Enrolments', icon: Users },
           { id: 'student-accounts', label: 'Student accounts', icon: UserRound },
-          { id: 'monitoring', label: 'Attendance & sessions', icon: ClipboardList },
+          { id: 'monitoring', label: 'Attendance & sessions', icon: LayoutDashboard },
           { id: 'announcements', label: 'Announcements', icon: Bell },
           { id: 'audit', label: 'Audit history', icon: History },
           { id: 'branding', label: 'Branding studio', icon: Palette },
