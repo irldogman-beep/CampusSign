@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import {
   AlertCircle, BarChart3, BadgeCheck, Bell, BookOpen, CheckCheck, Check, X,
   ClipboardList, History, LogOut, QrCode, RefreshCw, Search, ShieldAlert, Palette, ImagePlus, Save,
-  ShieldCheck, UserCog, Users, Building2, Plus, Pencil, BookMarked, Trash2, Activity, UserRound
+  ShieldCheck, UserCog, Users, Building2, GraduationCap, Plus, Pencil, BookMarked, Trash2, Activity, UserRound
 } from 'lucide-react';
 import * as db from './db';
 
@@ -159,6 +159,8 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [announcementForm, setAnnouncementForm] = useState({ id: '', title: '', body: '', audienceType: 'all_staff', departmentId: '', courseId: '', studentUserId: '' });
   const [departments, setDepartments] = useState<any[]>([]);
+  const [faculties, setFaculties] = useState<any[]>([]);
+  const [facultyForm, setFacultyForm] = useState({ id: '', code: '', name: '', active: true });
   const [catalogCourses, setCatalogCourses] = useState<any[]>([]);
   const [studentEnrolments, setStudentEnrolments] = useState<any[]>([]);
   const [studentAccounts, setStudentAccounts] = useState<any[]>([]);
@@ -177,7 +179,7 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
   const [attendanceSearch, setAttendanceSearch] = useState('');
   const [accountSearch, setAccountSearch] = useState('');
   const [catalogSearch, setCatalogSearch] = useState('');
-  const [deptForm, setDeptForm] = useState({ id: '', code: '', name: '', active: true });
+  const [deptForm, setDeptForm] = useState({ id: '', code: '', name: '', facultyId: '', active: true });
   const [courseForm, setCourseForm] = useState({ id: '', departmentId: '', code: '', title: '', level: '', active: true });
   const [catalogMessage, setCatalogMessage] = useState('');
   const [search, setSearch] = useState('');
@@ -210,6 +212,7 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
       ['notifications', () => db.loadNotifications(20), setNotifications],
       ['announcements', db.loadAdminAnnouncements, setAnnouncements],
       ['departments', db.loadCatalogDepartments, setDepartments],
+      ['faculties', db.loadCatalogFaculties, setFaculties],
       ['course catalogue', () => db.loadCatalogCourses(null), setCatalogCourses],
       ['student enrolments', () => db.loadAdminStudentEnrolments(150), setStudentEnrolments],
       ['student accounts', db.loadAdminStudentAccounts, setStudentAccounts],
@@ -297,11 +300,21 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
     }
   };
 
+  const saveFaculty = async (event: React.FormEvent) => {
+    event.preventDefault(); setWorkingId('faculty'); setCatalogMessage('');
+    try {
+      await db.saveCatalogFaculty({ id: facultyForm.id || null, code: facultyForm.code, name: facultyForm.name, active: facultyForm.active });
+      setFacultyForm({ id: '', code: '', name: '', active: true });
+      setCatalogMessage('Faculty saved successfully.'); await refresh(false);
+    } catch (e) { setError(db.friendly(e)); } finally { setWorkingId(''); }
+  };
+
   const saveDepartment = async (event: React.FormEvent) => {
     event.preventDefault(); setWorkingId('department'); setCatalogMessage('');
     try {
-      await db.saveCatalogDepartment({ id: deptForm.id || null, code: deptForm.code, name: deptForm.name, active: deptForm.active });
-      setDeptForm({ id: '', code: '', name: '', active: true }); setCatalogMessage('Department saved successfully.'); await refresh(false);
+      const savedId = await db.saveCatalogDepartment({ id: deptForm.id || null, code: deptForm.code, name: deptForm.name, active: deptForm.active });
+      await db.assignDepartmentFaculty(deptForm.id || savedId, deptForm.facultyId || null);
+      setDeptForm({ id: '', code: '', name: '', facultyId: '', active: true }); setCatalogMessage('Department saved successfully.'); await refresh(false);
     } catch (e) { setError(db.friendly(e)); } finally { setWorkingId(''); }
   };
   const saveCourse = async (event: React.FormEvent) => {
@@ -352,7 +365,7 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
         : result?.attendance_rows_deleted ? ' ' + result.attendance_rows_deleted + ' attendance rows removed.'
         : result?.historical_attendance_preserved ? ' ' + result.historical_attendance_preserved + ' historical attendance rows preserved.' : '';
       setMessage(kind.charAt(0).toUpperCase() + kind.slice(1) + ' deleted successfully.' + extra);
-      if (deptForm.id === id) setDeptForm({id:'',code:'',name:'',active:true});
+      if (deptForm.id === id) setDeptForm({id:'',code:'',name:'',facultyId:'',active:true});
       if (courseForm.id === id) setCourseForm({id:'',departmentId:'',code:'',title:'',level:'',active:true});
       await refresh(false);
     } catch (e) { setError(db.friendly(e)); }
@@ -491,11 +504,27 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
           </section>
         </div>
       ) : tab === 'academic' ? (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <div className="space-y-4">
+          <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+            <div className="flex items-center justify-between gap-3">
+              <div><h2 className="font-extrabold text-slate-900 dark:text-white">Faculties</h2><p className="text-xs text-slate-500 mt-1">Create faculties first, then assign departments to them below.</p></div>
+              <GraduationCap className="w-5 h-5 text-emerald-600" />
+            </div>
+            <form onSubmit={saveFaculty} className="grid grid-cols-1 sm:grid-cols-[110px_1fr_auto] gap-2">
+              <input required maxLength={12} value={facultyForm.code} onChange={e=>setFacultyForm({...facultyForm,code:e.target.value.toUpperCase()})} placeholder="Code e.g. ENG" className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-xs font-mono font-bold"/>
+              <input required value={facultyForm.name} onChange={e=>setFacultyForm({...facultyForm,name:e.target.value})} placeholder="Faculty name e.g. Faculty of Engineering" className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-xs"/>
+              <button disabled={workingId==='faculty'} className="px-4 py-2.5 rounded-xl bg-emerald-900 text-amber-300 text-xs font-bold disabled:opacity-50">{facultyForm.id ? 'Update faculty' : 'Add faculty'}</button>
+            </form>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2">
+              {faculties.length === 0 ? <p className="text-xs text-slate-500">No faculties created yet.</p> : faculties.map(f=><div key={f.id} className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 dark:border-slate-700 p-3"><div className="min-w-0"><strong className="block text-xs text-slate-800 dark:text-white truncate">{f.name}</strong><span className="text-[10px] text-slate-500 font-mono">{f.code} · {f.is_active ? 'Active' : 'Inactive'}</span></div><button type="button" onClick={()=>setFacultyForm({id:f.id,code:f.code,name:f.name,active:f.is_active})} className="text-xs font-bold text-emerald-700 dark:text-emerald-300">Edit</button></div>)}
+            </div>
+            {facultyForm.id && <div className="flex flex-wrap items-center gap-3 text-xs"><label className="flex items-center gap-2"><input type="checkbox" checked={facultyForm.active} onChange={e=>setFacultyForm({...facultyForm,active:e.target.checked})}/> Faculty active</label><button type="button" onClick={()=>setFacultyForm({id:'',code:'',name:'',active:true})} className="underline text-slate-500">Cancel edit</button></div>}
+          </section>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="font-extrabold text-slate-900 dark:text-white">Departments</h2>
+                <h2 className="font-extrabold text-slate-900 dark:text-white">Departments</h2><p className="text-xs text-slate-500 mt-1">Each department can belong to a faculty.</p>
                 
               </div>
               <Building2 className="w-5 h-5 text-emerald-600" />
@@ -505,9 +534,10 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
               {deptForm.id && (
                 <div className="flex items-center justify-between p-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-[11px] text-amber-800 dark:text-amber-300">
                   <span>Editing department: <strong>{deptForm.name || deptForm.code}</strong></span>
-                  <button type="button" onClick={() => setDeptForm({ id: '', code: '', name: '', active: true })} className="font-bold underline ml-2">Cancel edit</button>
+                  <button type="button" onClick={() => setDeptForm({ id: '', code: '', name: '', facultyId: '', active: true })} className="font-bold underline ml-2">Cancel edit</button>
                 </div>
               )}
+              <select value={deptForm.facultyId} onChange={e=>setDeptForm({...deptForm,facultyId:e.target.value})} className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-xs"><option value="">No faculty assigned</option>{faculties.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</select>
               <div className="grid grid-cols-1 sm:grid-cols-[110px_1fr] gap-2">
                 <input required maxLength={12} value={deptForm.code} onChange={e=>setDeptForm({...deptForm,code:e.target.value.toUpperCase()})} placeholder="Code e.g. CSC" className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-xs font-mono font-bold" />
                 <input required value={deptForm.name} onChange={e=>setDeptForm({...deptForm,name:e.target.value})} placeholder="Department name" className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-xs font-medium" />
@@ -532,9 +562,9 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
                         {d.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </div>
-                    <span className="text-[10px] font-mono text-slate-500">{d.code}</span>
+                    <span className="text-[10px] font-mono text-slate-500">{d.code}{d.faculty_name ? ' · ' + d.faculty_name : ' · Faculty not assigned'}</span>
                   </div>
-                  <div className="flex items-center gap-3 shrink-0"><button type="button" onClick={()=>setDeptForm({id:d.id,code:d.code,name:d.name,active:d.is_active})} className="text-xs text-emerald-700 dark:text-emerald-300 font-bold">
+                  <div className="flex items-center gap-3 shrink-0"><button type="button" onClick={()=>setDeptForm({id:d.id,code:d.code,name:d.name,facultyId:d.faculty_id || '',active:d.is_active})} className="text-xs text-emerald-700 dark:text-emerald-300 font-bold">
                     <Pencil className="w-3.5 h-3.5 inline mr-1"/>Edit</button><button type="button" disabled={workingId===`delete:${d.id}`} onClick={()=>runDelete("department",d.id,d.name,()=>db.adminDeleteDepartment(d.id))} title="Delete department" className="text-rose-600 hover:text-rose-700 disabled:opacity-40"><Trash2 className="w-4 h-4"/></button></div>
                 </div>
               ))}
@@ -670,6 +700,7 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
             </div>}
           </div>
         </section>
+        </div>
       ) : tab === 'announcements' ? (
         <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] gap-4">
           <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
