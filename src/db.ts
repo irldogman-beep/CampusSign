@@ -421,6 +421,8 @@ export const DEFAULT_CAMPUS_BRANDING = {
   student_app_name: 'CampusSign Student', staff_app_name: 'CampusSign Staff Workspace',
   student_welcome: 'Your classes, attendance and student services in one place.',
   staff_welcome: 'Attendance, academic records and campus operations in one workspace.',
+  student_primary_color: '#064E3B', student_accent_color: '#F59E0B', student_background_color: '#F8FAFC', student_logo_url: null,
+  staff_primary_color: '#064E3B', staff_accent_color: '#F59E0B', staff_background_color: '#F8FAFC', staff_logo_url: null,
   support_email: '',
 };
 
@@ -433,15 +435,48 @@ export async function loadCampusBranding() {
 }
 
 export async function saveCampusBranding(input: typeof DEFAULT_CAMPUS_BRANDING) {
-  const { data, error } = await supabase.from('campus_branding_settings').update({
+  const requiredText = [
+    ['Institution name', input.brand_name, 2, 48],
+    ['Tagline', input.tagline, 2, 100],
+    ['Student app name', input.student_app_name, 2, 48],
+    ['Staff app name', input.staff_app_name, 2, 64],
+    ['Student welcome message', input.student_welcome, 2, 180],
+    ['Staff welcome message', input.staff_welcome, 2, 180],
+  ] as const;
+  for (const [label, value, min, max] of requiredText) {
+    if (typeof value !== 'string' || value.trim().length < min || value.trim().length > max) {
+      throw new Error(`${label} must contain ${min}–${max} characters.`);
+    }
+  }
+  const colorFields = [
+    'primary_color','accent_color','background_color',
+    'student_primary_color','student_accent_color','student_background_color',
+    'staff_primary_color','staff_accent_color','staff_background_color'
+  ] as const;
+  for (const field of colorFields) {
+    if (!/^#[0-9A-Fa-f]{6}$/.test(String(input[field] || ''))) {
+      throw new Error(`Please enter a valid 6-digit hex colour for ${field.replaceAll('_',' ')}.`);
+    }
+  }
+  const { data: auth, error: authError } = await supabase.auth.getUser();
+  if (authError) throw authError;
+  if (!auth.user) throw new Error('Your admin session has expired. Sign in again and retry.');
+  const payload = {
     brand_name: input.brand_name.trim(), tagline: input.tagline.trim(), logo_url: input.logo_url || null,
     primary_color: input.primary_color, accent_color: input.accent_color, background_color: input.background_color,
     student_app_name: input.student_app_name.trim(), staff_app_name: input.staff_app_name.trim(),
     student_welcome: input.student_welcome.trim(), staff_welcome: input.staff_welcome.trim(),
-    support_email: input.support_email.trim() || null, updated_at: new Date().toISOString(),
-  }).eq('id', 1).select().single();
+    student_primary_color: input.student_primary_color, student_accent_color: input.student_accent_color,
+    student_background_color: input.student_background_color, student_logo_url: input.student_logo_url || null,
+    staff_primary_color: input.staff_primary_color, staff_accent_color: input.staff_accent_color,
+    staff_background_color: input.staff_background_color, staff_logo_url: input.staff_logo_url || null,
+    support_email: input.support_email.trim() || null, updated_at: new Date().toISOString(), updated_by: auth.user.id,
+  };
+  const { data, error } = await supabase.from('campus_branding_settings')
+    .update(payload).eq('id', 1).select('id').maybeSingle();
   if (error) throw error;
-  return { ...DEFAULT_CAMPUS_BRANDING, ...data };
+  if (!data) throw new Error('The database did not save these changes. Check that this account has verified administrator permissions, then sign in again.');
+  return await loadCampusBranding();
 }
 
 export async function uploadCampusLogo(file: File) {
