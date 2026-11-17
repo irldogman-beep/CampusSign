@@ -503,13 +503,14 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
       {message && <div role="status" className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-emerald-800 dark:text-emerald-200 text-xs font-semibold">{message}</div>}
       {error && <div role="alert" className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-200 text-xs">{error}</div>}
 
-      <div className="sm:hidden">
-        <label className="sr-only" htmlFor="admin-section-select">Dashboard section</label>
-        <select id="admin-section-select" value={tab} onChange={e=>setTab(e.target.value)} className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-3 text-sm font-bold">
-          <option value="overview">Overview</option><option value="academic">Departments & courses</option><option value="academic-setup">Academic structure & progression</option><option value="assessments">CA & examinations</option><option value="lecturers">Lecturers</option><option value="enrolments">Enrolments</option><option value="student-accounts">Student accounts</option><option value="monitoring">Attendance & sessions</option><option value="announcements">Announcements</option><option value="audit">Audit history</option><option value="branding">Branding studio</option>
-        </select>
-      </div>
-      <nav aria-label="Admin dashboard sections" className="cs-admin-nav hidden sm:flex gap-2">
+      <div className="cs-workspace-layout grid grid-cols-1 lg:grid-cols-[230px_minmax(0,1fr)] gap-4 lg:gap-6 items-start">
+        <aside className="cs-workspace-sidebar lg:sticky lg:top-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 sm:p-4 space-y-3">
+          <div className="px-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+            <p className="text-[10px] font-black uppercase tracking-[.16em] text-emerald-700 dark:text-emerald-300">Workspace menu</p>
+            <h2 className="text-sm font-extrabold text-slate-900 dark:text-white mt-1">Administration</h2>
+            <p className="text-[10px] text-slate-500 mt-1">Choose an area to manage.</p>
+          </div>
+      <nav aria-label="Admin dashboard sections" className="cs-admin-nav grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-1 gap-2">
         {[
           { id: 'overview', label: 'Overview', icon: BarChart3 },
           { id: 'academic', label: 'Departments & courses', icon: BookMarked },
@@ -537,6 +538,12 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
           </button>
         ))}
       </nav>
+          <div className="hidden lg:block rounded-xl bg-slate-50 dark:bg-slate-800/70 p-3 text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">
+            Your menu stays available while you work. Select a section to switch the main workspace.
+          </div>
+        </aside>
+        <section className="min-w-0 space-y-4">
+
 
       <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/70 px-4 py-3 text-[11px] leading-relaxed text-slate-600 dark:text-slate-300"><strong className="text-slate-800 dark:text-slate-100">{({ overview: 'Overview', academic: 'Departments & courses', 'academic-setup': 'Academic structure', assessments: 'CA & examinations', lecturers: 'Lecturers', enrolments: 'Enrolments', 'student-accounts': 'Student accounts', monitoring: 'Attendance & sessions', announcements: 'Announcements', audit: 'Audit history', branding: 'Branding studio' } as Record<string,string>)[tab] || 'Admin workspace'}:</strong> {' '}{sectionGuidance[tab] || 'Choose a section to manage the institution.'}</div>
 
@@ -847,6 +854,8 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
         </section>
       )}
       
+        </section>
+      </div>
     </div>
   );
 }
