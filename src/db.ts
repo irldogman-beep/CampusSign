@@ -470,7 +470,7 @@ export async function saveCampusBranding(input: typeof DEFAULT_CAMPUS_BRANDING) 
     student_background_color: input.student_background_color, student_logo_url: input.student_logo_url || null,
     staff_primary_color: input.staff_primary_color, staff_accent_color: input.staff_accent_color,
     staff_background_color: input.staff_background_color, staff_logo_url: input.staff_logo_url || null,
-    support_email: input.support_email.trim() || null, updated_at: new Date().toISOString(), updated_by: auth.user.id,
+    support_email: String(input.support_email || '').trim() || null, updated_at: new Date().toISOString(), updated_by: auth.user.id,
   };
   const { data, error } = await supabase.from('campus_branding_settings')
     .update(payload).eq('id', 1).select('id').maybeSingle();
