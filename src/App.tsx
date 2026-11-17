@@ -47,6 +47,7 @@ import { Capacitor } from '@capacitor/core';
 import { QR_DISPLAY_CHANNEL } from './QRDisplayWindow';
 import AdminWorkspace, { NotificationBell } from './AdminWorkspace';
 import StudentAccountPortal from './StudentAccountPortal';
+import AssessmentManagement from './AssessmentManagement';
 
 /* ==========================================================================
    LOGO COMPONENT (Matching Forest Green & Academic Gold Emblem)
@@ -580,7 +581,7 @@ function AdminPortal({
   const [editingLog, setEditingLog] = useState(null);
   const [editAttendanceForm, setEditAttendanceForm] = useState({ studentName: '', dept: '', status: 'Verified' });
 
-  const [adminTab, setAdminTab] = useState('session'); // session | roster | registry | requests
+  const [adminTab, setAdminTab] = useState('session'); // session | roster | registry | requests | assessments
 
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
   const [newStudentForm, setNewStudentForm] = useState({
@@ -1782,6 +1783,7 @@ The request has NOT been rejected or approved. Check the student's official univ
       <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4 sm:space-y-5">
         
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+          <p className="text-[11px] text-slate-500 sm:max-w-xs">{adminTab === 'session' ? 'Create an attendance session and display its QR code to your class.' : adminTab === 'roster' ? 'Review, search, export or remove records from a completed attendance list.' : adminTab === 'registry' ? 'Manage the students registered for your assigned course and complete face enrolment.' : adminTab === 'assessments' ? 'Create CA and exam components, then record marks for students on your course roster.' : 'Review and respond to student requests to join your course.'}</p>
           {/* Sub Tab Buttons */}
           <div className="grid grid-cols-2 sm:flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl w-full sm:w-auto">
             <button type="button" onClick={() => setAdminTab('session')} className={`px-3 sm:px-4 py-2.5 sm:py-2 text-xs font-bold rounded-xl transition-all flex min-w-0 justify-center items-center gap-2 ${adminTab==='session'?'bg-emerald-900 text-amber-400 shadow':'text-slate-600 dark:text-slate-400 hover:text-slate-900'}`}><QrCode className="w-4 h-4"/><span>Session & QR</span></button>
@@ -1812,6 +1814,18 @@ The request has NOT been rejected or approved. Check the student's official univ
             </button>
 
             <button
+              onClick={() => setAdminTab('assessments')}
+              className={`px-3 sm:px-4 py-2.5 sm:py-2 text-xs font-bold rounded-xl transition-all flex min-w-0 justify-center items-center gap-2 ${
+                adminTab === 'assessments'
+                  ? 'bg-emerald-900 text-amber-400 shadow'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+              }`}
+            >
+              <FileCheck className="w-4 h-4" />
+              <span>CA & Results</span>
+            </button>
+
+            <button
               onClick={() => setAdminTab('requests')}
               className={`px-3 sm:px-4 py-2.5 sm:py-2 text-xs font-bold rounded-xl transition-all flex min-w-0 justify-center items-center gap-2 ${
                 adminTab === 'requests'
@@ -1833,7 +1847,7 @@ The request has NOT been rejected or approved. Check the student's official univ
             >
               <Download className="w-4 h-4" /> Export CSV
             </button>
-          ) : adminTab === 'registry' ? (
+          ) : adminTab === 'assessments' ? null : adminTab === 'registry' ? (
             <button
               onClick={() => setIsAddStudentOpen(true)}
               className="w-full sm:w-auto justify-center px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-emerald-950 text-xs font-extrabold rounded-xl shadow transition-colors flex items-center gap-2 border border-amber-300"
@@ -2034,6 +2048,7 @@ The request has NOT been rejected or approved. Check the student's official univ
         )}
 
         {/* TAB 3: LECTURER-SPECIFIC COURSE STUDENT DATABASE */}
+        {adminTab === 'assessments' && <AssessmentManagement mode="lecturer" />}
         {adminTab === 'registry' && (
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">

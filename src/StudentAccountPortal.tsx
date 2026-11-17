@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { supabase } from './supabase';
 import * as db from './db';
+import StudentResults from './StudentResults';
 
 type Props = {
   onClose: () => void;
@@ -31,7 +32,7 @@ export default function StudentAccountPortal({ onClose, onEnroll, onTakeAttendan
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [expandedNotification, setExpandedNotification] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState<'courses' | 'attendance' | 'inbox' | 'profile'>('courses');
+  const [activeSection, setActiveSection] = useState<'courses' | 'results' | 'attendance' | 'inbox' | 'profile'>('courses');
   const [rerollStatus, setRerollStatus] = useState<any>(null);
   const [rerollDepartment, setRerollDepartment] = useState('');
   const [rerollReason, setRerollReason] = useState('');
@@ -290,6 +291,7 @@ export default function StudentAccountPortal({ onClose, onEnroll, onTakeAttendan
              <nav aria-label="Student dashboard sections" className="cs-student-nav flex items-center gap-1 overflow-x-auto">
                {([
                  ['courses','Courses',BookOpen,courses.length],
+                 ['results','Results',GraduationCap,null],
                  ['attendance','Attendance',CalendarDays,attendance.length],
                  ['inbox','Inbox',Bell,notifications.length],
                  ['profile','Profile',UserRound,null],
@@ -315,6 +317,7 @@ export default function StudentAccountPortal({ onClose, onEnroll, onTakeAttendan
                <p className="text-[10px] text-slate-500 mb-3">A failed course can be retaken in a later term without repeating your entire level.</p>
                {(dashboard?.course_attempts||[]).length===0?<p className="py-4 text-xs text-slate-500">No course attempts have been recorded in the academic record yet.</p>:<div className="space-y-2">{dashboard.course_attempts.map((attempt:any)=><article key={attempt.id} className="rounded-xl border border-slate-200 dark:border-slate-700 p-3 flex items-start justify-between gap-3"><div className="min-w-0"><p className="text-xs font-bold text-slate-900 dark:text-white">{attempt.course_code} · {attempt.course_title}</p><p className="text-[10px] text-slate-500 mt-1">{attempt.academic_period} · {attempt.term} · Attempt {attempt.attempt_number}</p>{attempt.grade&&<p className="text-[10px] text-slate-500 mt-1">Grade: {attempt.grade}</p>}</div><span className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-bold ${attempt.status==='failed'?'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200':attempt.status==='passed'?'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200':'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}>{attempt.status==='failed'?'Carryover':attempt.status.replace('_',' ')}</span></article>)}</div>}
              </section>
+             {activeSection==='results' && <StudentResults />}
              {activeSection==='attendance' && <section className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-sm">
                <div className="mb-3"><h3 className="font-extrabold text-slate-900 dark:text-white">Attendance history</h3><p className="mt-1 text-[11px] text-slate-500">Your most recent attendance records.</p></div>
                {attendance.length===0?<p className="py-8 text-center text-xs text-slate-500">No attendance records yet.</p>:<div className="grid grid-cols-1 lg:grid-cols-2 gap-2">{attendance.map((row:any)=><article key={row.id} className="rounded-xl border border-slate-200 dark:border-slate-700 p-3 min-w-0"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="text-xs font-bold text-slate-900 dark:text-white break-words">{row.course}</p><p className="text-[10px] text-slate-500 mt-1">{new Date(row.created_at).toLocaleString()}</p></div><span className={`shrink-0 rounded-full px-2.5 py-1 text-[9px] font-bold ${String(row.status).toLowerCase()==='verified'?'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200':'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200'}`}>{row.status}</span></div><p className="mt-2 text-[10px] font-mono text-slate-500 break-all">{row.receipt_no || 'Receipt reference unavailable'}</p></article>)}</div>}
