@@ -415,6 +415,106 @@ export async function reviewDepartmentReroll(requestId: string, decision: 'appro
 
 
 // ---- public campus branding (writes restricted by database RLS to verified admins) ----
+// ---- configurable academic structure, cohorts and course attempts ----
+export async function loadAcademicSettings(): Promise<any> {
+  const { data, error } = await supabase.from('academic_structure_settings').select('*').eq('id', 1).maybeSingle();
+  if (error) throw error;
+  return data || { id: 1, education_type: 'university', level_label: 'Level', period_label: 'Academic year', term_label: 'Semester', terms_per_period: 2, progression_mode: 'manual' };
+}
+export async function saveAcademicSettings(input: any) {
+  const { error } = await supabase.from('academic_structure_settings').upsert({
+    id: 1, education_type: input.education_type, level_label: input.level_label.trim(),
+    period_label: input.period_label.trim(), term_label: input.term_label.trim(),
+    terms_per_period: Number(input.terms_per_period), progression_mode: input.progression_mode,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'id' });
+  if (error) throw error;
+}
+export async function loadAcademicLevels(): Promise<any[]> {
+  const { data, error } = await supabase.from('academic_levels').select('*').order('sequence');
+  if (error) throw error; return data || [];
+}
+export async function saveAcademicLevel(input: any) {
+  const payload = { code: input.code.trim().toUpperCase(), name: input.name.trim(), sequence: Number(input.sequence), updated_at: new Date().toISOString() };
+  const query = input.id ? supabase.from('academic_levels').update(payload).eq('id', input.id) : supabase.from('academic_levels').insert(payload);
+  const { error } = await query; if (error) throw error;
+}
+export async function loadAcademicPeriods(): Promise<any[]> {
+  const { data, error } = await supabase.from('academic_periods').select('*').order('starts_on', { ascending: false, nullsFirst: false }).order('name');
+  if (error) throw error; return data || [];
+}
+export async function saveAcademicPeriod(input: any): Promise<string> {
+  const payload = { name: input.name.trim(), starts_on: input.starts_on || null, ends_on: input.ends_on || null, is_current: false, updated_at: new Date().toISOString() };
+  if (input.id) { const { error } = await supabase.from('academic_periods').update(payload).eq('id', input.id); if (error) throw error; return input.id; }
+  const { data, error } = await supabase.from('academic_periods').insert(payload).select('id').single();
+  if (error) throw error; return data.id;
+}
+export async function setCurrentAcademicPeriod(id: string) {
+  const { error: clearError } = await supabase.from('academic_periods').update({ is_current: false, updated_at: new Date().toISOString() }).eq('is_current', true);
+  if (clearError) throw clearError;
+  const { error } = await supabase.from('academic_periods').update({ is_current: true, updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) throw error;
+}
+export async function loadAcademicTerms(): Promise<any[]> {
+  const { data, error } = await supabase.from('academic_terms').select('*').order('sequence');
+  if (error) throw error; return data || [];
+}
+export async function saveAcademicTerm(input: any): Promise<string> {
+  const payload = { academic_period_id: input.academic_period_id, name: input.name.trim(), sequence: Number(input.sequence), starts_on: input.starts_on || null, ends_on: input.ends_on || null, is_current: false, updated_at: new Date().toISOString() };
+  if (input.id) { const { error } = await supabase.from('academic_terms').update(payload).eq('id', input.id); if (error) throw error; return input.id; }
+  const { data, error } = await supabase.from('academic_terms').insert(payload).select('id').single();
+  if (error) throw error; return data.id;
+}
+export async function setCurrentAcademicTerm(id: string, periodId: string) {
+  const { error: clearError } = await supabase.from('academic_terms').update({ is_current: false, updated_at: new Date().toISOString() }).eq('academic_period_id', periodId).eq('is_current', true);
+  if (clearError) throw clearError;
+  const { error } = await supabase.from('academic_terms').update({ is_current: true, updated_at: new Date().toISOString() }).eq('id', id);
+  if (error) throw error;
+}
+export async function loadAcademicCohorts(): Promise<any[]> {
+  const { data, error } = await supabase.from('student_cohorts').select('*').order('admission_year', { ascending: false });
+  if (error) throw error; return data || [];
+}
+export async function saveAcademicCohort(input: any) {
+  const payload = { name: input.name.trim(), admission_year: input.admission_year.trim(), description: input.description.trim() || null, updated_at: new Date().toISOString() };
+  const query = input.id ? supabase.from('student_cohorts').update(payload).eq('id', input.id) : supabase.from('student_cohorts').insert(payload);
+  const { error } = await query; if (error) throw error;
+}
+export async function loadStudentAcademicProfiles(): Promise<any[]> {
+  const { data, error } = await supabase.from('student_academic_profiles').select('*').order('updated_at', { ascending: false });
+  if (error) throw error; return data || [];
+}
+export async function saveStudentAcademicProfile(input: any) {
+  const { data: previous, error: previousError } = await supabase.from('student_academic_profiles').select('current_level_id,cohort_id').eq('student_user_id', input.student_user_id).maybeSingle();
+  if (previousError) throw previousError;
+  const payload = { student_user_id: input.student_user_id, cohort_id: input.cohort_id || null, current_level_id: input.current_level_id || null, academic_status: input.academic_status || 'active', status_reason: input.status_reason?.trim() || null, updated_at: new Date().toISOString() };
+  const { error } = await supabase.from('student_academic_profiles').upsert(payload, { onConflict: 'student_user_id' });
+  if (error) throw error;
+  if (!previous || previous.current_level_id !== payload.current_level_id || previous.cohort_id !== payload.cohort_id) {
+    const { error: eventError } = await supabase.from('student_progression_events').insert({
+      student_user_id: input.student_user_id, from_level_id: previous?.current_level_id || null,
+      to_level_id: payload.current_level_id, event_type: input.event_type || 'initial_assignment',
+      effective_on: input.effective_on || new Date().toISOString().slice(0, 10), note: input.note?.trim() || null,
+    });
+    if (eventError) throw eventError;
+  }
+}
+export async function loadStudentProgressionEvents(): Promise<any[]> {
+  const { data, error } = await supabase.from('student_progression_events').select('*').order('created_at', { ascending: false }).limit(150);
+  if (error) throw error; return data || [];
+}
+export async function loadStudentCourseAttempts(): Promise<any[]> {
+  const { data, error } = await supabase.from('student_course_attempts').select('*').order('created_at', { ascending: false }).limit(250);
+  if (error) throw error; return data || [];
+}
+export async function saveStudentCourseAttempt(input: any) {
+  const payload: any = { student_user_id: input.student_user_id, course_id: input.course_id, academic_term_id: input.academic_term_id, attempt_number: Number(input.attempt_number), status: input.status, grade: input.grade?.trim() || null, result_note: input.result_note?.trim() || null, updated_at: new Date().toISOString() };
+  const { data: authData } = await supabase.auth.getUser();
+  if (authData.user?.id) payload.recorded_by = authData.user.id;
+  const { error } = await supabase.from('student_course_attempts').upsert(payload, { onConflict: 'student_user_id,course_id,attempt_number' });
+  if (error) throw error;
+}
+
 export const DEFAULT_CAMPUS_BRANDING = {
   id: 1, brand_name: 'CampusSign', tagline: 'Attendance, clearly verified.', logo_url: null,
   primary_color: '#064E3B', accent_color: '#F59E0B', background_color: '#F8FAFC',
