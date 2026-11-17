@@ -467,20 +467,21 @@ body {
 
 /* Quiet, white navigation: the workspace content should lead, not the header. */
 .campus-app-shell .cs-app-header {
-  color: var(--cs-ink);
-  background: rgb(255 255 255 / 94%);
-  border-bottom: 1px solid var(--cs-line);
+  color: var(--brand-header-text, var(--cs-ink));
+  background: var(--brand-header-bg, rgb(255 255 255 / 94%));
+  border-bottom: 1px solid color-mix(in srgb, var(--brand-header-text, var(--cs-ink)) 16%, transparent);
   box-shadow: 0 4px 18px rgb(20 48 37 / 4%);
   backdrop-filter: blur(18px);
 }
-.dark .campus-app-shell .cs-app-header { background: rgb(12 25 19 / 94%); }
+.campus-app-shell.dark .cs-app-header {
+  background: var(--brand-header-bg, rgb(12 25 19 / 94%));
+}
 .cs-app-header > div { max-width: 1320px; }
-.cs-brand-title { color: var(--cs-ink) !important; letter-spacing: -.045em !important; }
-.cs-brand-badge { color: #23634c; background: #e9f3ed; }
-.dark .cs-brand-badge { color: #b4ddc7; background: #1b372b; }
-.cs-brand-subtitle { color: var(--cs-muted) !important; }
-.cs-space-chip { color: #477263; background: #edf4ef; border-radius: 999px; padding: .5rem .8rem; }
-.dark .cs-space-chip { color: #b7d8c7; background: #20372c; }
+.cs-brand-title { color: var(--brand-header-text, var(--cs-ink)) !important; letter-spacing: -.045em !important; }
+.cs-brand-badge { color: var(--brand-header-text, #23634c); background: color-mix(in srgb, var(--brand-header-text, #23634c) 9%, var(--brand-header-bg, white)); }
+.cs-brand-subtitle { color: color-mix(in srgb, var(--brand-header-text, var(--cs-muted)) 72%, transparent) !important; }
+.cs-space-chip { color: var(--brand-header-text, #477263); background: color-mix(in srgb, var(--brand-header-text, #477263) 9%, var(--brand-header-bg, white)); border-radius: 999px; padding: .5rem .8rem; }
+.campus-app-shell.dark .cs-brand-badge { color: var(--brand-header-text, #b4ddc7); }
 .cs-header-primary {
   color: #fff !important;
   background: #174c3b;
@@ -499,8 +500,8 @@ body {
 .dark .cs-header-tabs { background: #12231a; border-color: #2b4035; }
 .cs-header-tab { color: var(--cs-muted); }
 .cs-header-tab:hover { color: var(--cs-ink); background: rgb(255 255 255 / 75%); }
-.cs-header-tab.is-active { color: #174c3b !important; background: white; box-shadow: 0 2px 6px rgb(17 49 38 / 9%); }
-.dark .cs-header-tab.is-active { color: #d1e9db !important; background: #244233; }
+.cs-header-tab.is-active { color: var(--brand-header-text, #174c3b) !important; background: white; box-shadow: 0 2px 6px rgb(17 49 38 / 9%); }
+.campus-app-shell.dark .cs-header-tab.is-active { color: var(--brand-header-text, #d1e9db) !important; background: #244233; }
 .cs-theme-toggle { color: var(--cs-muted); border: 1px solid var(--cs-line); background: var(--cs-surface); }
 .cs-theme-toggle:hover { color: var(--cs-green); border-color: #acc7b7; }
 
