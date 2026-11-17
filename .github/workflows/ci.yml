@@ -25,3 +25,14 @@ jobs:
         run: npm run check
       - name: Production build
         run: npm run build
+      - name: Package reviewable source archive
+        if: always()
+        run: git archive --format=zip --output=CampusSign-source.zip HEAD
+      - name: Upload source archive
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CampusSign-source-review
+          path: CampusSign-source.zip
+          if-no-files-found: error
+          retention-days: 14
