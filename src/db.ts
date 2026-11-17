@@ -444,7 +444,7 @@ export async function loadAcademicPeriods(): Promise<any[]> {
   if (error) throw error; return data || [];
 }
 export async function saveAcademicPeriod(input: any): Promise<string> {
-  const payload = { name: input.name.trim(), starts_on: input.starts_on || null, ends_on: input.ends_on || null, is_current: false, updated_at: new Date().toISOString() };
+  const payload = { name: input.name.trim(), starts_on: input.starts_on || null, ends_on: input.ends_on || null, is_current: input.id ? !!input.is_current : false, updated_at: new Date().toISOString() };
   if (input.id) { const { error } = await supabase.from('academic_periods').update(payload).eq('id', input.id); if (error) throw error; return input.id; }
   const { data, error } = await supabase.from('academic_periods').insert(payload).select('id').single();
   if (error) throw error; return data.id;
