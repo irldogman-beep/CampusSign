@@ -491,10 +491,11 @@ export async function saveStudentAcademicProfile(input: any) {
   const { error } = await supabase.from('student_academic_profiles').upsert(payload, { onConflict: 'student_user_id' });
   if (error) throw error;
   if (!previous || previous.current_level_id !== payload.current_level_id || previous.cohort_id !== payload.cohort_id || previous.academic_status !== payload.academic_status) {
+    const { data: actorData } = await supabase.auth.getUser();
     const { error: eventError } = await supabase.from('student_progression_events').insert({
       student_user_id: input.student_user_id, from_level_id: previous?.current_level_id || null,
       to_level_id: payload.current_level_id, event_type: previous && previous.academic_status !== payload.academic_status && previous.current_level_id === payload.current_level_id && previous.cohort_id === payload.cohort_id ? 'status_changed' : (input.event_type || 'initial_assignment'),
-      effective_on: input.effective_on || new Date().toISOString().slice(0, 10), note: input.note?.trim() || null,
+      effective_on: input.effective_on || new Date().toISOString().slice(0, 10), note: input.note?.trim() || null, actor_id: actorData.user?.id || null,
     });
     if (eventError) throw eventError;
   }
