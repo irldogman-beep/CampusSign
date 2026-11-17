@@ -270,11 +270,13 @@ export async function loadCatalogFaculties(): Promise<any[]> {
 }
 export async function saveCatalogFaculty(input: { id?: string | null; code: string; name: string; active: boolean }) {
   const payload = { code: input.code.trim().toUpperCase(), name: input.name.trim(), is_active: input.active, updated_at: new Date().toISOString() };
-  const query = input.id
-    ? supabase.from('academic_faculties').update(payload).eq('id', input.id)
-    : supabase.from('academic_faculties').insert(payload);
-  const { error } = await query;
-  if (error) throw error;
+  if (input.id) {
+    const { error } = await supabase.from('academic_faculties').update(payload).eq('id', input.id);
+    if (error) throw error;
+  } else {
+    const { error } = await supabase.from('academic_faculties').insert(payload);
+    if (error) throw error;
+  }
 }
 export async function assignDepartmentFaculty(departmentId: string, facultyId: string | null) {
   const { error } = await supabase.from('academic_departments')
