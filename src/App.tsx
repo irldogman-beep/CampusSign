@@ -1780,12 +1780,18 @@ The request has NOT been rejected or approved. Check the student's official univ
       </>}
 
       {/* ADMIN SUB-TABS: ISOLATED SESSION ATTENDANCE vs LECTURER'S OWN COURSE ROSTER */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4 sm:space-y-5">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div className="grid grid-cols-1 lg:grid-cols-[230px_minmax(0,1fr)] gap-4 lg:gap-6 items-start">
         
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
-          <p className="text-[11px] text-slate-500 sm:max-w-xs">{adminTab === 'session' ? 'Create an attendance session and display its QR code to your class.' : adminTab === 'roster' ? 'Review, search, export or remove records from a completed attendance list.' : adminTab === 'registry' ? 'Manage the students registered for your assigned course and complete face enrolment.' : adminTab === 'assessments' ? 'Create CA and exam components, then record marks for students on your course roster.' : 'Review and respond to student requests to join your course.'}</p>
+        <aside className="cs-workspace-sidebar lg:sticky lg:top-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 p-3 sm:p-4 space-y-3">
+          <div className="px-2 pb-2 border-b border-slate-200 dark:border-slate-800">
+            <p className="text-[10px] font-black uppercase tracking-[.16em] text-emerald-700 dark:text-emerald-300">Lecturer menu</p>
+            <h2 className="text-sm font-extrabold text-slate-900 dark:text-white mt-1">Teaching workspace</h2>
+            <p className="text-[10px] text-slate-500 mt-1">Attendance, class lists and results.</p>
+          </div>
+          <p className="text-[11px] text-slate-500 sm:max-w-xs>{adminTab === 'session' ? 'Create an attendance session and display its QR code to your class.' : adminTab === 'roster' ? 'Review, search, export or remove records from a completed attendance list.' : adminTab === 'registry' ? 'Manage the students registered for your assigned course and complete face enrolment.' : adminTab === 'assessments' ? 'Create CA and exam components, then record marks for students on your course roster.' : 'Review and respond to student requests to join your course.'}</p>
           {/* Sub Tab Buttons */}
-          <div className="grid grid-cols-2 sm:flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl w-full sm:w-auto">
+          <div className="grid grid-cols-2 lg:grid-cols-1 items-stretch gap-1.5 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl w-full">
             <button type="button" onClick={() => setAdminTab('session')} className={`px-3 sm:px-4 py-2.5 sm:py-2 text-xs font-bold rounded-xl transition-all flex min-w-0 justify-center items-center gap-2 ${adminTab==='session'?'bg-emerald-900 text-amber-400 shadow':'text-slate-600 dark:text-slate-400 hover:text-slate-900'}`}><QrCode className="w-4 h-4"/><span>Session & QR</span></button>
             <button
               onClick={() => setAdminTab('roster')}
@@ -1862,7 +1868,8 @@ The request has NOT been rejected or approved. Check the student's official univ
               <RefreshCw className="w-4 h-4" /> Refresh requests
             </button>
           )}
-        </div>
+        </aside>
+        <div className="min-w-0 space-y-4">
 
         {adminTab !== 'session' && <>
         {/* TAB 1: ISOLATED SESSION ATTENDANCE LOG */}
@@ -2168,7 +2175,8 @@ The request has NOT been rejected or approved. Check the student's official univ
         )}
 
         </>}
-
+        </div>
+        </div>
       </div>
 
       {/* FACE ENROLLMENT MODAL */}
