@@ -33,7 +33,9 @@ export default function StudentAccountPortal({ onClose, onEnroll, onTakeAttendan
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [expandedNotification, setExpandedNotification] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState<'courses' | 'results' | 'attendance' | 'requests' | 'inbox' | 'profile'>('courses');
+  const [activeSection, setActiveSection] = useState<'courses' | 'attempts' | 'results' | 'attendance' | 'requests' | 'inbox' | 'profile'>('courses');
+  const [attendanceCourseFilter, setAttendanceCourseFilter] = useState('');
+  const [attendanceDateFilter, setAttendanceDateFilter] = useState('');
   const [rerollStatus, setRerollStatus] = useState<any>(null);
   const [rerollDepartment, setRerollDepartment] = useState('');
   const [rerollReason, setRerollReason] = useState('');
@@ -196,6 +198,18 @@ export default function StudentAccountPortal({ onClose, onEnroll, onTakeAttendan
     finally { setBusy(false); }
   };
 
+  const markAllRead = async () => {
+    if (!unreadCount || inboxBusy) return;
+    setInboxBusy(true);
+    try {
+      await db.markAllNotificationsRead();
+      const readAt = new Date().toISOString();
+      setNotifications(current => current.map(item => ({ ...item, read_at: item.read_at || readAt })));
+      setDashboard(current => current ? { ...current, unread_notifications: 0 } : current);
+    } catch (e) { setError(db.friendly(e)); }
+    finally { setInboxBusy(false); }
+  };
+
   const markRead = async (id: string) => {
     try {
       await db.markNotificationRead(id);
@@ -227,6 +241,12 @@ export default function StudentAccountPortal({ onClose, onEnroll, onTakeAttendan
   const profile = dashboard?.profile;
   const courses = dashboard?.courses || [];
   const attendance = dashboard?.attendance || [];
+  const unreadCount = notifications.filter(item => !item.read_at).length;
+  const attendanceCourses = Array.from(new Set(attendance.map((row: any) => row.course).filter(Boolean))).sort();
+  const filteredAttendance = attendance.filter((row: any) =>
+    (!attendanceCourseFilter || row.course === attendanceCourseFilter) &&
+    (!attendanceDateFilter || String(row.created_at || '').slice(0, 10) === attendanceDateFilter)
+  );
   const isSignedIn = !!profile;
 
   return (
@@ -306,10 +326,11 @@ export default function StudentAccountPortal({ onClose, onEnroll, onTakeAttendan
              <nav aria-label="Student dashboard sections" className="cs-student-nav grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-1 gap-2">
                {([
                  ['courses','Courses',BookOpen,courses.length],
+                 ['attempts','Course attempts',ClipboardList,(dashboard?.course_attempts || []).length],
                  ['results','Results',GraduationCap,null],
                  ['attendance','Attendance',CalendarDays,attendance.length],
                  ['requests','Course requests',ClipboardList,enrollmentRequests.length],
-                 ['inbox','Inbox',Bell,notifications.length],
+                 ['inbox','Inbox',Bell,unreadCount],
                  ['profile','Profile',UserRound,null],
                ] as const).map(([key,label,Icon,count]) => (
                  <button key={key} type="button" onClick={()=>setActiveSection(key)} aria-pressed={activeSection===key}
@@ -331,18 +352,19 @@ export default function StudentAccountPortal({ onClose, onEnroll, onTakeAttendan
                {courses.length===0?<p className="py-8 text-center text-xs text-slate-500">No approved courses are linked to this account yet.</p>:<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{courses.map((course:any,i:number)=><article key={course.course+i} className="rounded-xl border border-slate-200 dark:border-slate-700 p-3 sm:p-4"><div className="flex items-start justify-between gap-2"><strong className="text-sm text-slate-900 dark:text-white break-words">{course.course}</strong><CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0"/></div><p className="text-[11px] text-slate-500 mt-2 break-words">{course.lecturer}</p><p className="text-[11px] mt-2 text-emerald-700 dark:text-emerald-300">{course.face_enrolled?'Face enrolment active':'Face enrolment pending'}</p></article>)}</div>}
                {courses.some((course:any)=>!course.face_enrolled) && <p className="mt-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 p-3 text-[11px] leading-relaxed text-amber-800 dark:text-amber-200">At least one existing course still needs face enrolment. Contact that course's lecturer to complete it. Requesting an additional course will not change the face-enrolment status of courses you already have. </p>}
              </section>}
-             <section className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-sm">
+             {activeSection==='attempts' && <section className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-sm">
                <h3 className="font-extrabold text-slate-900 dark:text-white mb-1">Course attempts and carryovers</h3>
                <p className="text-[10px] text-slate-500 mb-3">A failed course can be retaken in a later term without repeating your entire level.</p>
                {(dashboard?.course_attempts||[]).length===0?<p className="py-4 text-xs text-slate-500">No course attempts have been recorded in the academic record yet.</p>:<div className="space-y-2">{dashboard.course_attempts.map((attempt:any)=><article key={attempt.id} className="rounded-xl border border-slate-200 dark:border-slate-700 p-3 flex items-start justify-between gap-3"><div className="min-w-0"><p className="text-xs font-bold text-slate-900 dark:text-white">{attempt.course_code} · {attempt.course_title}</p><p className="text-[10px] text-slate-500 mt-1">{attempt.academic_period} · {attempt.term} · Attempt {attempt.attempt_number}</p>{attempt.grade&&<p className="text-[10px] text-slate-500 mt-1">Grade: {attempt.grade}</p>}</div><span className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-bold ${attempt.status==='failed'?'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200':attempt.status==='passed'?'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200':'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}>{attempt.status==='failed'?'Carryover':attempt.status.replace('_',' ')}</span></article>)}</div>}
-             </section>
+             </section>}
              {activeSection==='results' && <StudentResults />}
              {activeSection==='attendance' && <section className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-sm">
-               <div className="mb-3"><h3 className="font-extrabold text-slate-900 dark:text-white">Attendance history</h3><p className="mt-1 text-[11px] text-slate-500">Your most recent attendance records.</p></div>
-               {attendance.length===0?<p className="py-8 text-center text-xs text-slate-500">No attendance records yet.</p>:<div className="grid grid-cols-1 lg:grid-cols-2 gap-2">{attendance.map((row:any)=><article key={row.id} className="rounded-xl border border-slate-200 dark:border-slate-700 p-3 min-w-0"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="text-xs font-bold text-slate-900 dark:text-white break-words">{row.course}</p><p className="text-[10px] text-slate-500 mt-1">{new Date(row.created_at).toLocaleString()}</p></div><span className={`shrink-0 rounded-full px-2.5 py-1 text-[9px] font-bold ${String(row.status).toLowerCase()==='verified'?'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200':'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200'}`}>{row.status}</span></div><p className="mt-2 text-[10px] font-mono text-slate-500 break-all">{row.receipt_no || 'Receipt reference unavailable'}</p></article>)}</div>}
+               <div className="mb-3"><h3 className="font-extrabold text-slate-900 dark:text-white">Attendance history</h3><p className="mt-1 text-[11px] text-slate-500">Your most recent attendance records. Filter by course or date.</p></div>
+               {attendance.length>0 && <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3"><label className="block text-[10px] font-bold text-slate-500">Course<select aria-label="Filter attendance by course" value={attendanceCourseFilter} onChange={e=>setAttendanceCourseFilter(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-xs"><option value="">All courses</option>{attendanceCourses.map(course=><option key={course} value={course}>{course}</option>)}</select></label><label className="block text-[10px] font-bold text-slate-500">Date<input aria-label="Filter attendance by date" type="date" value={attendanceDateFilter} onChange={e=>setAttendanceDateFilter(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2.5 text-xs"/></label></div>}
+               {attendance.length===0?<p className="py-8 text-center text-xs text-slate-500">No attendance records yet.</p>:filteredAttendance.length===0?<p className="py-8 text-center text-xs text-slate-500">No attendance records match these filters. <button type="button" onClick={()=>{setAttendanceCourseFilter('');setAttendanceDateFilter('');}} className="font-bold text-emerald-700 underline">Clear filters</button></p>:<div className="grid grid-cols-1 lg:grid-cols-2 gap-2">{filteredAttendance.map((row:any)=><article key={row.id} className="rounded-xl border border-slate-200 dark:border-slate-700 p-3 min-w-0"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="text-xs font-bold text-slate-900 dark:text-white break-words">{row.course}</p><p className="text-[10px] text-slate-500 mt-1">{new Date(row.created_at).toLocaleString()}</p></div><span className={`shrink-0 rounded-full px-2.5 py-1 text-[9px] font-bold ${String(row.status).toLowerCase()==='verified'?'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200':'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200'}`}>{row.status}</span></div><p className="mt-2 text-[10px] font-mono text-slate-500 break-all">{row.receipt_no || 'Receipt reference unavailable'}</p></article>)}</div>}
              </section>}
              {activeSection==='inbox' && <section className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-sm">
-               <div className="flex items-center justify-between gap-2 mb-3"><div><h3 className="font-extrabold text-slate-900 dark:text-white">Inbox</h3><p className="text-[10px] text-slate-500 mt-1">{notifications.length} messages</p></div><button type="button" onClick={refreshInbox} disabled={inboxBusy} aria-label="Refresh inbox" title="Refresh inbox" className="rounded-lg border border-slate-200 dark:border-slate-700 p-2 text-slate-600 dark:text-slate-300 disabled:opacity-50"><RefreshCw className={`w-4 h-4 ${inboxBusy?'animate-spin':''}`}/></button></div>
+               <div className="flex items-center justify-between gap-2 mb-3"><div><h3 className="font-extrabold text-slate-900 dark:text-white">Inbox</h3><p className="text-[10px] text-slate-500 mt-1">{unreadCount} unread · {notifications.length} messages</p></div><div className="flex items-center gap-2"><button type="button" onClick={markAllRead} disabled={!unreadCount || inboxBusy} className="rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-[10px] font-bold text-slate-600 dark:text-slate-300 disabled:opacity-40">Mark all read</button><button type="button" onClick={refreshInbox} disabled={inboxBusy} aria-label="Refresh inbox" title="Refresh inbox" className="rounded-lg border border-slate-200 dark:border-slate-700 p-2 text-slate-600 dark:text-slate-300 disabled:opacity-50"><RefreshCw className={`w-4 h-4 ${inboxBusy?'animate-spin':''}`}/></button></div></div>
                {notifications.length===0?<p className="py-6 text-xs text-slate-500">No messages yet.</p>:<div className="space-y-2">{notifications.map((item:any)=><article key={item.id} className={`rounded-xl border p-3 ${item.read_at?'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50':'border-emerald-200 dark:border-emerald-900 bg-emerald-50/60 dark:bg-emerald-950/30'}`}>
                  <button type="button" aria-expanded={expandedNotification===item.id} onClick={()=>{setExpandedNotification(current=>current===item.id?null:item.id);if(!item.read_at)markRead(item.id);}} className="w-full min-w-0 text-left"><span className="flex items-start justify-between gap-2"><strong className="text-xs text-slate-900 dark:text-white break-words">{item.title}</strong><span className="text-[10px] text-slate-500 shrink-0">{new Date(item.created_at).toLocaleDateString()}</span></span><span className="block text-[10px] text-slate-500 mt-1">{item.read_at?'Read':'New'}</span></button>
                  {expandedNotification===item.id&&<p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300 mt-3 whitespace-pre-wrap break-words">{item.message}</p>}
