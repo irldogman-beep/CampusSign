@@ -9,11 +9,11 @@ import * as db from './db';
 type Props = {
   onClose: () => void;
   onEnroll: (profile: any, courses: any[]) => void;
-  onScan?: () => void;
+  onTakeAttendance?: (profile: any) => void;
   branding?: any;
 };
 
-export default function StudentAccountPortal({ onClose, onEnroll, onScan, branding }: Props) {
+export default function StudentAccountPortal({ onClose, onEnroll, onTakeAttendance, branding }: Props) {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -267,7 +267,7 @@ export default function StudentAccountPortal({ onClose, onEnroll, onScan, brandi
             <label className="block"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Password</span><input required type="password" minLength={8} autoComplete={mode==='signup'?'new-password':'current-password'} value={password} onChange={e=>setPassword(e.target.value)} placeholder="At least 8 characters" className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3 text-sm"/></label>
             <button disabled={busy || !email.trim() || !password || (mode==='signup' && (!studentId.trim() || !fullName.trim() || !department || departments.length===0))} className="cs-auth-submit w-full rounded-xl py-3.5 text-sm font-extrabold disabled:opacity-50">{busy?'Please wait…':mode==='signup'?'Create student account':'Sign in to Student services'}</button>
           </form>
-          {mode==='login' && onScan && <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 text-center"><p className="text-xs font-semibold text-slate-600 dark:text-slate-300">Need to check in without signing in?</p><button type="button" onClick={onScan} className="mt-2 inline-flex items-center gap-2 rounded-xl border border-emerald-200 dark:border-emerald-900 px-4 py-2.5 text-xs font-extrabold text-emerald-800 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"><Scan className="w-4 h-4"/>Scan attendance QR</button><p className="mt-2 text-[10px] text-slate-500">Use this when your lecturer has displayed an attendance QR code.</p></div>}
+
           {mode==='signup' && <p className="mt-4 text-[10px] text-slate-500 leading-relaxed">Your account is your CampusSign login. First, an administrator checks and approves your student details. After approval, you can select courses and enrol your face; the relevant lecturers then review your course requests. If you already have academic records, the administrator can use them to verify you before you request any additional courses.</p>}
           </div>
         </section>
@@ -276,7 +276,7 @@ export default function StudentAccountPortal({ onClose, onEnroll, onScan, brandi
           {profile.status === 'approved' && (
           <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-950 text-white p-5 sm:p-6 shadow-lg border border-emerald-800">
             <div className="absolute -right-12 -top-16 w-48 h-48 rounded-full bg-amber-400/10 blur-2xl" />
-            <div className="relative flex flex-col sm:flex-row sm:items-end justify-between gap-3"><div><p className="text-[10px] uppercase tracking-[.2em] text-emerald-200 font-black">Your CampusSign dashboard</p><h2 className="text-xl sm:text-2xl font-black mt-1">Good to see you, {String(profile.full_name || 'student').trim().split(' ')[0]}.</h2></div><div className="inline-flex items-center gap-2 rounded-full bg-white/10 border border-white/15 px-3 py-2 text-[10px] font-bold text-emerald-50"><ShieldCheck className="w-3.5 h-3.5 text-amber-300"/>Account verified</div></div>
+            <div className="relative flex flex-col sm:flex-row sm:items-end justify-between gap-3"><div><p className="text-[10px] uppercase tracking-[.2em] text-emerald-200 font-black">Your CampusSign dashboard</p><h2 className="text-xl sm:text-2xl font-black mt-1">Good to see you, {String(profile.full_name || 'student').trim().split(' ')[0]}.</h2></div><div className="flex flex-col sm:items-end gap-2"><div className="inline-flex items-center gap-2 rounded-full bg-white/10 border border-white/15 px-3 py-2 text-[10px] font-bold text-emerald-50"><ShieldCheck className="w-3.5 h-3.5 text-amber-300"/>Account verified</div><button type="button" onClick={() => onTakeAttendance?.(profile)} disabled={profile.status !== 'approved'} className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-400 hover:bg-amber-300 px-4 py-3 text-xs font-extrabold text-emerald-950 shadow-sm disabled:opacity-50"><Scan className="w-4 h-4"/>Take attendance</button></div></div>
             
           </section>          )}
 
