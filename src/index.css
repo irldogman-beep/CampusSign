@@ -827,3 +827,12 @@ body {
 .cs-art-progress-track span { background: linear-gradient(90deg, var(--brand-primary, #477f5d), color-mix(in srgb, var(--brand-primary, #477f5d) 40%, white)); }
 .cs-admin-nav-button.is-active { color: #fff !important; }
 .cs-admin-workspace .bg-emerald-900.text-amber-300 { background: var(--brand-primary, #174d3b) !important; }
+
+.cs-home-kicker { color: var(--brand-accent, #dfad48) !important; }
+.cs-art-caption {
+  position: absolute; right: 3px; bottom: -12px; color: var(--cs-muted);
+  font-size: 8px; font-weight: 700; letter-spacing: .06em; text-align: right;
+}
+@media (max-width: 640px) {
+  .cs-art-caption { right: 0; bottom: -15px; font-size: 7px; }
+}
