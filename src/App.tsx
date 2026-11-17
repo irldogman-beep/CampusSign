@@ -345,20 +345,6 @@ export default function App() {
             {appSpace !== 'hub' ? (
               <>
                 <span className="cs-space-chip text-[10px] font-bold tracking-wider uppercase">{appSpace === 'student' ? 'STUDENT SPACE' : 'STAFF WORKSPACE'}</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (appSpace === 'student') {
-                      setStudentEntry(true);
-                      setActiveTab('student');
-                    } else {
-                      setActiveTab('admin');
-                    }
-                  }}
-                  className="cs-header-primary px-3 py-2 rounded-xl text-[10px] sm:text-xs font-extrabold"
-                >
-                  {appSpace === 'student' ? 'Student sign in' : 'Staff sign in'}
-                </button>
                 <button onClick={() => setIsDarkMode(!isDarkMode)} className="theme-toggle cs-theme-toggle p-2 rounded-xl" title={isDarkMode ? 'Switch to light theme' : 'Switch to dark theme'} aria-label={isDarkMode ? 'Switch to light theme' : 'Switch to dark theme'}>{isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}</button>
               </>
             ) : activeTab === 'home' ? (
@@ -382,7 +368,7 @@ export default function App() {
 
       {/* MAIN CONTENT CONTAINER */}
       <main key={activeTab} className={`${quickAttendance ? 'max-w-2xl' : 'max-w-7xl'} mx-auto w-full min-w-0 px-3 sm:px-6 lg:px-8 py-3 sm:py-8 page-enter`} aria-live="polite">
-        {quickAttendance && <div className="mb-4 flex items-center justify-between"><div className="flex items-center gap-2"><CampusSignLogo className="w-8 h-8"/><span className="font-black text-sm">CampusSign <span className="font-medium text-slate-500">· Quick attendance</span></span></div><button onClick={() => { setQuickAttendance(false); setActiveTab("home"); }} className="text-xs font-bold text-emerald-800 dark:text-emerald-300">Home</button></div>}
+        {quickAttendance && <div className="mb-4 flex items-center justify-between"><div className="flex items-center gap-2"><CampusSignLogo className="w-8 h-8"/><span className="font-black text-sm">CampusSign <span className="font-medium text-slate-500">· Quick attendance</span></span></div><button onClick={() => { setQuickAttendance(false); setStudentEntry(false); setActiveTab(appSpace === 'student' ? 'student' : appSpace === 'staff' ? 'admin' : 'home'); }} className="text-xs font-bold text-emerald-800 dark:text-emerald-300">{appSpace === 'student' ? 'Student services' : 'Home'}</button></div>}
 
         {activeTab === 'home' && (
           <section className="cs-home page-enter">
@@ -464,10 +450,11 @@ export default function App() {
             branding={branding}
             openAccountInitially={studentEntry}
             quickMode={quickAttendance}
+            showHubBack={appSpace === 'hub'}
             onHome={() => {
               setQuickAttendance(false);
               setStudentEntry(false);
-              setActiveTab(appSpace === 'student' ? 'student' : 'home');
+              setActiveTab(appSpace === 'student' ? 'student' : appSpace === 'staff' ? 'admin' : 'home');
             }}
           />
         )}
@@ -2407,6 +2394,7 @@ function StudentPortal({
   branding,
   openAccountInitially = false,
   quickMode = false,
+  showHubBack = true,
   onHome = () => {},
 }) {
   const [step, setStep] = useState(quickMode ? 2 : 1); // 1: Scan QR -> 2: Lookup ID -> 3: Consent -> 4: Face Scan -> 5: Receipt
@@ -2446,7 +2434,22 @@ function StudentPortal({
   const [isAdditionalCourseRequest, setIsAdditionalCourseRequest] = useState(false);
   const [existingCourseNames, setExistingCourseNames] = useState<string[]>([]);
 
-  useEffect(() => { if (quickMode) { setStep(checkin ? 2 : 1); setShowAccountPortal(false); } }, [quickMode, checkin]);
+  useEffect(() => {
+    if (quickMode) {
+      setStep(checkin ? 2 : 1);
+      setShowAccountPortal(false);
+    } else {
+      // Leaving the QR-only route always returns to the Student services entry
+      // screen instead of leaving the user on a stale ID/verification step.
+      setStep(1);
+      setShowAccountPortal(false);
+      setStudentIdInput('');
+      setRetryCount(0);
+      setLookupError('');
+      setMatchedStudent(null);
+      setFaceError('');
+    }
+  }, [quickMode, checkin]);
   useEffect(() => {
     if (openAccountInitially) setShowAccountPortal(true);
   }, [openAccountInitially]);
@@ -2636,7 +2639,7 @@ function StudentPortal({
           <button onClick={() => { setIsScanningQR(true); }} className="text-left rounded-3xl p-6 sm:p-7 bg-emerald-950 text-white border border-emerald-800 shadow-lg transition-all"><div className="w-12 h-12 rounded-2xl bg-amber-400 text-emerald-950 grid place-items-center"><Scan className="w-6 h-6"/></div><h2 className="text-lg font-black mt-4">Scan attendance QR</h2><p className="text-xs text-emerald-100/80 mt-2 leading-relaxed">Open your camera and scan the code displayed by your lecturer. No account registration is needed to begin a check-in.</p><span className="inline-flex items-center gap-2 text-amber-300 font-extrabold text-xs mt-5">Open scanner <ArrowRight className="w-4 h-4"/></span></button>
           <button onClick={() => setShowAccountPortal(true)} className="text-left rounded-3xl p-6 sm:p-7 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 shadow-sm transition-all"><div className="w-11 h-11 rounded-2xl bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 grid place-items-center"><GraduationCap className="w-6 h-6"/></div><h2 className="text-lg font-black mt-4">My student dashboard</h2><p className="text-xs text-slate-500 mt-2 leading-relaxed">Sign in or create your student account to manage courses, attendance history, announcements and profile.</p><span className="inline-flex items-center gap-2 text-emerald-800 dark:text-emerald-300 font-extrabold text-xs mt-5">Open dashboard <ArrowRight className="w-4 h-4"/></span></button>
         </div>
-        <button onClick={onHome} className="w-full text-xs font-bold text-slate-500 hover:text-emerald-700 py-2">Back to CampusSign home</button>
+        {showHubBack && <button onClick={onHome} className="w-full text-xs font-bold text-slate-500 hover:text-emerald-700 py-2">Back to CampusSign home</button>}
       </div>
     );
   }
@@ -2798,7 +2801,7 @@ function StudentPortal({
               <ArrowRight className="w-4 h-4" />
             </button>
             <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
-              <p className="text-[11px] text-slate-500 text-center">New students and returning students can manage registration from Student services above. Course registration is separate from attendance check-in.</p>
+              <p className="text-[11px] text-slate-500 text-center">Need to manage your courses or student profile? Open Student account. Course registration is separate from attendance check-in.</p>
             </div>
           </div>
         </div>
@@ -2840,10 +2843,9 @@ function StudentPortal({
               Verify Record Matches Roster
             </button>
           </form>
-
-          <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-800 dark:text-amber-300 text-center">
-            <span>Demo Quick IDs to Test: <strong>STU001</strong>, <strong>STU002</strong>, <strong>STU003</strong></span>
-          </div>
+          <button type="button" onClick={() => { setStep(1); setStudentIdInput(''); setMatchedStudent(null); setLookupError(''); }} className="w-full rounded-xl border border-slate-200 dark:border-slate-700 py-3 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">
+            Scan a different attendance QR
+          </button>
         </div>
       )}
 
@@ -2853,6 +2855,9 @@ function StudentPortal({
           <div className="text-center">
             <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto mb-2" />
             <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">Confirm Identity & Privacy</h2>
+            <button type="button" onClick={() => { setMatchedStudent(null); setFaceError(''); setStudentIdInput(''); setStep(2); }} className="mt-2 text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:underline">
+              Not your record? Change student ID
+            </button>
           </div>
 
           <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 space-y-2 text-xs">

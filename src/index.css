@@ -689,8 +689,7 @@ body {
 .cs-space-header--student .border-amber-300\/30 { border-color: #dce8dd !important; }
 .cs-space-header--student .bg-amber-400 { background: #174d3b !important; color: #fff !important; }
 .cs-space-header--student button { border-radius: 10px; }
-.cs-space-header--student button.bg-white\/10 { color: var(--cs-ink); background: #f1f5f2; border-color: var(--cs-line); }
-.cs-space-header--student button:last-child { background: transparent; color: var(--cs-muted); border: 1px solid var(--cs-line); }
+.cs-space-header--student button:disabled { opacity: .55; }
 .cs-space-header--student h1 { color: var(--cs-ink) !important; font-size: 16px !important; }
 
 /* Staff and administrator surfaces. */
@@ -731,14 +730,27 @@ body {
 .cs-admin-workspace button { border-radius: 11px; }
 .cs-admin-workspace .bg-emerald-900.text-amber-300 { background: #174d3b !important; color: #fff !important; }
 
-/* Student dashboard navigation and account cards. */
-.campus-app-shell nav[aria-label="Student dashboard sections"] button {
-  min-height: 62px; background: var(--cs-surface) !important; color: var(--cs-muted) !important;
-  border: 1px solid var(--cs-line) !important; border-radius: 13px !important; box-shadow: none !important;
+/* Student dashboard: compact, clearly selected sections instead of oversized tiles. */
+.cs-student-account { width: min(1020px, 100%); margin-inline: auto; }
+.campus-app-shell nav[aria-label="Student dashboard sections"].cs-student-nav {
+  min-width: 0; padding: 4px; gap: 4px; border: 1px solid var(--cs-line);
+  border-radius: 15px; background: var(--cs-surface); scrollbar-width: none;
 }
-.campus-app-shell nav[aria-label="Student dashboard sections"] button[aria-pressed="true"] {
-  color: #fff !important; background: #174d3b !important; border-color: #174d3b !important;
+.campus-app-shell nav[aria-label="Student dashboard sections"].cs-student-nav::-webkit-scrollbar { display: none; }
+.campus-app-shell nav[aria-label="Student dashboard sections"] .cs-student-nav-button {
+  min-height: 42px !important; padding: 10px 13px !important;
+  background: transparent !important; color: var(--cs-muted) !important;
+  border: 1px solid transparent !important; border-radius: 11px !important;
+  box-shadow: none !important; white-space: nowrap;
 }
+.campus-app-shell nav[aria-label="Student dashboard sections"] .cs-student-nav-button:hover {
+  color: var(--cs-ink) !important; background: var(--cs-canvas) !important;
+}
+.campus-app-shell nav[aria-label="Student dashboard sections"] .cs-student-nav-button.is-active {
+  color: #fff !important; background: var(--brand-primary, #174d3b) !important;
+  border-color: var(--brand-primary, #174d3b) !important;
+}
+.cs-student-account article { overflow-wrap: anywhere; }
 .cs-space-header + .space-y-4 > section { box-shadow: var(--cs-shadow); }
 
 /* Make the interface breathe on smaller screens without losing its visual hierarchy. */
@@ -784,6 +796,8 @@ body {
   .cs-space-header { padding: 13px 14px; margin-bottom: .9rem; border-radius: 15px; }
   .cs-space-header--student > div { align-items: center; }
   .cs-space-header--student .grid.grid-cols-2 { display: flex; flex-wrap: wrap; }
+  .cs-student-nav { max-width: 100%; }
+  .cs-student-nav-button { flex: 1 0 auto; }
   .cs-admin-nav { display: none; }
   .cs-staff-account-bar { padding: 11px 12px; }
 }

@@ -22,9 +22,11 @@ export default function StudentAccountPortal({ onClose, onEnroll, onScan, brandi
   const [department, setDepartment] = useState('');
   const [level, setLevel] = useState('100');
   const [departments, setDepartments] = useState<any[]>([]);
+  const [departmentLoadError, setDepartmentLoadError] = useState('');
   const [dashboard, setDashboard] = useState<any>(null);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [busy, setBusy] = useState(false);
+  const [inboxBusy, setInboxBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -36,39 +38,92 @@ export default function StudentAccountPortal({ onClose, onEnroll, onScan, brandi
 
   const refresh = useCallback(async () => {
     setLoading(true);
+    setError('');
     try {
-      const [data, inbox, reroll] = await Promise.all([
-        db.loadStudentDashboard(),
+      // Load the core dashboard first. Optional services must not prevent
+      // a student from opening their account and academic records.
+      const data = await db.loadStudentDashboard();
+      setDashboard(data);
+
+      const [inboxResult, rerollResult] = await Promise.allSettled([
         db.loadNotifications(30),
         db.loadDepartmentRerollStatus(),
       ]);
-      setDashboard(data);
-      setRerollStatus(reroll);
-      setNotifications(inbox.filter((item: any) =>
-        item.notification_type === 'announcement' || item.notification_type === 'department_reroll' || item.recipient_role === 'student'
-      ));
-      setError('');
+      const optionalErrors: string[] = [];
+      if (inboxResult.status === 'fulfilled') {
+        // Row-level security already limits this query to the signed-in user.
+        setNotifications(inboxResult.value);
+      } else {
+        setNotifications([]);
+        optionalErrors.push('Your inbox could not be loaded.');
+      }
+      if (rerollResult.status === 'fulfilled') {
+        setRerollStatus(rerollResult.value);
+      } else {
+        setRerollStatus(null);
+        optionalErrors.push('Department-change status could not be loaded.');
+      }
+      if (optionalErrors.length) setError(optionalErrors.join(' '));
     } catch (e: any) {
-      setError(db.friendly(e));
       setDashboard(null);
+      const failure = String(e?.message || '');
+      if (failure.includes('student_account_not_found')) {
+        try { await supabase.auth.signOut(); } catch { /* keep the account form usable */ }
+        setError('This login is not linked to a Student account. Use the Staff workspace for a staff login, or create a Student account.');
+      } else if (failure.includes('authentication_required')) {
+        try { await supabase.auth.signOut(); } catch { /* keep the account form usable */ }
+        setError('Your Student session has expired. Please sign in again.');
+      } else {
+        setError(db.friendly(e));
+      }
     } finally {
       setLoading(false);
     }
   }, []);
 
+  const refreshInbox = useCallback(async () => {
+    setInboxBusy(true);
+    try {
+      setNotifications(await db.loadNotifications(30));
+      setError('');
+    } catch (e) {
+      setError(db.friendly(e));
+    } finally {
+      setInboxBusy(false);
+    }
+  }, []);
+
   useEffect(() => {
     let active = true;
-    Promise.all([
-      db.loadCatalogDepartments(),
-      supabase.auth.getSession(),
-    ]).then(async ([rows, session]) => {
-      if (!active) return;
-      setDepartments(rows.filter((d: any) => d.is_active));
-      if (session.data.session) await refresh();
-      else setLoading(false);
-    }).catch((e) => {
-      if (active) { setError(db.friendly(e)); setLoading(false); }
-    });
+
+    // Load the catalogue separately so a temporary catalogue problem cannot
+    // block an existing student from signing in.
+    db.loadCatalogDepartments()
+      .then(rows => {
+        if (!active) return;
+        setDepartments(rows.filter((d: any) => d.is_active));
+        setDepartmentLoadError('');
+      })
+      .catch(e => {
+        if (!active) return;
+        setDepartments([]);
+        setDepartmentLoadError(db.friendly(e));
+      });
+
+    supabase.auth.getSession()
+      .then(async ({ data, error: sessionError }) => {
+        if (!active) return;
+        if (sessionError) throw sessionError;
+        if (data.session) await refresh();
+        else setLoading(false);
+      })
+      .catch(e => {
+        if (active) {
+          setError(db.friendly(e));
+          setLoading(false);
+        }
+      });
+
     return () => { active = false; };
   }, [refresh]);
 
@@ -145,6 +200,10 @@ export default function StudentAccountPortal({ onClose, onEnroll, onScan, brandi
       setDashboard(null);
       setNotifications([]);
       setRerollStatus(null);
+      setActiveSection('courses');
+      setExpandedNotification(null);
+      setRerollDepartment('');
+      setRerollReason('');
       setMode('login');
       setPassword('');
       setError('');
@@ -166,10 +225,10 @@ export default function StudentAccountPortal({ onClose, onEnroll, onScan, brandi
             <div className="w-12 h-12 rounded-2xl bg-amber-400/15 border border-amber-300/30 grid place-items-center text-amber-300"><GraduationCap className="w-6 h-6"/></div>
             <div><p className="text-[10px] uppercase tracking-[.2em] text-emerald-200 font-black">{branding?.brand_name || 'CampusSign'} · Student services</p><h1 className="text-xl sm:text-2xl font-black mt-1">{branding?.student_app_name || 'Student workspace'}</h1></div>
           </div>
-          <div className="grid grid-cols-2 sm:flex gap-2">
-            {isSignedIn && onScan && <button type="button" onClick={onScan} className="px-3 py-2 rounded-xl bg-amber-400 text-emerald-950 text-xs font-extrabold inline-flex items-center gap-2"><Scan className="w-4 h-4"/>Quick QR check-in</button>}
-            {isSignedIn && <button type="button" onClick={signOut} disabled={busy} className="px-3 py-2 rounded-xl bg-white/10 border border-white/15 text-xs font-bold inline-flex items-center gap-2"><LogOut className="w-4 h-4"/>Sign out</button>}
-            <button type="button" onClick={onClose} className="px-3 py-2 rounded-xl bg-amber-400 text-emerald-950 text-xs font-extrabold">Back to student services</button>
+          <div className="flex items-center justify-end">
+            {isSignedIn
+              ? <button type="button" onClick={signOut} disabled={busy} className="inline-flex items-center gap-2 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 px-4 py-2.5 text-xs font-extrabold text-rose-700 dark:text-rose-200 disabled:opacity-50"><LogOut className="w-4 h-4"/>{busy ? 'Signing out…' : 'Sign out'}</button>
+              : <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-300">Back to student services</button>}
           </div>
         </div>
       </section>
@@ -193,22 +252,22 @@ export default function StudentAccountPortal({ onClose, onEnroll, onScan, brandi
           </aside>
           <div className="cs-auth-card">
           <div className="cs-auth-mode-toggle flex gap-2 p-1 rounded-xl mb-5">
-            <button type="button" onClick={()=>{setMode('login');setError('');}} className={`flex-1 rounded-lg py-2.5 text-xs font-bold ${mode==='login'?'is-active':''}`}>Sign in</button>
-            <button type="button" onClick={()=>{setMode('signup');setError('');}} className={`flex-1 rounded-lg py-2.5 text-xs font-bold ${mode==='signup'?'is-active':''}`}>Create account</button>
+            <button type="button" onClick={()=>{setMode('login');setError('');setNotice('');}} className={`flex-1 rounded-lg py-2.5 text-xs font-bold ${mode==='login'?'is-active':''}`}>Sign in</button>
+            <button type="button" onClick={()=>{setMode('signup');setError('');setNotice('');}} className={`flex-1 rounded-lg py-2.5 text-xs font-bold ${mode==='signup'?'is-active':''}`}>Create account</button>
           </div>
           <form onSubmit={submit} className="cs-auth-form space-y-3">
             <div><h2 className="text-lg font-extrabold text-slate-900 dark:text-white">{mode==='signup' ? `Get started with ${branding?.brand_name || 'CampusSign'}` : 'Welcome back'}</h2><p className="text-xs text-slate-500 mt-1">{branding?.student_welcome || 'Sign in to manage your courses and attendance.'}</p></div>
             {mode==='signup' && <>
               <label className="block"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Student ID</span><input required maxLength={40} value={studentId} onChange={e=>setStudentId(e.target.value.toUpperCase())} placeholder="Your matriculation number" className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3 text-sm"/></label>
               <label className="block"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Full registered name</span><input required maxLength={120} value={fullName} onChange={e=>setFullName(e.target.value)} placeholder="As it appears on your student record" className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3 text-sm"/></label>
-              <label className="block"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Department</span><select required value={department} onChange={e=>setDepartment(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3 text-sm"><option value="">Choose department</option>{departments.map(d=><option key={d.id} value={d.name}>{d.name}</option>)}</select></label>
+              <label className="block"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Department</span>{departments.length > 0 ? <select required value={department} onChange={e=>setDepartment(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3 text-sm"><option value="">Choose department</option>{departments.map(d=><option key={d.id} value={d.name}>{d.name}</option>)}</select> : <p className="mt-1 rounded-xl border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 p-3 text-xs text-amber-800 dark:text-amber-200">{departmentLoadError || 'No active departments are available yet. Please try again later or contact your administrator.'}</p>}</label>
               <label className="block"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Academic level</span><select value={level} onChange={e=>setLevel(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3 text-sm">{['100','200','300','400','500','600'].map(v=><option key={v} value={v}>{v} Level</option>)}</select></label>
             </>}
             <label className="block"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Email address</span><input required type="email" autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com" className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3 text-sm"/></label>
             <label className="block"><span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Password</span><input required type="password" minLength={8} autoComplete={mode==='signup'?'new-password':'current-password'} value={password} onChange={e=>setPassword(e.target.value)} placeholder="At least 8 characters" className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3 text-sm"/></label>
-            <button disabled={busy || !email.trim() || !password || (mode==='signup' && (!studentId.trim() || !fullName.trim() || !department))} className="cs-auth-submit w-full rounded-xl py-3.5 text-sm font-extrabold disabled:opacity-50">{busy?'Please wait…':mode==='signup'?'Create account & continue':'Sign in to Student services'}</button>
+            <button disabled={busy || !email.trim() || !password || (mode==='signup' && (!studentId.trim() || !fullName.trim() || !department || departments.length===0))} className="cs-auth-submit w-full rounded-xl py-3.5 text-sm font-extrabold disabled:opacity-50">{busy?'Please wait…':mode==='signup'?'Create student account':'Sign in to Student services'}</button>
           </form>
-          {!isSignedIn && onScan && <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 text-center"><p className="text-xs font-semibold text-slate-600 dark:text-slate-300">Having trouble signing in?</p><button type="button" onClick={onScan} className="mt-2 inline-flex items-center gap-2 rounded-xl border border-emerald-200 dark:border-emerald-900 px-4 py-2.5 text-xs font-extrabold text-emerald-800 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"><Scan className="w-4 h-4"/>Use QR instead</button><p className="mt-2 text-[10px] text-slate-500">Use this only when a lecturer has displayed an attendance QR code.</p></div>}
+          {mode==='login' && onScan && <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 text-center"><p className="text-xs font-semibold text-slate-600 dark:text-slate-300">Need to check in without signing in?</p><button type="button" onClick={onScan} className="mt-2 inline-flex items-center gap-2 rounded-xl border border-emerald-200 dark:border-emerald-900 px-4 py-2.5 text-xs font-extrabold text-emerald-800 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"><Scan className="w-4 h-4"/>Scan attendance QR</button><p className="mt-2 text-[10px] text-slate-500">Use this when your lecturer has displayed an attendance QR code.</p></div>}
           {mode==='signup' && <p className="mt-4 text-[10px] text-slate-500 leading-relaxed">Your account is your CampusSign login. First, an administrator checks and approves your student details. After approval, you can select courses and enrol your face; the relevant lecturers then review your course requests. If you already have academic records, the administrator can use them to verify you before you request any additional courses.</p>}
           </div>
         </section>
@@ -231,7 +290,7 @@ export default function StudentAccountPortal({ onClose, onEnroll, onScan, brandi
           </section>
 
           {profile.status==='approved' && <>
-             <nav aria-label="Student dashboard sections" className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+             <nav aria-label="Student dashboard sections" className="cs-student-nav flex items-center gap-1 overflow-x-auto">
                {([
                  ['courses','Courses',BookOpen,courses.length],
                  ['attendance','Attendance',CalendarDays,attendance.length],
@@ -239,9 +298,10 @@ export default function StudentAccountPortal({ onClose, onEnroll, onScan, brandi
                  ['profile','Profile',UserRound,null],
                ] as const).map(([key,label,Icon,count]) => (
                  <button key={key} type="button" onClick={()=>setActiveSection(key)} aria-pressed={activeSection===key}
-                   className={`interactive-card min-w-0 rounded-2xl border px-3.5 py-3.5 sm:px-4 sm:py-4 text-left transition-colors ${activeSection===key?'bg-emerald-900 text-amber-300 border-emerald-800 shadow-sm':'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300'}`}>
-                   <span className="flex items-center justify-between gap-2"><Icon className="w-4 h-4 shrink-0"/>{count!==null&&<span className="text-[10px] font-bold tabular-nums">{count}</span>}</span>
-                   <span className="block mt-2 text-xs font-bold">{label}</span>
+                   className={`cs-student-nav-button inline-flex items-center justify-center gap-2 shrink-0 rounded-xl px-3.5 py-3 text-xs font-bold transition-colors ${activeSection===key?'is-active':''}`}>
+                   <Icon className="w-4 h-4 shrink-0"/>
+                   <span>{label}</span>
+                   {count!==null&&<span className="text-[10px] font-bold tabular-nums opacity-75">{count}</span>}
                  </button>
                ))}
              </nav>
@@ -251,13 +311,14 @@ export default function StudentAccountPortal({ onClose, onEnroll, onScan, brandi
                  <button type="button" onClick={()=>onEnroll(profile,courses)} className="w-full sm:w-auto rounded-xl bg-emerald-900 text-amber-300 px-4 py-2.5 text-xs font-bold">{courses.length===0?'Choose courses & register face':'Request another course'}</button>
                </div>
                {courses.length===0?<p className="py-8 text-center text-xs text-slate-500">No approved courses are linked to this account yet.</p>:<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{courses.map((course:any,i:number)=><article key={course.course+i} className="rounded-xl border border-slate-200 dark:border-slate-700 p-3 sm:p-4"><div className="flex items-start justify-between gap-2"><strong className="text-sm text-slate-900 dark:text-white break-words">{course.course}</strong><CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0"/></div><p className="text-[11px] text-slate-500 mt-2 break-words">{course.lecturer}</p><p className="text-[11px] mt-2 text-emerald-700 dark:text-emerald-300">{course.face_enrolled?'Face enrolment active':'Face enrolment pending'}</p></article>)}</div>}
+               {courses.some((course:any)=>!course.face_enrolled) && <p className="mt-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 p-3 text-[11px] leading-relaxed text-amber-800 dark:text-amber-200">At least one existing course still needs face enrolment. Contact that course's lecturer to complete it. Requesting an additional course will not change the face-enrolment status of courses you already have. </p>}
              </section>}
              {activeSection==='attendance' && <section className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-sm">
-               <h3 className="font-extrabold text-slate-900 dark:text-white mb-3">Attendance history</h3>
-               {attendance.length===0?<p className="py-8 text-center text-xs text-slate-500">No attendance records yet.</p>:<div className="space-y-2">{attendance.map((row:any)=><article key={row.id} className="rounded-xl border border-slate-200 dark:border-slate-700 p-3 grid grid-cols-2 sm:grid-cols-[1fr_1fr_auto_auto] gap-x-3 gap-y-2"><div className="min-w-0"><p className="text-xs font-bold text-slate-900 dark:text-white break-words">{row.course}</p><p className="text-[10px] text-slate-500 mt-1">{new Date(row.created_at).toLocaleString()}</p></div><div className="text-[11px] text-slate-600 dark:text-slate-300">{row.status}</div><div className="col-span-2 sm:col-span-1 text-[10px] font-mono text-slate-500 break-all">{row.receipt_no}</div></article>)}</div>}
+               <div className="mb-3"><h3 className="font-extrabold text-slate-900 dark:text-white">Attendance history</h3><p className="mt-1 text-[11px] text-slate-500">Your most recent attendance records.</p></div>
+               {attendance.length===0?<p className="py-8 text-center text-xs text-slate-500">No attendance records yet.</p>:<div className="grid grid-cols-1 lg:grid-cols-2 gap-2">{attendance.map((row:any)=><article key={row.id} className="rounded-xl border border-slate-200 dark:border-slate-700 p-3 min-w-0"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="text-xs font-bold text-slate-900 dark:text-white break-words">{row.course}</p><p className="text-[10px] text-slate-500 mt-1">{new Date(row.created_at).toLocaleString()}</p></div><span className={`shrink-0 rounded-full px-2.5 py-1 text-[9px] font-bold ${String(row.status).toLowerCase()==='verified'?'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200':'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200'}`}>{row.status}</span></div><p className="mt-2 text-[10px] font-mono text-slate-500 break-all">{row.receipt_no || 'Receipt reference unavailable'}</p></article>)}</div>}
              </section>}
              {activeSection==='inbox' && <section className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-sm">
-               <div className="flex items-center justify-between gap-2 mb-3"><h3 className="font-extrabold text-slate-900 dark:text-white">Inbox</h3><span className="text-[10px] text-slate-500">{notifications.length} messages</span></div>
+               <div className="flex items-center justify-between gap-2 mb-3"><div><h3 className="font-extrabold text-slate-900 dark:text-white">Inbox</h3><p className="text-[10px] text-slate-500 mt-1">{notifications.length} messages</p></div><button type="button" onClick={refreshInbox} disabled={inboxBusy} aria-label="Refresh inbox" title="Refresh inbox" className="rounded-lg border border-slate-200 dark:border-slate-700 p-2 text-slate-600 dark:text-slate-300 disabled:opacity-50"><RefreshCw className={`w-4 h-4 ${inboxBusy?'animate-spin':''}`}/></button></div>
                {notifications.length===0?<p className="py-6 text-xs text-slate-500">No messages yet.</p>:<div className="space-y-2">{notifications.map((item:any)=><article key={item.id} className={`rounded-xl border p-3 ${item.read_at?'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50':'border-emerald-200 dark:border-emerald-900 bg-emerald-50/60 dark:bg-emerald-950/30'}`}>
                  <button type="button" aria-expanded={expandedNotification===item.id} onClick={()=>{setExpandedNotification(current=>current===item.id?null:item.id);if(!item.read_at)markRead(item.id);}} className="w-full min-w-0 text-left"><span className="flex items-start justify-between gap-2"><strong className="text-xs text-slate-900 dark:text-white break-words">{item.title}</strong><span className="text-[10px] text-slate-500 shrink-0">{new Date(item.created_at).toLocaleDateString()}</span></span><span className="block text-[10px] text-slate-500 mt-1">{item.read_at?'Read':'New'}</span></button>
                  {expandedNotification===item.id&&<p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300 mt-3 whitespace-pre-wrap break-words">{item.message}</p>}
@@ -296,7 +357,7 @@ export default function StudentAccountPortal({ onClose, onEnroll, onScan, brandi
                </div>
              </section>}
            </>}
-           <div className="flex justify-end"><button type="button" onClick={refresh} className="rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-300 inline-flex items-center gap-2"><RefreshCw className="w-3.5 h-3.5"/>Refresh account</button></div>
+ 
         </div>
       )}
     </div>
