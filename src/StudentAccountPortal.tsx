@@ -26,6 +26,7 @@ export default function StudentAccountPortal({ onClose, onEnroll, onScan, brandi
   const [dashboard, setDashboard] = useState<any>(null);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [busy, setBusy] = useState(false);
+  const [inboxBusy, setInboxBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -68,6 +69,18 @@ export default function StudentAccountPortal({ onClose, onEnroll, onScan, brandi
       setError(db.friendly(e));
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  const refreshInbox = useCallback(async () => {
+    setInboxBusy(true);
+    try {
+      setNotifications(await db.loadNotifications(30));
+      setError('');
+    } catch (e) {
+      setError(db.friendly(e));
+    } finally {
+      setInboxBusy(false);
     }
   }, []);
 
@@ -295,7 +308,7 @@ export default function StudentAccountPortal({ onClose, onEnroll, onScan, brandi
                {attendance.length===0?<p className="py-8 text-center text-xs text-slate-500">No attendance records yet.</p>:<div className="grid grid-cols-1 lg:grid-cols-2 gap-2">{attendance.map((row:any)=><article key={row.id} className="rounded-xl border border-slate-200 dark:border-slate-700 p-3 min-w-0"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="text-xs font-bold text-slate-900 dark:text-white break-words">{row.course}</p><p className="text-[10px] text-slate-500 mt-1">{new Date(row.created_at).toLocaleString()}</p></div><span className={`shrink-0 rounded-full px-2.5 py-1 text-[9px] font-bold ${String(row.status).toLowerCase()==='verified'?'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200':'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200'}`}>{row.status}</span></div><p className="mt-2 text-[10px] font-mono text-slate-500 break-all">{row.receipt_no || 'Receipt reference unavailable'}</p></article>)}</div>}
              </section>}
              {activeSection==='inbox' && <section className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-sm">
-               <div className="flex items-center justify-between gap-2 mb-3"><div><h3 className="font-extrabold text-slate-900 dark:text-white">Inbox</h3><p className="text-[10px] text-slate-500 mt-1">{notifications.length} messages</p></div><button type="button" onClick={refresh} disabled={loading} aria-label="Refresh inbox" title="Refresh inbox" className="rounded-lg border border-slate-200 dark:border-slate-700 p-2 text-slate-600 dark:text-slate-300 disabled:opacity-50"><RefreshCw className={`w-4 h-4 ${loading?'animate-spin':''}`}/></button></div>
+               <div className="flex items-center justify-between gap-2 mb-3"><div><h3 className="font-extrabold text-slate-900 dark:text-white">Inbox</h3><p className="text-[10px] text-slate-500 mt-1">{notifications.length} messages</p></div><button type="button" onClick={refreshInbox} disabled={inboxBusy} aria-label="Refresh inbox" title="Refresh inbox" className="rounded-lg border border-slate-200 dark:border-slate-700 p-2 text-slate-600 dark:text-slate-300 disabled:opacity-50"><RefreshCw className={`w-4 h-4 ${inboxBusy?'animate-spin':''}`}/></button></div>
                {notifications.length===0?<p className="py-6 text-xs text-slate-500">No messages yet.</p>:<div className="space-y-2">{notifications.map((item:any)=><article key={item.id} className={`rounded-xl border p-3 ${item.read_at?'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50':'border-emerald-200 dark:border-emerald-900 bg-emerald-50/60 dark:bg-emerald-950/30'}`}>
                  <button type="button" aria-expanded={expandedNotification===item.id} onClick={()=>{setExpandedNotification(current=>current===item.id?null:item.id);if(!item.read_at)markRead(item.id);}} className="w-full min-w-0 text-left"><span className="flex items-start justify-between gap-2"><strong className="text-xs text-slate-900 dark:text-white break-words">{item.title}</strong><span className="text-[10px] text-slate-500 shrink-0">{new Date(item.created_at).toLocaleDateString()}</span></span><span className="block text-[10px] text-slate-500 mt-1">{item.read_at?'Read':'New'}</span></button>
                  {expandedNotification===item.id&&<p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300 mt-3 whitespace-pre-wrap break-words">{item.message}</p>}
