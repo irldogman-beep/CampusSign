@@ -2492,22 +2492,26 @@ function StudentPortal({
   const [isAdditionalCourseRequest, setIsAdditionalCourseRequest] = useState(false);
   const [existingCourseNames, setExistingCourseNames] = useState<string[]>([]);
 
+  // A QR ticket refresh must not reset a signed-in attendance flow.
+  // The external QR route still advances to the Student ID step when its
+  // check-in ticket arrives; leaving that route resets the guest form.
   useEffect(() => {
     if (quickMode) {
       setStep(checkin ? 2 : 1);
       setShowAccountPortal(false);
-    } else {
-      // Leaving the QR-only route always returns to the Student services entry
-      // screen instead of leaving the user on a stale ID/verification step.
-      setStep(1);
-      setShowAccountPortal(false);
-      setStudentIdInput('');
-      setRetryCount(0);
-      setLookupError('');
-      setMatchedStudent(null);
-      setFaceError('');
     }
   }, [quickMode, checkin]);
+
+  useEffect(() => {
+    if (quickMode) return;
+    setStep(1);
+    setShowAccountPortal(false);
+    setStudentIdInput('');
+    setRetryCount(0);
+    setLookupError('');
+    setMatchedStudent(null);
+    setFaceError('');
+  }, [quickMode]);
   useEffect(() => {
     if (openAccountInitially) setShowAccountPortal(true);
   }, [openAccountInitially]);
