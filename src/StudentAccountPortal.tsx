@@ -70,6 +70,9 @@ export default function StudentAccountPortal({ onClose, onEnroll, onTakeAttendan
       if (failure.includes('student_account_not_found')) {
         try { await supabase.auth.signOut(); } catch { /* keep the account form usable */ }
         setError('This login is not linked to a Student account. Use the Staff workspace for a staff login, or create a Student account.');
+      } else if (failure.includes('student_account_inactive')) {
+        try { await supabase.auth.signOut(); } catch { /* keep the account form usable */ }
+        setError('This student account is marked inactive, withdrawn, expelled or graduated. Student workspace access has been disabled. Contact the institution administrator if you believe this is incorrect.');
       } else if (failure.includes('authentication_required')) {
         try { await supabase.auth.signOut(); } catch { /* keep the account form usable */ }
         setError('Your Student session has expired. Please sign in again.');
