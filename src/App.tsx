@@ -318,16 +318,17 @@ export default function App() {
     try {
       // The server verifies the signature and freshness, then returns a 10-minute ticket
       const info = await db.sessionInfo(parsed.code);
-      setCheckin({
+      const validatedCheckin = {
         session: {
           id: parsed.code.i, course: info.course, teacher: info.teacher, title: info.title,
           faceRequired: info.face_required, locationMode: info.location_mode, radius: info.radius_m
         },
         ticket: { exp: info.exp, sig: info.ticket },
         validatedAt: Date.now()
-      });
+      };
+      setCheckin(validatedCheckin);
       setCheckinError('');
-      return { ok: true };
+      return { ok: true, checkin: validatedCheckin };
     } catch (e) {
       const message = db.friendly(e);
       setCheckinError(message);
@@ -2459,6 +2460,8 @@ function StudentPortal({
   const [retryCount, setRetryCount] = useState(0);
   const [lookupError, setLookupError] = useState('');
   const [matchedStudent, setMatchedStudent] = useState(null);
+  const [accountStudent, setAccountStudent] = useState<any>(null);
+  const [signedInAttendanceError, setSignedInAttendanceError] = useState('');
 
   // Real camera QR scanner
   const [isScanningQR, setIsScanningQR] = useState(false);
@@ -2525,7 +2528,42 @@ function StudentPortal({
 
   const handleQrCode = async (raw) => {
     const result = await onQrScanned(raw);
-    if (result.ok) setIsScanningQR(false);
+    if (!result.ok) return;
+    setIsScanningQR(false);
+    if (accountStudent && result.checkin) {
+      try {
+        const st = await db.lookupStudent(
+          result.checkin.session.id,
+          result.checkin.ticket,
+          String(accountStudent.student_id || '').trim().toUpperCase()
+        );
+        setMatchedStudent({ id: st.student_id, name: st.name, dept: st.dept, level: st.level, faceEnrolled: st.face_enrolled });
+        setStudentIdInput(st.student_id);
+        setLookupError('');
+        setSignedInAttendanceError('');
+        setFaceError('');
+        setFaceRetries(0);
+        setAccountStudent(null);
+        setStep(3);
+      } catch (err) {
+        setSignedInAttendanceError(db.friendly(err));
+        setStep(1);
+        setIsScanningQR(true);
+      }
+    } else {
+      setStep(2);
+    }
+  };
+
+  const startSignedInAttendance = (profile: any) => {
+    setAccountStudent(profile);
+    setSignedInAttendanceError('');
+    setMatchedStudent(null);
+    setReceiptData(null);
+    setFaceError('');
+    setStep(1);
+    setShowAccountPortal(false);
+    setIsScanningQR(true);
   };
 
   // Handle Student Lookup bound to the scanned session's course
@@ -2680,7 +2718,7 @@ function StudentPortal({
   };
 
   if (showAccountPortal) {
-    return <StudentAccountPortal branding={branding} onClose={() => { setShowAccountPortal(false); onHome(); }} onScan={() => { setShowAccountPortal(false); setStep(1); setIsScanningQR(true); }} onEnroll={(profile, courses) => { setShowAccountPortal(false); startStudentEnrollment(profile, courses); }} />;
+    return <StudentAccountPortal branding={branding} onClose={() => { setShowAccountPortal(false); onHome(); }} onTakeAttendance={startSignedInAttendance} onEnroll={(profile, courses) => { setShowAccountPortal(false); startStudentEnrollment(profile, courses); }} />;
   }
 
   if (!quickMode && step === 1 && !showEnrollment && !isScanningQR) {
@@ -2688,12 +2726,9 @@ function StudentPortal({
       <div className="max-w-3xl mx-auto space-y-5 page-enter">
         <section className="rounded-3xl bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-950 text-white p-6 sm:p-8 border border-emerald-800 shadow-xl">
           <div className="flex items-center gap-3"><CampusSignLogo logoUrl={branding.student_logo_url || branding.logo_url} className="w-12 h-12"/><div><p className="text-[10px] uppercase tracking-[.2em] text-emerald-200 font-black">CampusSign · Student services</p><h1 className="text-2xl sm:text-3xl font-black mt-1">Welcome, student</h1></div></div>
-          <p className="text-sm text-emerald-100/80 mt-4 max-w-xl">Sign in to your student dashboard to manage courses and view attendance, or use quick attendance when you have scanned a lecturer's QR code.</p>
+          <p className="text-sm text-emerald-100/80 mt-4 max-w-xl">Sign in to your student dashboard to manage your courses, take attendance and view your attendance history.</p>
         </section>
-        <div className="grid sm:grid-cols-2 gap-4">
-          <button onClick={() => { setIsScanningQR(true); }} className="text-left rounded-3xl p-6 sm:p-7 bg-emerald-950 text-white border border-emerald-800 shadow-lg transition-all"><div className="w-12 h-12 rounded-2xl bg-amber-400 text-emerald-950 grid place-items-center"><Scan className="w-6 h-6"/></div><h2 className="text-lg font-black mt-4">Scan attendance QR</h2><p className="text-xs text-emerald-100/80 mt-2 leading-relaxed">Open your camera and scan the code displayed by your lecturer. No account registration is needed to begin a check-in.</p><span className="inline-flex items-center gap-2 text-amber-300 font-extrabold text-xs mt-5">Open scanner <ArrowRight className="w-4 h-4"/></span></button>
-          <button onClick={() => setShowAccountPortal(true)} className="text-left rounded-3xl p-6 sm:p-7 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 shadow-sm transition-all"><div className="w-11 h-11 rounded-2xl bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 grid place-items-center"><GraduationCap className="w-6 h-6"/></div><h2 className="text-lg font-black mt-4">My student dashboard</h2><p className="text-xs text-slate-500 mt-2 leading-relaxed">Sign in or create your student account to manage courses, attendance history, announcements and profile.</p><span className="inline-flex items-center gap-2 text-emerald-800 dark:text-emerald-300 font-extrabold text-xs mt-5">Open dashboard <ArrowRight className="w-4 h-4"/></span></button>
-        </div>
+        <button onClick={() => setShowAccountPortal(true)} className="w-full text-left rounded-3xl p-6 sm:p-7 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 shadow-sm transition-all"><div className="w-11 h-11 rounded-2xl bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 grid place-items-center"><GraduationCap className="w-5 h-5"/></div><h2 className="text-lg font-black mt-4">My student dashboard</h2><p className="text-xs text-slate-500 mt-2 leading-relaxed">Sign in or create your student account to manage courses, take attendance, view attendance history, announcements and profile.</p><span className="inline-flex items-center gap-2 text-emerald-800 dark:text-emerald-300 font-extrabold text-xs mt-5">Open dashboard <ArrowRight className="w-4 h-4"/></span></button>
         {showHubBack && <button onClick={onHome} className="w-full text-xs font-bold text-slate-500 hover:text-emerald-700 py-2">Back to CampusSign home</button>}
       </div>
     );
@@ -2825,6 +2860,9 @@ function StudentPortal({
           )}
 
           {/* REAL CAMERA QR SCANNER */}
+          {signedInAttendanceError && (
+            <div role="alert" className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs">{signedInAttendanceError}</div>
+          )}
           {isScanningQR && (
             <div className="p-4 rounded-2xl bg-slate-950 border border-emerald-800 text-white space-y-3 relative">
               <QRScanner onCode={handleQrCode} />
