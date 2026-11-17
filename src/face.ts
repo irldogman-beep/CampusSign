@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Face helpers: model loading, liveness math, matching, and on-device storage.
+// Face helpers: model loading, liveness math and descriptor matching.
 // Uses @vladmandic/face-api. The model files are fetched from jsDelivr at
 // runtime, and the library itself is loaded lazily so the first page stays light.
 // ---------------------------------------------------------------------------
@@ -105,42 +105,3 @@ export function cropFace(
   canvas.getContext('2d')!.drawImage(video, cx - side / 2, cy - side / 2, side, side, 0, 0, size, size);
   return canvas.toDataURL('image/jpeg', 0.7);
 }
-
-// ---- on-device enrollment store ---------------------------------------------
-// Only numeric face templates are stored (no photos), and only in THIS browser.
-const STORE_KEY = 'campussign_faces_v1';
-
-function readStore(): Record<string, number[][]> {
-  try {
-    return JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
-  } catch {
-    return {};
-  }
-}
-
-export function getEnrollment(studentId: string): number[][] | null {
-  return readStore()[studentId.trim().toUpperCase()] || null;
-}
-
-export function saveEnrollment(studentId: string, descriptors: number[][]): boolean {
-  try {
-    const store = readStore();
-    store[studentId.trim().toUpperCase()] = descriptors;
-    localStorage.setItem(STORE_KEY, JSON.stringify(store));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export function deleteEnrollment(studentId: string): void {
-  try {
-    const store = readStore();
-    delete store[studentId.trim().toUpperCase()];
-    localStorage.setItem(STORE_KEY, JSON.stringify(store));
-  } catch {
-    /* ignore */
-  }
-}
-
-export const listEnrolledIds = (): string[] => Object.keys(readStore());
