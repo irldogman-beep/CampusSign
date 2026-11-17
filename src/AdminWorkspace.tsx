@@ -157,6 +157,16 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
   };
   const workspacePrefix = brandingWorkspace === 'student' ? 'student' : 'staff';
   const workspaceLogo = branding[workspacePrefix + '_logo_url'] || branding.logo_url;
+  const uploadInstitutionLogo = async (file?: File) => {
+    if (!file) return;
+    setLogoBusy(true); setBrandingError('');
+    try {
+      const logo_url = await db.uploadCampusLogo(file);
+      setBranding(prev => ({ ...prev, logo_url }));
+      setBrandingMessage('Institution logo uploaded. It will be used wherever a workspace-specific logo is not set. Save branding to publish it.');
+    } catch (e) { setBrandingError(db.friendly(e)); }
+    finally { setLogoBusy(false); }
+  };
   const [tab, setTab] = useState('overview');
   const [overview, setOverview] = useState<any>(null);
   const [lecturers, setLecturers] = useState<any[]>([]);
@@ -753,6 +763,11 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
               <label className="text-xs font-bold text-slate-600 dark:text-slate-300 sm:col-span-2">Student welcome message<textarea rows={2} maxLength={180} value={branding.student_welcome} onChange={e=>setBranding({...branding,student_welcome:e.target.value})} className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3"/></label>
               <label className="text-xs font-bold text-slate-600 dark:text-slate-300 sm:col-span-2">Staff welcome message<textarea rows={2} maxLength={180} value={branding.staff_welcome} onChange={e=>setBranding({...branding,staff_welcome:e.target.value})} className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3"/></label>
               <label className="text-xs font-bold text-slate-600 dark:text-slate-300">Support email<input type="email" value={branding.support_email || ''} onChange={e=>setBranding({...branding,support_email:e.target.value})} placeholder="support@institution.edu" className="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-3"/></label>
+            </div>
+            <div className="border-t border-slate-100 dark:border-slate-800 pt-5">
+              <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">Institution default logo</h3>
+              <p className="text-[11px] text-slate-500 mt-1">Used on shared pages and as a fallback when a workspace has no separate logo.</p>
+              <div className="flex flex-wrap items-center gap-3 mt-3">{branding.logo_url && <img src={branding.logo_url} alt="Institution logo" className="w-12 h-12 object-contain rounded-lg bg-slate-50 p-1"/>}<label className="inline-flex items-center gap-2 rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-xs font-bold cursor-pointer hover:border-emerald-500"><ImagePlus className="w-4 h-4"/>{logoBusy?'Uploading…':'Upload institution logo'}<input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" disabled={logoBusy} onChange={e=>{uploadInstitutionLogo(e.target.files?.[0]);e.currentTarget.value='';}}/></label>{branding.logo_url && <button type="button" onClick={()=>setBranding({...branding,logo_url:null})} className="text-xs font-bold text-rose-600">Remove institution logo</button>}</div>
             </div>
             <div className="border-t border-slate-100 dark:border-slate-800 pt-5 space-y-4">
               <div><h3 className="font-extrabold text-sm text-slate-900 dark:text-white">Workspace appearance</h3><p className="text-[11px] text-slate-500 mt-1">Student and Staff now have independent colours and logos. Choose a workspace to customise it without changing the other.</p></div>
