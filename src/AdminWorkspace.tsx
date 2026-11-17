@@ -468,6 +468,20 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
   const visibleCatalogCourses = catalogCourses.filter((item) =>
     [item.code, item.title, item.department_name, item.level].some((value) => String(value || '').toLowerCase().includes(catalogSearch.toLowerCase().trim()))
   );
+  const sectionGuidance: Record<string, string> = {
+    overview: 'A live summary of staff, student enrolments, attendance activity and the most active courses.',
+    academic: 'Set up the institution hierarchy: create faculties, place departments under faculties, then maintain the course or subject catalogue.',
+    'academic-setup': 'Configure the education model, class or level names, academic periods, terms, admission sets and individual student progression.',
+    assessments: 'Create CA and examination components for a course, set their maximum marks and percentage weights, and review recorded student marks.',
+    lecturers: 'Review lecturer registrations, verify staff accounts and assign the courses or subjects each lecturer is allowed to manage.',
+    enrolments: 'Review course-registration requests submitted by students and route decisions through the responsible lecturer.',
+    'student-accounts': 'Review new student accounts, search the student register and manage approved student access.',
+    monitoring: 'Review attendance sessions and saved attendance records. Deleting a session also deletes the attendance rows inside that list.',
+    announcements: 'Compose notices and target all students, staff, a department, a course or an individual student.',
+    audit: 'Review a trace of sensitive administrative actions, including changes to academic records and account access.',
+    branding: 'Customise the institution identity and independently configure the Student and Staff workspace appearance.'
+  };
+
   const statCards = [
     { label: 'Lecturers', value: overview?.lecturers_total ?? '—', detail: `${overview?.lecturers_verified ?? 0} verified · Manage accounts`, icon: UserCog, tab: 'lecturers' },
     { label: 'Awaiting verification', value: overview?.lecturers_pending ?? '—', detail: 'Review pending accounts', icon: ShieldAlert, tab: 'lecturers' },
@@ -523,6 +537,8 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
           </button>
         ))}
       </nav>
+
+      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/70 px-4 py-3 text-[11px] leading-relaxed text-slate-600 dark:text-slate-300"><strong className="text-slate-800 dark:text-slate-100">{({ overview: 'Overview', academic: 'Departments & courses', 'academic-setup': 'Academic structure', assessments: 'CA & examinations', lecturers: 'Lecturers', enrolments: 'Enrolments', 'student-accounts': 'Student accounts', monitoring: 'Attendance & sessions', announcements: 'Announcements', audit: 'Audit history', branding: 'Branding studio' } as Record<string,string>)[tab] || 'Admin workspace'}:</strong> {' '}{sectionGuidance[tab] || 'Choose a section to manage the institution.'}</div>
 
       {loading ? <div className="py-16 text-center text-sm text-slate-500"><RefreshCw className="w-6 h-6 mx-auto mb-2 animate-spin" />Loading system overview…</div> : tab === 'overview' ? (
         <div className="space-y-5">
