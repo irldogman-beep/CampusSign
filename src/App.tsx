@@ -1213,6 +1213,19 @@ The request has NOT been rejected or approved. Check the student's official univ
     );
   };
 
+  const handleBulkSetAttendanceStatus = async (status: string) => {
+    const selected = visibleLogs.filter(log => log.id && selectedAttendanceIds.includes(String(log.id)));
+    if (!selected.length || shownSessionId === '__all__') return;
+    if (!window.confirm('Set ' + selected.length + ' selected record(s) in this session to ' + status + '? This updates their attendance status only.')) return;
+    try {
+      for (const log of selected) await db.updateAttendance(log.id, { studentName: log.registeredName || '', dept: log.dept || '', status });
+      setSelectedAttendanceIds([]);
+      await refreshLogs();
+    } catch (err) {
+      alert('Some selected records could not be updated. Refresh the list and review the remaining records: ' + db.friendly(err));
+      await refreshLogs();
+    }
+  };
   const handleBulkDeleteAttendance = async () => {
     const selected = visibleLogs.filter(log => log.id && selectedAttendanceIds.includes(String(log.id)));
     if (!selected.length) return;
@@ -1987,7 +2000,9 @@ The request has NOT been rejected or approved. Check the student's official univ
                   <input type="checkbox" aria-label="Select all visible attendance records" checked={visibleLogs.length>0 && visibleLogs.every(log=>selectedAttendanceIds.includes(String(log.id)))} onChange={e=>setSelectedAttendanceIds(current=>e.target.checked?Array.from(new Set([...current,...visibleLogs.filter(log=>log.id).map(log=>String(log.id))])):current.filter(id=>!visibleLogs.some(log=>String(log.id)===id)))} />
                   <span>{selectedAttendanceIds.length} selected on this page</span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button type="button" onClick={()=>handleBulkSetAttendanceStatus('Verified')} disabled={!selectedAttendanceIds.length || shownSessionId==='__all__'} className="px-3 py-2 rounded-lg border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-xs font-bold disabled:opacity-40">Mark verified</button>
+                  <button type="button" onClick={()=>handleBulkSetAttendanceStatus('Flagged')} disabled={!selectedAttendanceIds.length || shownSessionId==='__all__'} className="px-3 py-2 rounded-lg border border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-xs font-bold disabled:opacity-40">Flag selected</button>
                   <button type="button" onClick={()=>setSelectedAttendanceIds([])} disabled={!selectedAttendanceIds.length} className="px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-xs font-bold disabled:opacity-40">Clear selection</button>
                   <button type="button" onClick={handleBulkDeleteAttendance} disabled={!selectedAttendanceIds.length || shownSessionId==='__all__'} title={shownSessionId==='__all__'?'Choose one session before deleting selected records':'Delete selected records from this session'} className="px-3 py-2 rounded-lg bg-rose-700 text-white text-xs font-bold disabled:opacity-40">Delete selected</button>
                 </div>
