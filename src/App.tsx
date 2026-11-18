@@ -1876,7 +1876,7 @@ The request has NOT been rejected or approved. Check the student's official univ
           <p className="text-[10px] uppercase tracking-[.15em] font-black text-emerald-700 dark:text-emerald-300">Teaching workspace · {activeStaff?.course || 'Course'}</p>
           <h2 className="text-base font-extrabold text-slate-900 dark:text-white mt-1">{adminTab === 'session' ? 'Session & QR' : adminTab === 'roster' ? 'Attendance log' : adminTab === 'registry' ? 'Student roster' : adminTab === 'assessments' ? 'CA & Results' : 'Enrolment requests'}</h2>
           <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">{adminTab === 'session' ? 'Create an attendance session and display its QR code to your class.' : adminTab === 'roster' ? 'Search, review and manage attendance records for your sessions.' : adminTab === 'registry' ? 'Find students registered for your course and manage their face-enrolment status.' : adminTab === 'assessments' ? 'Create CA and exam components, then record marks for students on your course roster.' : 'Review and respond to student requests to join your course.'}</p>
-        </header
+        </header>
         {adminTab !== 'session' && adminTab !== 'assessments' && <div className="flex justify-end">
           {adminTab === 'roster' ? (
             <button type="button" onClick={exportLogsCsv} disabled={filteredLogs.length === 0}
@@ -1895,7 +1895,6 @@ The request has NOT been rejected or approved. Check the student's official univ
             </button>
           )}
         </div>}
->
         {adminTab === 'session' && <section className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 p-4 sm:p-5">
           <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">Session & QR attendance</h3>
           <p className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">Your session creation form and live QR display are shown above this menu. Use the other sections to review attendance lists, manage your course roster, record CA/examination marks or respond to enrolment requests.</p>
