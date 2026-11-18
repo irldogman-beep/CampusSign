@@ -433,6 +433,7 @@ export default function StudentAccountPortal({ onClose, onEnroll, onTakeAttendan
              </section>}
                </div>
              </div>
+             </div>
            </>}
  
         </div>
