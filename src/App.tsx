@@ -1236,6 +1236,19 @@ The request has NOT been rejected or approved. Check the student's official univ
     [log.registeredName, log.studentId, log.dept, log.course, log.receiptNo]
       .some(value => String(value ?? '').toLowerCase().includes(normalizedSearch))
   );
+  const sessionTrend = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() - (6 - index));
+    const key = date.toISOString().slice(0, 10);
+    const count = lecturerAttendanceLogs.filter(log => {
+      const value = log.isoTime || log.createdAt || log.created_at;
+      if (!value) return false;
+      const parsed = new Date(value);
+      return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === key;
+    }).length;
+    return { key, count, label: date.toLocaleDateString(undefined, { weekday: 'short' }) };
+  });
   const attendancePageSize = 25;
   const attendancePageCount = Math.max(1, Math.ceil(filteredLogs.length / attendancePageSize));
   const safeAttendancePage = Math.min(attendancePage, attendancePageCount);
@@ -1951,6 +1964,12 @@ The request has NOT been rejected or approved. Check the student's official univ
             <p className="text-[11px] text-slate-500 dark:text-slate-400">
               Delete entire list removes the selected session and all check-ins saved under it. Live sessions must be ended first.
             </p>
+            <section className="mb-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 sm:p-4">
+              <div className="flex items-center justify-between gap-2 mb-3"><div><h3 className="text-xs font-extrabold text-slate-800 dark:text-white">Session attendance trend</h3><p className="text-[10px] text-slate-500">Check-ins recorded over the last seven days</p></div><span className="text-[10px] font-bold text-slate-500">{sessionTrend.reduce((sum, day) => sum + day.count, 0)} check-ins</span></div>
+              <div className="h-24 flex items-end gap-2" role="img" aria-label={sessionTrend.map(day=>day.label+': '+day.count+' check-ins').join(', ')}>
+                {sessionTrend.map(day=><div key={day.key} className="flex-1 min-w-0 h-full flex flex-col items-center justify-end gap-1"><span className="text-[9px] tabular-nums text-slate-500">{day.count || ''}</span><div className="w-full max-w-10 rounded-t-md bg-emerald-600" style={{height:Math.max(3,day.count/Math.max(1,...sessionTrend.map(item=>item.count))*68)+'%'}}/><span className="text-[9px] text-slate-500">{day.label}</span></div>)}
+              </div>
+            </section>
             {filteredLogs.length > 0 && <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2.5">
               <p role="status" className="text-[11px] text-slate-500">Showing {(safeAttendancePage - 1) * attendancePageSize + 1}–{Math.min(safeAttendancePage * attendancePageSize, filteredLogs.length)} of {filteredLogs.length} records</p>
               <div className="flex items-center gap-2"><button type="button" onClick={() => setAttendancePage(page => Math.max(1, page - 1))} disabled={safeAttendancePage <= 1} className="rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-[11px] font-bold disabled:opacity-40">Previous</button><span className="text-[10px] text-slate-500 tabular-nums">Page {safeAttendancePage} of {attendancePageCount}</span><button type="button" onClick={() => setAttendancePage(page => Math.min(attendancePageCount, page + 1))} disabled={safeAttendancePage >= attendancePageCount} className="rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-[11px] font-bold disabled:opacity-40">Next</button></div>
