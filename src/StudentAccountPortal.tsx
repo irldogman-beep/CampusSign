@@ -319,7 +319,7 @@ export default function StudentAccountPortal({ onClose, onEnroll, onTakeAttendan
 
           {profile.status==='approved' && <>
              <div className="cs-workspace-layout-shell">
-             <WorkspaceUxControls />
+             <WorkspaceUxControls drawerId="student-workspace-navigation" label="Student workspace navigation" />
              <div className="cs-workspace-layout grid grid-cols-1 lg:grid-cols-[210px_minmax(0,1fr)] gap-4 lg:gap-6 items-start">
                <aside className="cs-workspace-sidebar lg:sticky lg:top-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 sm:p-4 space-y-3">
                  <div className="px-2 pb-2 border-b border-slate-100 dark:border-slate-800">
@@ -337,7 +337,7 @@ export default function StudentAccountPortal({ onClose, onEnroll, onTakeAttendan
                  ['inbox','Inbox',Bell,unreadCount],
                  ['profile','Profile',UserRound,null],
                ] as const).map(([key,label,Icon,count]) => (
-                 <button key={key} type="button" onClick={()=>setActiveSection(key)} aria-pressed={activeSection===key}
+                 <button key={key} type="button" onClick={()=>setActiveSection(key)} aria-current={activeSection===key ? "page" : undefined} aria-pressed={activeSection===key}
                    className={`cs-student-nav-button inline-flex items-center justify-center gap-2 shrink-0 rounded-xl px-3 py-3 text-xs font-bold justify-start transition-colors ${activeSection===key?'is-active':''}`}>
                    <Icon className="w-4 h-4 shrink-0"/>
                    <span>{label}</span>
