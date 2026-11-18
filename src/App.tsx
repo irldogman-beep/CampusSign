@@ -48,7 +48,7 @@ import { Capacitor } from '@capacitor/core';
 import { QR_DISPLAY_CHANNEL } from './QRDisplayWindow';
 import AdminWorkspace, { NotificationBell } from './AdminWorkspace';
 import StudentAccountPortal from './StudentAccountPortal';
-import WorkspaceUxControls from './WorkspaceUxControls';
+import LecturerDrawerControls from './LecturerDrawerControls';
 const AssessmentManagement = React.lazy(() => import('./AssessmentManagement'));
 
 /* ==========================================================================
@@ -597,6 +597,7 @@ function AdminPortal({
     course: activeStaff ? activeStaff.course : ''
   });
   const [registrySearch, setRegistrySearch] = useState('');
+  const [registryPage, setRegistryPage] = useState(1);
 
   // Face enrollment (templates are stored on the server)
   const enrolledIds = studentRegistry.filter(st => st.faceEnrolled).map(st => String(st.id).toUpperCase());
@@ -1275,6 +1276,10 @@ The request has NOT been rejected or approved. Check the student's official univ
       String(value ?? '').toLowerCase().includes(normalizedRegistrySearch)
     )
   );
+  const registryPageSize = 30;
+  const registryPageCount = Math.max(1, Math.ceil(filteredRegistry.length / registryPageSize));
+  const safeRegistryPage = Math.min(registryPage, registryPageCount);
+  const visibleRegistry = filteredRegistry.slice((safeRegistryPage - 1) * registryPageSize, safeRegistryPage * registryPageSize);
 
   if (isAuthenticated && activeStaff && !activeStaff.isVerified) {
     return (
@@ -1480,7 +1485,7 @@ The request has NOT been rejected or approved. Check the student's official univ
           <div className="min-w-0">
             <div className="font-extrabold text-amber-400 text-sm truncate">{activeStaff ? activeStaff.name : 'Staff'}</div>
             <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-              {assignedCourses.length > 1 ? <select aria-label="Active teaching course" value={activeStaff?.course || ''} onChange={e=>switchLecturerCourse(e.target.value)} className="max-w-[230px] px-2 py-1 bg-amber-500/20 border border-amber-500/40 text-amber-200 rounded text-[10px] font-bold"><option value="">Choose active course</option>{assignedCourses.map(item=><option key={item.course} value={item.course} className="text-slate-900">{item.course}{item.is_primary ? ' · Default' : ''}</option>)}</select> : <span className="px-2 py-0.5 bg-amber-500/20 border border-amber-500/40 text-amber-300 rounded text-[10px] font-bold">{activeStaff ? activeStaff.course : ''}</span>}
+              {assignedCourses.length > 1 ? <select aria-label="Active teaching course" value={activeStaff?.course || ''} onChange={e=>switchLecturerCourse(e.target.value)} className="max-w-[min(58vw,230px)] truncate px-2 py-1 bg-amber-500/20 border border-amber-500/40 text-amber-200 rounded text-[10px] font-bold"><option value="">Choose active course</option>{assignedCourses.map(item=><option key={item.course} value={item.course} className="text-slate-900">{item.course}{item.is_primary ? ' · Default' : ''}</option>)}</select> : <span className="max-w-[190px] truncate px-2 py-0.5 bg-amber-500/20 border border-amber-500/40 text-amber-300 rounded text-[10px] font-bold" title={activeStaff ? activeStaff.course : ''}>{activeStaff ? activeStaff.course : ''}</span>}
               {activeStaff && !activeStaff.isVerified && (
                 <span className="px-2 py-0.5 bg-rose-500/20 border border-rose-400/40 text-rose-300 rounded text-[10px] font-bold">PENDING APPROVAL</span>
               )}
@@ -1829,12 +1834,8 @@ The request has NOT been rejected or approved. Check the student's official univ
               )}
             </div>
 
-            <div className="hidden sm:flex pt-4 border-t border-emerald-900/80 items-center justify-between text-xs text-emerald-200 gap-2">
-              <div className="flex items-center gap-1 font-mono text-[11px]">
-                <Key className="w-3.5 h-3.5 text-amber-400" />
-                <span>Token: <strong className="text-white">{qrToken}</strong></span>
-              </div>
-              <span>{Number(activeSession.qrIntervalSeconds ?? DEFAULT_QR_INTERVAL_SECONDS) === 0 ? 'Static until session closes' : `Rotates every ${formatQrInterval(Number(activeSession.qrIntervalSeconds ?? DEFAULT_QR_INTERVAL_SECONDS))} · ${QR_GRACE_SECONDS}s scan grace`}</span>
+            <div className="hidden sm:flex pt-4 border-t border-emerald-900/80 items-center justify-end text-xs text-emerald-200 gap-2">
+              <span>{Number(activeSession.qrIntervalSeconds ?? DEFAULT_QR_INTERVAL_SECONDS) === 0 ? 'QR remains valid until the session closes' : `QR rotates every ${formatQrInterval(Number(activeSession.qrIntervalSeconds ?? DEFAULT_QR_INTERVAL_SECONDS))} · ${QR_GRACE_SECONDS}s scan grace`}</span>
             </div>
           </div>
         </div>
@@ -1844,16 +1845,12 @@ The request has NOT been rejected or approved. Check the student's official univ
 
       {/* ADMIN SUB-TABS: ISOLATED SESSION ATTENDANCE vs LECTURER'S OWN COURSE ROSTER */}
       <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
-        <WorkspaceUxControls />
-        <div className="cs-workspace-layout grid grid-cols-1 lg:grid-cols-[230px_minmax(0,1fr)] gap-4 lg:gap-6 items-start">
+        <LecturerDrawerControls />
+        <div className="cs-lecturer-layout cs-workspace-layout grid grid-cols-1 lg:grid-cols-[230px_minmax(0,1fr)] gap-4 lg:gap-6 items-start">
         
-        <aside className="cs-workspace-sidebar lg:sticky lg:top-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 p-3 sm:p-4 space-y-3">
-          <div className="px-2 pb-2 border-b border-slate-200 dark:border-slate-800">
-            <p className="text-[10px] font-black uppercase tracking-[.16em] text-emerald-700 dark:text-emerald-300">Lecturer menu</p>
-            <h2 className="text-sm font-extrabold text-slate-900 dark:text-white mt-1">Teaching workspace</h2>
-            <p className="text-[10px] text-slate-500 mt-1">Attendance, class lists and results.</p>
-          </div>
-          <p className="text-[11px] text-slate-500 sm:max-w-xs">{adminTab === 'session' ? 'Create an attendance session and display its QR code to your class.' : adminTab === 'roster' ? 'Review, search, export or remove records from a completed attendance list.' : adminTab === 'registry' ? 'Manage the students registered for your assigned course and complete face enrolment.' : adminTab === 'assessments' ? 'Create CA and exam components, then record marks for students on your course roster.' : 'Review and respond to student requests to join your course.'}</p>
+        <aside id="lecturer-navigation-drawer" aria-label="Lecturer navigation" tabIndex={-1} className="cs-workspace-sidebar lg:sticky lg:top-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 p-3 sm:p-4 space-y-3">
+          <div className="flex items-center justify-between gap-2 px-2 pb-3 border-b border-slate-200 dark:border-slate-800"><div><p className="text-[10px] font-black uppercase tracking-[.16em] text-emerald-700 dark:text-emerald-300">Lecturer menu</p><h2 className="text-sm font-extrabold text-slate-900 dark:text-white mt-1">Teaching workspace</h2></div><button type="button" data-drawer-close aria-label="Close navigation menu" className="cs-lecturer-drawer-close"><X className="w-4 h-4" /></button></div>
+          
           {/* Sub Tab Buttons */}
           <div className="grid grid-cols-2 lg:grid-cols-1 items-stretch gap-1.5 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl w-full">
             <button type="button" onClick={() => setAdminTab('session')} className={`px-3 sm:px-4 py-2.5 sm:py-2 text-xs font-bold rounded-xl transition-all flex min-w-0 justify-center items-center gap-2 ${adminTab==='session'?'bg-emerald-900 text-amber-400 shadow':'text-slate-600 dark:text-slate-400 hover:text-slate-900'}`}><QrCode className="w-4 h-4"/><span>Session & QR</span></button>
@@ -1934,7 +1931,11 @@ The request has NOT been rejected or approved. Check the student's official univ
           )}
         </aside>
         <div className="min-w-0 space-y-4">
-
+        <header className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 px-4 py-3">
+          <p className="text-[10px] uppercase tracking-[.15em] font-black text-emerald-700 dark:text-emerald-300">Teaching workspace · {activeStaff?.course || 'Course'}</p>
+          <h2 className="text-base font-extrabold text-slate-900 dark:text-white mt-1">{adminTab === 'session' ? 'Session & QR' : adminTab === 'roster' ? 'Attendance log' : adminTab === 'registry' ? 'Student roster' : adminTab === 'assessments' ? 'CA & Results' : 'Enrolment requests'}</h2>
+          <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">{adminTab === 'session' ? 'Create an attendance session and display its QR code to your class.' : adminTab === 'roster' ? 'Search, review and manage attendance records for your sessions.' : adminTab === 'registry' ? 'Find students registered for your course and manage their face-enrolment status.' : adminTab === 'assessments' ? 'Create CA and exam components, then record marks for students on your course roster.' : 'Review and respond to student requests to join your course.'}</p>
+        </header>
         {adminTab === 'session' && <section className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 p-4 sm:p-5">
           <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">Session & QR attendance</h3>
           <p className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">Your session creation form and live QR display are shown above this menu. Use the other sections to review attendance lists, manage your course roster, record CA/examination marks or respond to enrolment requests.</p>
@@ -1970,8 +1971,9 @@ The request has NOT been rejected or approved. Check the student's official univ
                   placeholder="Search name or ID"
                   value={searchQuery}
                   onChange={e => { setSearchQuery(e.target.value); setAttendancePage(1); }}
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-base sm:text-sm focus:ring-2 focus:ring-emerald-600 outline-none"
+                  className="w-full pl-10 pr-10 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-base sm:text-sm focus:ring-2 focus:ring-emerald-600 outline-none"
                 />
+                {searchQuery && <button type="button" aria-label="Clear attendance search" onClick={()=>{setSearchQuery('');setAttendancePage(1);}} className="absolute right-2 top-2.5 p-1 rounded-md text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700"><X className="w-4 h-4" /></button>}
               </div>
             </div>
             <p className="text-[11px] text-slate-500 dark:text-slate-400">
@@ -2159,20 +2161,26 @@ The request has NOT been rejected or approved. Check the student's official univ
                 <input 
                   type="text" 
                   placeholder="Search course roster by ID, Name, Dept..."
+                  aria-label="Search students in your course roster"
                   value={registrySearch}
-                  onChange={e => setRegistrySearch(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs focus:ring-2 focus:ring-emerald-600 outline-none"
+                  onChange={e => { setRegistrySearch(e.target.value); setRegistryPage(1); }}
+                  className="w-full pl-9 pr-10 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs focus:ring-2 focus:ring-emerald-600 outline-none"
                 />
+                {registrySearch && <button type="button" aria-label="Clear roster search" onClick={()=>{setRegistrySearch('');setRegistryPage(1);}} className="absolute right-2 top-1.5 p-1 rounded-md text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700"><X className="w-4 h-4" /></button>}
               </div>
               <div className="text-xs text-slate-500 font-medium">
                 Active Lecturer Roster: <strong className="text-emerald-800 dark:text-emerald-400 font-bold">{activeStaff ? activeStaff.course : 'All Courses'}</strong> ({filteredRegistry.length} Enrolled Students)
               </div>
             </div>
+            {filteredRegistry.length > 0 && <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 px-3 py-2.5">
+              <p role="status" className="text-[11px] text-slate-500">Showing {(safeRegistryPage-1)*registryPageSize+1}–{Math.min(safeRegistryPage*registryPageSize,filteredRegistry.length)} of {filteredRegistry.length} students</p>
+              <div className="flex items-center gap-2"><button type="button" onClick={()=>setRegistryPage(p=>Math.max(1,p-1))} disabled={safeRegistryPage<=1} className="rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-[11px] font-bold disabled:opacity-40">Previous</button><span className="text-[10px] text-slate-500 tabular-nums">Page {safeRegistryPage} of {registryPageCount}</span><button type="button" onClick={()=>setRegistryPage(p=>Math.min(registryPageCount,p+1))} disabled={safeRegistryPage>=registryPageCount} className="rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-[11px] font-bold disabled:opacity-40">Next</button></div>
+            </div>}
 
             {filteredRegistry.length === 0 ? (
               <div className="py-12 text-center text-slate-400 text-xs">
                 <Users className="w-12 h-12 mx-auto mb-2 opacity-30 text-emerald-600" />
-                <p>No students enrolled under <strong>{activeStaff ? activeStaff.course : 'this course'}</strong> yet.</p>
+                <p>{registrySearch ? 'No students match this search. Try a different name, ID or department.' : <>No students enrolled under <strong>{activeStaff ? activeStaff.course : 'this course'}</strong> yet.</>}</p>
                 <button
                   onClick={() => setIsAddStudentOpen(true)}
                   className="mt-3 px-4 py-2 bg-amber-500 text-emerald-950 text-xs font-bold rounded-xl shadow"
@@ -2183,7 +2191,7 @@ The request has NOT been rejected or approved. Check the student's official univ
             ) : (
               <>
               <div className="md:hidden space-y-2.5">
-                {filteredRegistry.map((student) => {
+                {visibleRegistry.map((student) => {
                   const enrolled = enrolledIds.includes(student.id.toUpperCase());
                   return (
                     <div key={`${student.id}-${student.course}`} className="p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 space-y-3">
@@ -2201,7 +2209,7 @@ The request has NOT been rejected or approved. Check the student's official univ
                           onClick={() => { setEnrollSaved(false); setEnrollTarget(student); }}
                           className="flex-1 py-2.5 text-xs font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950 border border-emerald-200 dark:border-emerald-800 rounded-xl inline-flex items-center justify-center gap-1.5"
                         >
-                          <Camera className="w-4 h-4" /> {enrolled ? 'Re-enroll face' : 'Enroll face'}
+                          <Camera className="w-4 h-4" /> {enrolled ? 'Update face' : 'Enroll face'}
                         </button>
                         <button
                           onClick={() => handleDeleteStudent(student.rowId, student.id, student.name)}
@@ -2229,7 +2237,7 @@ The request has NOT been rejected or approved. Check the student's official univ
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-                    {filteredRegistry.map((student) => (
+                    {visibleRegistry.map((student) => (
                       <tr key={`${student.id}-${student.course}`} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
                         <td className="p-3 font-mono font-bold text-emerald-800 dark:text-emerald-400">{student.id}</td>
                         <td className="p-3 font-bold text-slate-900 dark:text-white">{student.name}</td>
@@ -2249,7 +2257,7 @@ The request has NOT been rejected or approved. Check the student's official univ
                             className="px-2.5 py-1.5 mr-1 text-[11px] font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950 hover:bg-emerald-100 dark:hover:bg-emerald-900 border border-emerald-200 dark:border-emerald-800 rounded-lg inline-flex items-center gap-1"
                             title="Enroll this student's face"
                           >
-                            <Camera className="w-3.5 h-3.5" /> {enrolledIds.includes(student.id.toUpperCase()) ? 'Re-enroll' : 'Enroll Face'}
+                            <Camera className="w-3.5 h-3.5" /> {enrolledIds.includes(student.id.toUpperCase()) ? 'Update face' : 'Enroll face'}
                           </button>
                           <button
                             onClick={() => handleDeleteStudent(student.rowId, student.id, student.name)}
