@@ -16,7 +16,7 @@ Students choose a department from active catalogue departments. Course choices a
 
 ### Admin workspace
 
-A new **Departments & courses** section provides forms and searchable lists for maintaining the catalogue. The existing overview, lecturer verification, notifications and audit-history sections remain available.
+A new **Academic catalogue** section provides forms and searchable lists for maintaining the catalogue. The existing overview, lecturer verification, notifications and audit-history sections remain available.
 
 ## Database migration
 
