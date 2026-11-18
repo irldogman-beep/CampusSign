@@ -106,7 +106,7 @@ begin
   if not exists (
     select 1 from public.lecturers l join public.lecturer_course_assignments a on a.lecturer_id=l.id
     where l.id=auth.uid() and l.role='lecturer' and l.is_verified and a.course_id=p_course
-  )) then raise exception 'course_access_denied'; end if;
+  ) then raise exception 'course_access_denied'; end if;
   if length(v_name)<2 or length(v_name)>100 then raise exception 'teaching_group_name_invalid'; end if;
   if not exists(select 1 from public.academic_courses where id=p_course and is_active)
      or not exists(select 1 from public.academic_terms where id=p_term) then
@@ -185,7 +185,7 @@ begin
   if not exists (
     select 1 from public.lecturers l join public.lecturer_course_assignments a on a.lecturer_id=l.id
     where l.id=auth.uid() and l.role='lecturer' and l.is_verified and a.course_id=p_course
-  )) then raise exception 'course_access_denied'; end if;
+  ) then raise exception 'course_access_denied'; end if;
   if length(v_title)<2 or length(v_title)>120 then raise exception 'assessment_title_invalid'; end if;
   if p_type not in ('ca','exam') then raise exception 'assessment_type_invalid'; end if;
   if p_max_score is null or p_max_score<=0 or p_max_score>10000 then raise exception 'assessment_max_score_invalid'; end if;
@@ -234,7 +234,7 @@ begin
   if not exists (
     select 1 from public.lecturers l join public.lecturer_course_assignments a on a.lecturer_id=l.id
     where l.id=auth.uid() and l.role='lecturer' and l.is_verified and a.course_id=p_course
-  )) then raise exception 'course_access_denied'; end if;
+  ) then raise exception 'course_access_denied'; end if;
   if p_ca_weight is null or p_exam_weight is null or p_ca_weight<0 or p_exam_weight<0
      or round(p_ca_weight+p_exam_weight,2)<>100 then raise exception 'assessment_split_must_total_100';
   end if;
@@ -284,7 +284,7 @@ begin
   if not exists (
     select 1 from public.lecturers l join public.lecturer_course_assignments a on a.lecturer_id=l.id
     where l.id=auth.uid() and l.role='lecturer' and l.is_verified and a.course_id=v_course
-  )) then raise exception 'course_access_denied'; end if;
+  ) then raise exception 'course_access_denied'; end if;
   if p_score is null or p_score<0 or p_score>v_max then raise exception 'score_out_of_range'; end if;
   if v_group is not null then
     if not exists(select 1 from public.course_teaching_group_members m where m.teaching_group_id=v_group and m.student_user_id=p_student_user_id) then
