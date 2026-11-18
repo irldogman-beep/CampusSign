@@ -543,7 +543,7 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
       {error && <div role="alert" className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-200 text-xs">{error}</div>}
 
       <div className="cs-workspace-layout-shell">
-      <WorkspaceUxControls />
+      <WorkspaceUxControls drawerId="admin-workspace-navigation" label="Admin workspace navigation" />
       <div className="cs-workspace-layout grid grid-cols-1 lg:grid-cols-[230px_minmax(0,1fr)] gap-4 lg:gap-6 items-start">
         <aside className="cs-workspace-sidebar lg:sticky lg:top-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 sm:p-4 space-y-3">
           <div className="px-2 pb-2 border-b border-slate-100 dark:border-slate-800">
@@ -551,32 +551,43 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
             <h2 className="text-sm font-extrabold text-slate-900 dark:text-white mt-1">Administration</h2>
             <p className="text-[10px] text-slate-500 mt-1">Choose an area to manage.</p>
           </div>
-      <nav aria-label="Admin dashboard sections" className="cs-admin-nav grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-1 gap-2">
+      <nav id="admin-workspace-navigation" aria-label="Admin dashboard sections" className="cs-admin-nav">
         {[
-          { id: 'overview', label: 'Overview', icon: BarChart3 },
-          { id: 'academic', label: 'Academic catalogue', icon: BookMarked },
-          { id: 'academic-setup', label: 'Academic structure', icon: Layers },
-          { id: 'assessments', label: 'CA & examinations', icon: ClipboardList },
-          { id: 'lecturers', label: 'Lecturers', icon: UserCog },
-          { id: 'enrolments', label: 'Enrolments', icon: Users },
-          { id: 'student-accounts', label: 'Student accounts', icon: UserRound },
-          { id: 'monitoring', label: 'Attendance & sessions', icon: LayoutDashboard },
-          { id: 'announcements', label: 'Announcements', icon: Bell },
-          { id: 'audit', label: 'Audit history', icon: History },
-          { id: 'branding', label: 'Branding studio', icon: Palette },
-        ].map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            type="button"
-            data-admin-section={id}
-            onClick={(event) => { event.preventDefault(); event.stopPropagation(); setTab(id); }}
-            aria-current={tab === id ? 'page' : undefined}
-            aria-pressed={tab === id}
-            className={`cs-admin-nav-button min-w-0 rounded-xl border px-3 py-3 text-left text-xs font-bold inline-flex items-center gap-2 transition-colors ${tab === id ? 'is-active' : ''}`}
-          >
-            <Icon className="w-4 h-4 shrink-0" />
-            <span className="truncate">{label}</span>
-          </button>
+          { title: 'Overview & monitoring', items: [
+            { id: 'overview', label: 'Overview', icon: BarChart3 },
+            { id: 'monitoring', label: 'Attendance & sessions', icon: LayoutDashboard },
+          ]},
+          { title: 'Academic management', items: [
+            { id: 'academic-setup', label: 'Academic structure', icon: Layers },
+            { id: 'academic', label: 'Academic catalogue', icon: BookMarked },
+            { id: 'assessments', label: 'CA & examinations', icon: ClipboardList },
+          ]},
+          { title: 'People', items: [
+            { id: 'lecturers', label: 'Lecturers', icon: UserCog },
+            { id: 'student-accounts', label: 'Student accounts', icon: UserRound },
+            { id: 'enrolments', label: 'Enrolments', icon: Users },
+          ]},
+          { title: 'Communication', items: [
+            { id: 'announcements', label: 'Announcements', icon: Bell },
+          ]},
+          { title: 'System & security', items: [
+            { id: 'audit', label: 'Audit history', icon: History },
+            { id: 'branding', label: 'Branding studio', icon: Palette },
+          ]},
+        ].map(group => (
+          <div key={group.title} className="cs-admin-nav-group">
+            <p className="cs-admin-nav-group-title">{group.title}</p>
+            <div className="cs-admin-nav-group-items">
+              {group.items.map(({ id, label, icon: Icon }) => (
+                <button key={id} type="button" data-admin-section={id}
+                  onClick={(event) => { event.preventDefault(); event.stopPropagation(); setTab(id); }}
+                  aria-current={tab === id ? 'page' : undefined} aria-pressed={tab === id}
+                  className={`cs-admin-nav-button min-w-0 rounded-xl border px-3 py-3 text-left text-xs font-bold inline-flex items-center gap-2 transition-colors ${tab === id ? 'is-active' : ''}`}>
+                  <Icon className="w-4 h-4 shrink-0" /><span className="truncate">{label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
         ))}
       </nav>
           <div className="hidden lg:block rounded-xl bg-slate-50 dark:bg-slate-800/70 p-3 text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">
