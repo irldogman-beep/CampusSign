@@ -42,20 +42,22 @@ alter table public.course_result_entries enable row level security;
 revoke all on public.course_result_sheets, public.course_result_entries from anon, authenticated;
 
 -- Keep unpublished component marks private from students as well as hidden in the UI.
-drop policy if exists course_assessment_scores_read_scoped on public.course_assessment_scores;
-create policy course_assessment_scores_read_scoped
-on public.course_assessment_scores for select to authenticated
-using (
-  (select public.is_admin())
-  or exists (
-    select 1
-    from public.course_assessments a
+create or replace function public.can_read_assessment_score(p_assessment uuid,p_student uuid)
+returns boolean
+language plpgsql
+security definer
+set search_path = public, auth, pg_temp
+as $$
+begin
+  if auth.uid() is null then return false; end if;
+  if public.is_admin() then return true; end if;
+  if exists (
+    select 1 from public.course_assessments a
     join public.lecturer_course_assignments lca on lca.course_id=a.course_id
     join public.lecturers l on l.id=lca.lecturer_id
-    where a.id=course_assessment_scores.assessment_id
-      and l.id=(select auth.uid()) and l.role='lecturer' and l.is_verified
-  )
-  or exists (
+    where a.id=p_assessment and l.id=auth.uid() and l.role='lecturer' and l.is_verified
+  ) then return true; end if;
+  return p_student=auth.uid() and exists (
     select 1
     from public.course_assessments a
     join public.course_result_sheets rs
@@ -63,11 +65,18 @@ using (
      and rs.teaching_group_id is not distinct from a.teaching_group_id
      and rs.status='published'
     join public.course_result_entries re on re.result_sheet_id=rs.id
-    where a.id=course_assessment_scores.assessment_id
-      and re.student_user_id=(select auth.uid())
-      and re.student_user_id=course_assessment_scores.student_user_id
-  )
-);
+    where a.id=p_assessment and re.student_user_id=auth.uid()
+      and re.student_user_id=p_student
+  );
+end;
+$$;
+revoke all on function public.can_read_assessment_score(uuid,uuid) from public,anon;
+grant execute on function public.can_read_assessment_score(uuid,uuid) to authenticated;
+
+drop policy if exists course_assessment_scores_read_scoped on public.course_assessment_scores;
+create policy course_assessment_scores_read_scoped
+on public.course_assessment_scores for select to authenticated
+using (public.can_read_assessment_score(assessment_id,student_user_id));
 
 create or replace function public.submit_course_results(
   p_course uuid, p_term uuid, p_group uuid default null
