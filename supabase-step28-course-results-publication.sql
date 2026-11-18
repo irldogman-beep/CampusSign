@@ -251,6 +251,26 @@ begin
 end;
 $$;
 
+create or replace function public.get_course_result_sheet_entries(p_sheet uuid)
+returns table(student_id text,full_name text,ca_score numeric,exam_score numeric,final_score numeric)
+language plpgsql
+security definer
+set search_path = public, auth, pg_temp
+as $
+begin
+  if auth.uid() is null or not public.is_admin() then raise exception 'admin_access_required'; end if;
+  if not exists(select 1 from public.course_result_sheets where id=p_sheet) then
+    raise exception 'result_sheet_not_found';
+  end if;
+  return query
+  select sa.student_id,sa.full_name,e.ca_score,e.exam_score,e.final_score
+  from public.course_result_entries e
+  join public.student_accounts sa on sa.user_id=e.student_user_id
+  where e.result_sheet_id=p_sheet
+  order by sa.full_name,sa.student_id;
+end;
+$;
+
 create or replace function public.get_my_published_course_results()
 returns table(course_code text,course_title text,term_name text,teaching_group_name text,
   ca_score numeric,exam_score numeric,final_score numeric,published_at timestamptz)
@@ -276,7 +296,9 @@ revoke all on function public.submit_course_results(uuid,uuid,uuid) from public,
 revoke all on function public.review_course_result_sheet(uuid,text,text) from public,anon;
 revoke all on function public.list_course_result_sheets() from public,anon;
 revoke all on function public.get_my_published_course_results() from public,anon;
+revoke all on function public.get_course_result_sheet_entries(uuid) from public,anon;
 grant execute on function public.submit_course_results(uuid,uuid,uuid) to authenticated;
 grant execute on function public.review_course_result_sheet(uuid,text,text) to authenticated;
 grant execute on function public.list_course_result_sheets() to authenticated;
 grant execute on function public.get_my_published_course_results() to authenticated;
+grant execute on function public.get_course_result_sheet_entries(uuid) to authenticated;
