@@ -1021,3 +1021,47 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .cs-lecturer-layout .cs-workspace-sidebar { transition: none; }
 }
+
+
+/* Accessible off-canvas drawers shared by Student and Admin workspaces. */
+.cs-workspace-drawer-backdrop { display: none; }
+.cs-admin-nav { display: flex; flex-direction: column; gap: .85rem; overflow: visible; padding: 0; }
+.cs-admin-nav-group { min-width: 0; }
+.cs-admin-nav-group-title {
+  margin: .25rem .55rem .45rem; color: var(--cs-muted, #64756a);
+  font-size: 9px; font-weight: 850; letter-spacing: .12em; text-transform: uppercase;
+}
+.cs-admin-nav-group-items { display: flex; flex-direction: column; gap: .35rem; }
+@media (max-width: 1023px) {
+  .cs-workspace-layout .cs-workspace-sidebar {
+    display: block !important; position: fixed !important; inset: 0 auto 0 0;
+    z-index: 1201; width: min(86vw, 340px); max-width: 340px; height: 100dvh;
+    overflow-y: auto; overscroll-behavior: contain; border-radius: 0 18px 18px 0 !important;
+    padding: 18px !important; background: var(--cs-surface, #fff) !important;
+    box-shadow: 18px 0 48px rgb(2 12 8 / 28%);
+    transform: translateX(-110%); visibility: hidden; pointer-events: none;
+    transition: transform .24s ease, visibility .24s ease;
+  }
+  .dark .cs-workspace-layout .cs-workspace-sidebar { background: #0b1220 !important; }
+  .cs-workspace-layout.is-mobile-open .cs-workspace-sidebar {
+    transform: translateX(0); visibility: visible; pointer-events: auto;
+  }
+  .cs-workspace-layout .cs-workspace-sidebar nav { display: flex !important; flex-direction: column !important; gap: .4rem; }
+  .cs-workspace-layout .cs-workspace-sidebar nav button { width: 100%; min-height: 46px; justify-content: flex-start; white-space: normal; }
+  .cs-workspace-drawer-backdrop.is-visible {
+    display: block; position: fixed; inset: 0; z-index: 1200; width: 100vw; height: 100dvh;
+    border: 0; border-radius: 0; background: rgb(2 8 6 / 58%); cursor: default;
+  }
+  .cs-workspace-layout .cs-workspace-sidebar[aria-modal="true"] { outline: none; }
+  .cs-admin-nav-group-items { gap: .35rem; }
+}
+@media (min-width: 1024px) {
+  .cs-workspace-drawer-backdrop { display: none !important; }
+  .cs-workspace-layout .cs-workspace-sidebar { position: sticky; }
+}
+@media (max-width: 480px) {
+  .cs-workspace-layout .cs-workspace-sidebar { width: min(88vw, 300px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cs-workspace-layout .cs-workspace-sidebar { transition: none; }
+}
