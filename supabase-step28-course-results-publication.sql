@@ -268,8 +268,8 @@ begin
   join public.student_accounts sa on sa.user_id=e.student_user_id
   where e.result_sheet_id=p_sheet
   order by sa.full_name,sa.student_id;
-end;$$;;
-
+end;
+$$;
 create or replace function public.get_my_published_course_results()
 returns table(course_code text,course_title text,term_name text,teaching_group_name text,
   ca_score numeric,exam_score numeric,final_score numeric,published_at timestamptz)
