@@ -157,7 +157,9 @@ begin
     and lower(btrim(s.name))=lower(btrim(v_account.full_name)) and lower(btrim(s.dept))=lower(btrim(v_account.department));
   select coalesce(jsonb_agg(jsonb_build_object('id',sca.id,'course_code',ac.code,'course_title',ac.title,
       'term',at.name,'academic_period',ap.name,'attempt_number',sca.attempt_number,
-      'status',sca.status,'grade',sca.grade,'final_score',sca.final_score,\n      'is_current_carryover',(sca.status='failed' and not exists (select 1 from public.student_course_attempts newer where newer.student_user_id=sca.student_user_id and newer.course_id=sca.course_id and newer.status='passed' and newer.attempt_number>sca.attempt_number)),\n      'result_note',sca.result_note,'created_at',sca.created_at)
+      'status',sca.status,'grade',sca.grade,'final_score',sca.final_score,
+      'is_current_carryover',(sca.status='failed' and not exists (select 1 from public.student_course_attempts newer where newer.student_user_id=sca.student_user_id and newer.course_id=sca.course_id and newer.status='passed' and newer.attempt_number>sca.attempt_number)),
+      'result_note',sca.result_note,'created_at',sca.created_at)
       order by sca.created_at desc),'[]'::jsonb)
   into v_course_attempts from public.student_course_attempts sca
   join public.academic_courses ac on ac.id=sca.course_id
