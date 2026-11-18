@@ -1045,3 +1045,81 @@ body {
   outline: 3px solid var(--brand-accent, #d89b24);
   outline-offset: 2px;
 }
+
+/* Lecturer workspace navigation: fixed left drawer on mobile, persistent left rail on desktop. */
+@media (min-width: 1024px) {
+  .cs-lecturer-workspace-layout {
+    display: grid !important;
+    grid-template-columns: 230px minmax(0, 1fr) !important;
+    align-items: start;
+  }
+  .cs-lecturer-workspace-layout > .cs-workspace-sidebar {
+    display: block !important;
+    position: sticky !important;
+    inset: auto !important;
+    top: 1rem;
+    width: auto !important;
+    max-width: none !important;
+    height: auto !important;
+    max-height: calc(100dvh - 2rem);
+    overflow-y: auto;
+    transform: none !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    border-radius: 1rem !important;
+  }
+  .cs-lecturer-workspace-layout .cs-workspace-sidebar nav {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+}
+@media (max-width: 1023px) {
+  .cs-lecturer-workspace-layout {
+    display: block !important;
+  }
+  .cs-lecturer-workspace-layout > .cs-workspace-sidebar {
+    display: block !important;
+    position: fixed !important;
+    inset: 0 auto 0 0 !important;
+    z-index: 1201 !important;
+    width: min(86vw, 340px) !important;
+    max-width: 340px !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    overflow-y: auto !important;
+    border-radius: 0 18px 18px 0 !important;
+    transform: translateX(-110%) !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    transition: transform .24s ease, visibility .24s ease;
+  }
+  .cs-lecturer-workspace-layout.is-mobile-open > .cs-workspace-sidebar {
+    transform: translateX(0) !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+  }
+  .cs-lecturer-workspace-layout > .cs-workspace-sidebar nav {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  .cs-lecturer-workspace-layout > .cs-workspace-sidebar nav button {
+    width: 100%;
+    min-height: 46px;
+    justify-content: flex-start;
+  }
+}
+.cs-lecturer-workspace-layout .cs-lecturer-nav-button.is-active {
+  color: #fbbf24 !important;
+  background: #064e3b !important;
+  border-color: #065f46 !important;
+  box-shadow: inset 3px 0 0 #fbbf24 !important;
+}
+.cs-lecturer-workspace-layout .cs-lecturer-nav-button.is-active:hover {
+  color: #fbbf24 !important;
+  background: #064e3b !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cs-lecturer-workspace-layout > .cs-workspace-sidebar {
+    transition: none !important;
+  }
+}
