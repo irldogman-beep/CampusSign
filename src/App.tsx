@@ -29,6 +29,7 @@ import {
   ArrowRight,
   Pencil,
   ClipboardList,
+  LayoutDashboard,
   Check,
   X,
   Sparkles,
