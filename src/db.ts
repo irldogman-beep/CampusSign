@@ -46,6 +46,20 @@ const MESSAGES: Record<string, string> = {
   session_academic_term_not_found: 'The selected academic term could not be found. Refresh the page and try again.',
   session_teaching_group_mismatch: 'The selected teaching group does not belong to this course and academic term.',
   session_lecturer_mismatch: 'The attendance session must belong to the signed-in lecturer.',
+  grading_scale_name_invalid: 'Enter a grading scale name between 2 and 80 characters.',
+  maximum_grade_point_invalid: 'Maximum grade point must be between 0.1 and 20.',
+  maximum_below_existing_grade_points: 'The maximum grade point cannot be lower than a grade band that is already configured.',
+  repeat_policy_invalid: 'Choose a valid repeated-course GPA rule.',
+  grade_code_invalid: 'Grade code must use 1 to 10 letters, numbers, plus signs, hyphens or underscores.',
+  grade_label_invalid: 'Enter a grade description between 2 and 80 characters.',
+  grade_score_range_invalid: 'Enter a valid score range between 0 and 100. The minimum cannot exceed the maximum.',
+  grade_point_invalid: 'Grade point cannot be negative.',
+  grade_point_exceeds_scale: 'This grade point is higher than the institution maximum. Update the scale or lower the grade point.',
+  grade_band_overlap: 'This score range overlaps another active grade band. Adjust the boundaries so each score maps to one grade.',
+  grade_band_not_found: 'The grade band could not be found. Refresh and try again.',
+  course_credit_units_invalid: 'Course credit units must be between 0 and 30.',
+  grade_band_missing_for_published_score: 'At least one published score does not fit an active grade band. Complete the grade boundaries before applying the scale.',
+  grade_scale_not_configured: 'Configure active grade boundaries before applying a grading scale to published results.',
 };
 
 export function friendly(e: any): string {
