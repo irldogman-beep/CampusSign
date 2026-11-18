@@ -35,6 +35,8 @@ export default function AssessmentManagement({ mode = 'admin' }: { mode?: 'admin
   const [message, setMessage] = useState('');
   const [resultSheets, setResultSheets] = useState<any[]>([]);
   const [resultBusy, setResultBusy] = useState(false);
+  const [expandedResultSheet, setExpandedResultSheet] = useState('');
+  const [resultEntries, setResultEntries] = useState<any[]>([]);
 
   const visibleCourses = useMemo(() => isAdmin ? courses : courses.filter(c => {
     const label = String(c.code + ' - ' + c.title).toLowerCase();
@@ -114,6 +116,19 @@ export default function AssessmentManagement({ mode = 'admin' }: { mode?: 'admin
     const { data, error: resultError } = await supabase.rpc('list_course_result_sheets');
     if (resultError) throw resultError;
     setResultSheets(data || []);
+  };
+
+
+  const toggleResultPreview = async (sheetId: string) => {
+    if (expandedResultSheet === sheetId) { setExpandedResultSheet(''); setResultEntries([]); return; }
+    setResultBusy(true); setError('');
+    try {
+      const { data, error: entriesError } = await supabase.rpc('get_course_result_sheet_entries', { p_sheet: sheetId });
+      if (entriesError) throw entriesError;
+      setResultEntries(data || []);
+      setExpandedResultSheet(sheetId);
+    } catch (e) { setError(db.friendly(e)); }
+    finally { setResultBusy(false); }
   };
 
   const reviewResultSheet = async (sheetId: string, action: 'approve' | 'reject' | 'publish') => {
@@ -250,10 +265,13 @@ export default function AssessmentManagement({ mode = 'admin' }: { mode?: 'admin
   return <div className="space-y-4">
 
     {isAdmin && <section className={panel}>
-      <div><h2 className="text-base font-extrabold text-slate-900 dark:text-white">Result review & publication</h2><p className="text-xs text-slate-500 mt-1">Review lecturer-submitted result sheets before students can see final scores. Approval and publication are separate steps.</p></div>
-      {!resultSheets.length ? <p className="py-4 text-xs text-slate-500">No result sheets have been submitted for review yet.</p> : <div className="space-y-2">{resultSheets.map((sheet: any) => <article key={sheet.id} className="rounded-xl border border-slate-200 dark:border-slate-700 p-3 flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0"><strong className="block text-xs text-slate-900 dark:text-white">{sheet.course_code} · {sheet.course_title}</strong><p className="text-[10px] text-slate-500 mt-1">{sheet.term_name}{sheet.teaching_group_name ? ' · ' + sheet.teaching_group_name : ' · Course-wide roster'} · {sheet.student_count} students</p><p className="text-[10px] text-slate-500">Status: <strong className="capitalize">{sheet.status}</strong>{sheet.review_note ? ' · ' + sheet.review_note : ''}</p></div>
-        <div className="flex flex-wrap gap-2">{sheet.status === 'submitted' && <><button type="button" className={secondary} disabled={resultBusy} onClick={() => void reviewResultSheet(sheet.id,'reject')}>Return for correction</button><button type="button" className={primary} disabled={resultBusy} onClick={() => void reviewResultSheet(sheet.id,'approve')}>Approve</button></>}{sheet.status === 'approved' && <button type="button" className={primary} disabled={resultBusy} onClick={() => void reviewResultSheet(sheet.id,'publish')}>Publish results</button>}{sheet.status === 'published' && <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 self-center">Published</span>}</div>
+      <div><h2 className="text-base font-extrabold text-slate-900 dark:text-white">Result review & publication</h2><p className="text-xs text-slate-500 mt-1">Open a result sheet to inspect student scores before approving it. Publication is a separate final step.</p></div>
+      {!resultSheets.length ? <p className="py-4 text-xs text-slate-500">No result sheets have been submitted for review yet.</p> : <div className="space-y-2">{resultSheets.map((sheet: any) => <article key={sheet.id} className="rounded-xl border border-slate-200 dark:border-slate-700 p-3 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0"><strong className="block text-xs text-slate-900 dark:text-white">{sheet.course_code} · {sheet.course_title}</strong><p className="text-[10px] text-slate-500 mt-1">{sheet.term_name}{sheet.teaching_group_name ? ' · ' + sheet.teaching_group_name : ' · Course-wide roster'} · {sheet.student_count} students</p><p className="text-[10px] text-slate-500">Status: <strong className="capitalize">{sheet.status}</strong>{sheet.review_note ? ' · ' + sheet.review_note : ''}</p></div>
+          <div className="flex flex-wrap gap-2"><button type="button" className={secondary} disabled={resultBusy} onClick={() => void toggleResultPreview(sheet.id)}>{expandedResultSheet === sheet.id ? 'Hide scores' : 'Review scores'}</button>{sheet.status === 'submitted' && <><button type="button" className={secondary} disabled={resultBusy} onClick={() => void reviewResultSheet(sheet.id,'reject')}>Return for correction</button><button type="button" className={primary} disabled={resultBusy} onClick={() => void reviewResultSheet(sheet.id,'approve')}>Approve</button></>}{sheet.status === 'approved' && <button type="button" className={primary} disabled={resultBusy} onClick={() => void reviewResultSheet(sheet.id,'publish')}>Publish results</button>}{sheet.status === 'published' && <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 self-center">Published</span>}</div>
+        </div>
+        {expandedResultSheet === sheet.id && <div className="overflow-x-auto rounded-lg border border-slate-100 dark:border-slate-800"><table className="w-full text-left text-[10px]"><thead className="bg-slate-50 dark:bg-slate-800 text-slate-500"><tr><th className="p-2">Student</th><th className="p-2 text-right">CA / 100</th><th className="p-2 text-right">Exam / 100</th><th className="p-2 text-right">Final / 100</th></tr></thead><tbody>{resultEntries.map((entry: any) => <tr key={entry.student_id} className="border-t border-slate-100 dark:border-slate-800"><td className="p-2"><strong className="text-slate-800 dark:text-slate-100">{entry.full_name}</strong><span className="block text-slate-500">{entry.student_id}</span></td><td className="p-2 text-right tabular-nums">{Number(entry.ca_score).toFixed(2)}</td><td className="p-2 text-right tabular-nums">{Number(entry.exam_score).toFixed(2)}</td><td className="p-2 text-right font-bold tabular-nums">{Number(entry.final_score).toFixed(2)}</td></tr>)}</tbody></table></div>}
       </article>)}</div>}
     </section>}
     <section className={panel}>
