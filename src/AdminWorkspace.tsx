@@ -498,7 +498,7 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
     overview: 'A live summary of staff, student enrolments, attendance activity and the most active courses.',
     academic: 'Set up the institution hierarchy: create faculties, place departments under faculties, then maintain the course or subject catalogue.',
     'academic-setup': 'Configure the education model, class or level names, academic periods, terms, admission sets and individual student progression.',
-    assessments: 'Create CA and examination components for a course, set their maximum marks and percentage weights, and review recorded student marks.',
+    assessments: 'Monitor lecturer-managed CA and examination activity, review assessment policies and inspect recorded marks.',
     lecturers: 'Review lecturer registrations, verify staff accounts and assign the courses or subjects each lecturer is allowed to manage.',
     enrolments: 'Review course-registration requests submitted by students and route decisions through the responsible lecturer.',
     'student-accounts': 'Review new student accounts, search the student register and manage approved student access.',
@@ -560,7 +560,7 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
           { title: 'Academic management', items: [
             { id: 'academic-setup', label: 'Academic structure', icon: Layers },
             { id: 'academic', label: 'Academic catalogue', icon: BookMarked },
-            { id: 'assessments', label: 'CA & examinations', icon: ClipboardList },
+            { id: 'assessments', label: 'Assessment oversight', icon: ClipboardList },
           ]},
           { title: 'People', items: [
             { id: 'lecturers', label: 'Lecturers', icon: UserCog },
