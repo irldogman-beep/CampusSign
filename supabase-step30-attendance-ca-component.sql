@@ -40,6 +40,7 @@ security definer
 set search_path = public, auth, pg_temp
 as $$
 begin
+  if auth.uid() is null then raise exception 'authentication_required'; end if;
   if new.academic_course_id is null and new.academic_term_id is null and new.teaching_group_id is null then
     return new;
   end if;
