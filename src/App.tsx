@@ -1485,7 +1485,7 @@ The request has NOT been rejected or approved. Check the student's official univ
           <div className="min-w-0">
             <div className="font-extrabold text-amber-400 text-sm truncate">{activeStaff ? activeStaff.name : 'Staff'}</div>
             <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-              {assignedCourses.length > 1 ? <select aria-label="Active teaching course" value={activeStaff?.course || ''} onChange={e=>switchLecturerCourse(e.target.value)} className="max-w-[230px] px-2 py-1 bg-amber-500/20 border border-amber-500/40 text-amber-200 rounded text-[10px] font-bold"><option value="">Choose active course</option>{assignedCourses.map(item=><option key={item.course} value={item.course} className="text-slate-900">{item.course}{item.is_primary ? ' · Default' : ''}</option>)}</select> : <span className="px-2 py-0.5 bg-amber-500/20 border border-amber-500/40 text-amber-300 rounded text-[10px] font-bold">{activeStaff ? activeStaff.course : ''}</span>}
+              {assignedCourses.length > 1 ? <select aria-label="Active teaching course" value={activeStaff?.course || ''} onChange={e=>switchLecturerCourse(e.target.value)} className="max-w-[min(58vw,230px)] truncate px-2 py-1 bg-amber-500/20 border border-amber-500/40 text-amber-200 rounded text-[10px] font-bold"><option value="">Choose active course</option>{assignedCourses.map(item=><option key={item.course} value={item.course} className="text-slate-900">{item.course}{item.is_primary ? ' · Default' : ''}</option>)}</select> : <span className="max-w-[190px] truncate px-2 py-0.5 bg-amber-500/20 border border-amber-500/40 text-amber-300 rounded text-[10px] font-bold" title={activeStaff ? activeStaff.course : ''}>{activeStaff ? activeStaff.course : ''}</span>}
               {activeStaff && !activeStaff.isVerified && (
                 <span className="px-2 py-0.5 bg-rose-500/20 border border-rose-400/40 text-rose-300 rounded text-[10px] font-bold">PENDING APPROVAL</span>
               )}
@@ -1848,7 +1848,7 @@ The request has NOT been rejected or approved. Check the student's official univ
         <LecturerDrawerControls />
         <div className="cs-lecturer-layout cs-workspace-layout grid grid-cols-1 lg:grid-cols-[230px_minmax(0,1fr)] gap-4 lg:gap-6 items-start">
         
-        <aside id="lecturer-navigation-drawer" role="dialog" aria-modal="true" aria-label="Lecturer navigation" tabIndex={-1} className="cs-workspace-sidebar lg:sticky lg:top-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 p-3 sm:p-4 space-y-3">
+        <aside id="lecturer-navigation-drawer" aria-label="Lecturer navigation" tabIndex={-1} className="cs-workspace-sidebar lg:sticky lg:top-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 p-3 sm:p-4 space-y-3">
           <div className="flex items-center justify-between gap-2 px-2 pb-3 border-b border-slate-200 dark:border-slate-800"><div><p className="text-[10px] font-black uppercase tracking-[.16em] text-emerald-700 dark:text-emerald-300">Lecturer menu</p><h2 className="text-sm font-extrabold text-slate-900 dark:text-white mt-1">Teaching workspace</h2></div><button type="button" data-drawer-close aria-label="Close navigation menu" className="cs-lecturer-drawer-close"><X className="w-4 h-4" /></button></div>
           
           {/* Sub Tab Buttons */}
@@ -2180,7 +2180,7 @@ The request has NOT been rejected or approved. Check the student's official univ
             {filteredRegistry.length === 0 ? (
               <div className="py-12 text-center text-slate-400 text-xs">
                 <Users className="w-12 h-12 mx-auto mb-2 opacity-30 text-emerald-600" />
-                <p>No students enrolled under <strong>{activeStaff ? activeStaff.course : 'this course'}</strong> yet.</p>
+                <p>{registrySearch ? 'No students match this search. Try a different name, ID or department.' : <>No students enrolled under <strong>{activeStaff ? activeStaff.course : 'this course'}</strong> yet.</>}</p>
                 <button
                   onClick={() => setIsAddStudentOpen(true)}
                   className="mt-3 px-4 py-2 bg-amber-500 text-emerald-950 text-xs font-bold rounded-xl shadow"
@@ -2209,7 +2209,7 @@ The request has NOT been rejected or approved. Check the student's official univ
                           onClick={() => { setEnrollSaved(false); setEnrollTarget(student); }}
                           className="flex-1 py-2.5 text-xs font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950 border border-emerald-200 dark:border-emerald-800 rounded-xl inline-flex items-center justify-center gap-1.5"
                         >
-                          <Camera className="w-4 h-4" /> {enrolled ? 'Re-enroll face' : 'Enroll face'}
+                          <Camera className="w-4 h-4" /> {enrolled ? 'Update face' : 'Enroll face'}
                         </button>
                         <button
                           onClick={() => handleDeleteStudent(student.rowId, student.id, student.name)}
@@ -2257,7 +2257,7 @@ The request has NOT been rejected or approved. Check the student's official univ
                             className="px-2.5 py-1.5 mr-1 text-[11px] font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950 hover:bg-emerald-100 dark:hover:bg-emerald-900 border border-emerald-200 dark:border-emerald-800 rounded-lg inline-flex items-center gap-1"
                             title="Enroll this student's face"
                           >
-                            <Camera className="w-3.5 h-3.5" /> {enrolledIds.includes(student.id.toUpperCase()) ? 'Re-enroll' : 'Enroll Face'}
+                            <Camera className="w-3.5 h-3.5" /> {enrolledIds.includes(student.id.toUpperCase()) ? 'Update face' : 'Enroll face'}
                           </button>
                           <button
                             onClick={() => handleDeleteStudent(student.rowId, student.id, student.name)}
