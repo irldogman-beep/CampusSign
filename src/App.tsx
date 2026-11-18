@@ -1846,7 +1846,7 @@ The request has NOT been rejected or approved. Check the student's official univ
       {/* ADMIN SUB-TABS: ISOLATED SESSION ATTENDANCE vs LECTURER'S OWN COURSE ROSTER */}
       <div className="cs-workspace-layout-shell">
         <WorkspaceUxControls drawerId="lecturer-workspace-navigation" label="Lecturer workspace navigation" />
-        <div className="cs-workspace-layout cs-lecturer-workspace-layout grid grid-cols-1 lg:grid-cols-[230px_minmax(0,1fr)] gap-4 lg:gap-6 items-start">
+        <div className="cs-workspace-layout grid grid-cols-1 lg:grid-cols-[230px_minmax(0,1fr)] gap-4 lg:gap-6 items-start">
         
         <aside className="cs-workspace-sidebar lg:sticky lg:top-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 sm:p-4 space-y-3">
           <div className="px-2 pb-2 border-b border-slate-100 dark:border-slate-800">
@@ -1854,7 +1854,7 @@ The request has NOT been rejected or approved. Check the student's official univ
             <h2 className="text-sm font-extrabold text-slate-900 dark:text-white mt-1">Teaching workspace</h2>
             <p className="text-[10px] text-slate-500 mt-1">Choose an area to manage your course.</p>
           </div>
-          <nav aria-label="Lecturer dashboard sections" className="cs-lecturer-nav">
+          <nav aria-label="Lecturer dashboard sections" className="cs-admin-nav">
             {[
               { id: 'session', label: 'Session & QR', icon: QrCode, count: null },
               { id: 'roster', label: 'Attendance', icon: Users, count: lecturerAttendanceLogs.length },
@@ -1863,7 +1863,7 @@ The request has NOT been rejected or approved. Check the student's official univ
               { id: 'requests', label: 'Requests', icon: ClipboardList, count: enrollmentRequests.length },
             ].map(({ id, label, icon: Icon, count }) => (
               <button key={id} type="button" onClick={() => setAdminTab(id)} aria-current={adminTab === id ? 'page' : undefined}
-                className={`cs-lecturer-nav-button inline-flex items-center gap-3 w-full text-left rounded-xl px-3 py-3 text-xs font-bold transition-colors ${adminTab === id ? 'is-active' : ''}`}>
+                className={`cs-admin-nav-button inline-flex items-center gap-3 w-full text-left rounded-xl px-3 py-3 text-xs font-bold transition-colors ${adminTab === id ? 'is-active' : ''}`}>
                 <Icon className="w-4 h-4 shrink-0" />
                 <span className="min-w-0 flex-1">{label}</span>
                 {count !== null && <span className="text-[10px] font-bold tabular-nums opacity-75">{count}</span>}
