@@ -2,60 +2,65 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from './supabase';
 import * as db from './db';
 
+type PublishedResult = {
+  course_code: string;
+  course_title: string;
+  term_name: string;
+  teaching_group_name: string | null;
+  ca_score: number;
+  exam_score: number;
+  final_score: number;
+  published_at: string;
+};
+
 export default function StudentResults() {
-  const [rows, setRows] = useState<any[]>([]);
+  const [rows, setRows] = useState<PublishedResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
   useEffect(() => {
     let active = true;
     (async () => {
-      setLoading(true); setError('');
+      setLoading(true);
+      setError('');
       try {
-        const { data: auth, error: authError } = await supabase.auth.getUser();
-        if (authError) throw authError;
-        if (!auth.user) throw new Error('Sign in to view your results.');
-        const { data: scores, error: scoreError } = await supabase
-          .from('course_assessment_scores').select('assessment_id,score,feedback,updated_at')
-          .eq('student_user_id', auth.user.id).order('updated_at', { ascending: false });
-        if (scoreError) throw scoreError;
-        const ids = (scores || []).map((x: any) => x.assessment_id);
-        if (!ids.length) { if (active) setRows([]); return; }
-        const [assessmentResult, courses, terms] = await Promise.all([
-          supabase.from('course_assessments').select('*').in('id', ids),
-          db.loadCatalogCourses(null), db.loadAcademicTerms()
-        ]);
-        if (assessmentResult.error) throw assessmentResult.error;
-        const assessmentMap = Object.fromEntries((assessmentResult.data || []).map((x: any) => [x.id, x]));
-        const courseMap = Object.fromEntries((courses || []).map((x: any) => [x.id, x]));
-        const termMap = Object.fromEntries((terms || []).map((x: any) => [x.id, x]));
-        const result = (scores || []).map((score: any) => {
-          const assessment = assessmentMap[score.assessment_id];
-          if (!assessment) return null;
-          const course = courseMap[assessment.course_id];
-          const term = termMap[assessment.academic_term_id];
-          return {
-            ...score, assessment,
-            courseLabel: course ? course.code + ' · ' + course.title : 'Course',
-            termLabel: term?.name || 'Academic term',
-            contribution: Number(score.score) / Number(assessment.max_score) * Number(assessment.weight_percent)
-          };
-        }).filter(Boolean);
-        if (active) setRows(result);
-      } catch (e) { if (active) setError(db.friendly(e)); }
-      finally { if (active) setLoading(false); }
+        const { data, error: resultError } = await supabase.rpc('get_my_published_course_results');
+        if (resultError) throw resultError;
+        if (active) setRows((data || []) as PublishedResult[]);
+      } catch (e) {
+        if (active) setError(db.friendly(e));
+      } finally {
+        if (active) setLoading(false);
+      }
     })();
     return () => { active = false; };
   }, []);
 
-  if (loading) return <p className="py-10 text-center text-xs text-slate-500">Loading your results…</p>;
+  if (loading) return <p className="py-10 text-center text-xs text-slate-500">Loading your published results…</p>;
   if (error) return <p role="alert" className="rounded-xl bg-rose-50 dark:bg-rose-950/30 p-3 text-xs text-rose-700 dark:text-rose-200">{error}</p>;
+
   return <section className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-sm space-y-3">
-    <div><h3 className="font-extrabold text-slate-900 dark:text-white">My CA & examination results</h3><p className="text-[11px] text-slate-500 mt-1">Marks appear here after your lecturer or administrator records them. The contribution shows how much each mark adds to its configured assessment category.</p></div>
-    {!rows.length ? <p className="py-8 text-center text-xs text-slate-500">No assessment marks have been recorded for your account yet.</p> :
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">{rows.map((row: any) => <article key={row.assessment_id} className="rounded-xl border border-slate-200 dark:border-slate-700 p-3">
-        <div className="flex items-start justify-between gap-3"><div className="min-w-0"><strong className="block text-xs text-slate-900 dark:text-white">{row.courseLabel}</strong><p className="text-[10px] text-slate-500 mt-1">{row.termLabel} · {row.assessment.assessment_type === 'ca' ? 'Continuous assessment' : 'Examination'}</p><p className="text-xs font-semibold mt-2 text-slate-800 dark:text-slate-100">{row.assessment.title}</p></div><div className="text-right shrink-0"><p className="text-sm font-black text-emerald-700 dark:text-emerald-300 tabular-nums">{row.score} / {row.assessment.max_score}</p><p className="text-[10px] text-slate-500">{row.assessment.weight_percent}% weight</p></div></div>
-        <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 dark:border-slate-800 pt-2"><span className="text-[10px] text-slate-500">Weighted contribution</span><strong className="text-xs tabular-nums">{Number(row.contribution).toFixed(2)}%</strong></div>
-        {row.feedback && <p className="mt-2 text-[11px] text-slate-600 dark:text-slate-300">Lecturer feedback: {row.feedback}</p>}
+    <div>
+      <h3 className="font-extrabold text-slate-900 dark:text-white">My academic results</h3>
+      <p className="text-[11px] text-slate-500 mt-1">Final course scores appear here only after the lecturer submits them and the institution reviews and publishes the result sheet.</p>
+    </div>
+    {!rows.length ? <p className="py-8 text-center text-xs text-slate-500">No course results have been published for your account yet. Marks still being entered or reviewed will not appear here.</p> :
+      <div className="space-y-2">{rows.map((row, index) => <article key={row.course_code + row.term_name + row.published_at + index} className="rounded-xl border border-slate-200 dark:border-slate-700 p-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <strong className="block text-xs text-slate-900 dark:text-white">{row.course_code} · {row.course_title}</strong>
+            <p className="text-[10px] text-slate-500 mt-1">{row.term_name}{row.teaching_group_name ? ' · ' + row.teaching_group_name : ''}</p>
+          </div>
+          <div className="text-right shrink-0">
+            <p className="text-lg font-black text-emerald-700 dark:text-emerald-300 tabular-nums">{Number(row.final_score).toFixed(2)}%</p>
+            <p className="text-[10px] text-slate-500">Final course score</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2 mt-3 border-t border-slate-100 dark:border-slate-800 pt-3">
+          <div><p className="text-[10px] text-slate-500">CA category</p><strong className="text-sm tabular-nums text-slate-800 dark:text-slate-100">{Number(row.ca_score).toFixed(2)} / 100</strong></div>
+          <div><p className="text-[10px] text-slate-500">Examination category</p><strong className="text-sm tabular-nums text-slate-800 dark:text-slate-100">{Number(row.exam_score).toFixed(2)} / 100</strong></div>
+        </div>
+        <p className="mt-2 text-[10px] text-slate-400">Published {new Date(row.published_at).toLocaleDateString()}</p>
       </article>)}</div>}
   </section>;
 }

@@ -33,6 +33,10 @@ export default function AssessmentManagement({ mode = 'admin' }: { mode?: 'admin
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [resultSheets, setResultSheets] = useState<any[]>([]);
+  const [resultBusy, setResultBusy] = useState(false);
+  const [expandedResultSheet, setExpandedResultSheet] = useState('');
+  const [resultEntries, setResultEntries] = useState<any[]>([]);
 
   const visibleCourses = useMemo(() => isAdmin ? courses : courses.filter(c => {
     const label = String(c.code + ' - ' + c.title).toLowerCase();
@@ -104,6 +108,54 @@ export default function AssessmentManagement({ mode = 'admin' }: { mode?: 'admin
       } catch (e) { setError(db.friendly(e)); }
       finally { setLoading(false); }
     })();
+  }, [isAdmin]);
+
+
+  const loadResultSheets = async () => {
+    if (!isAdmin) return;
+    const { data, error: resultError } = await supabase.rpc('list_course_result_sheets');
+    if (resultError) throw resultError;
+    setResultSheets(data || []);
+  };
+
+
+  const toggleResultPreview = async (sheetId: string) => {
+    if (expandedResultSheet === sheetId) { setExpandedResultSheet(''); setResultEntries([]); return; }
+    setResultBusy(true); setError('');
+    try {
+      const { data, error: entriesError } = await supabase.rpc('get_course_result_sheet_entries', { p_sheet: sheetId });
+      if (entriesError) throw entriesError;
+      setResultEntries(data || []);
+      setExpandedResultSheet(sheetId);
+    } catch (e) { setError(db.friendly(e)); }
+    finally { setResultBusy(false); }
+  };
+
+  const reviewResultSheet = async (sheetId: string, action: 'approve' | 'reject' | 'publish') => {
+    setResultBusy(true); setError(''); setMessage('');
+    try {
+      const { error: reviewError } = await supabase.rpc('review_course_result_sheet', { p_sheet: sheetId, p_action: action, p_note: null });
+      if (reviewError) throw reviewError;
+      await loadResultSheets();
+      setMessage(action === 'approve' ? 'Result sheet approved. It can now be published.' : action === 'publish' ? 'Result sheet published to the affected students.' : 'Result sheet returned to the lecturer for correction.');
+    } catch (e) { setError(db.friendly(e)); }
+    finally { setResultBusy(false); }
+  };
+
+  const submitResults = async () => {
+    if (!selectedCourse || !selectedTerm) return;
+    if (!window.confirm('Submit this course result sheet for administrative review? Marks will be snapshotted and students will not see them until publication.')) return;
+    setResultBusy(true); setError(''); setMessage('');
+    try {
+      const { error: submitError } = await supabase.rpc('submit_course_results', { p_course: selectedCourse, p_term: selectedTerm, p_group: selectedGroup || null });
+      if (submitError) throw submitError;
+      setMessage('Result sheet submitted for administrative review. Students will see the final scores only after publication.');
+    } catch (e) { setError(db.friendly(e)); }
+    finally { setResultBusy(false); }
+  };
+
+  useEffect(() => {
+    if (isAdmin) void loadResultSheets().catch(e => setError(db.friendly(e)));
   }, [isAdmin]);
 
   useEffect(() => {
@@ -211,6 +263,17 @@ export default function AssessmentManagement({ mode = 'admin' }: { mode?: 'admin
   if (loading) return <div className="py-12 text-center text-xs text-slate-500">Loading assessment workspace…</div>;
 
   return <div className="space-y-4">
+
+    {isAdmin && <section className={panel}>
+      <div><h2 className="text-base font-extrabold text-slate-900 dark:text-white">Result review & publication</h2><p className="text-xs text-slate-500 mt-1">Open a result sheet to inspect student scores before approving it. Publication is a separate final step.</p></div>
+      {!resultSheets.length ? <p className="py-4 text-xs text-slate-500">No result sheets have been submitted for review yet.</p> : <div className="space-y-2">{resultSheets.map((sheet: any) => <article key={sheet.id} className="rounded-xl border border-slate-200 dark:border-slate-700 p-3 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0"><strong className="block text-xs text-slate-900 dark:text-white">{sheet.course_code} · {sheet.course_title}</strong><p className="text-[10px] text-slate-500 mt-1">{sheet.term_name}{sheet.teaching_group_name ? ' · ' + sheet.teaching_group_name : ' · Course-wide roster'} · {sheet.student_count} students</p><p className="text-[10px] text-slate-500">Status: <strong className="capitalize">{sheet.status}</strong>{sheet.review_note ? ' · ' + sheet.review_note : ''}</p></div>
+          <div className="flex flex-wrap gap-2"><button type="button" className={secondary} disabled={resultBusy} onClick={() => void toggleResultPreview(sheet.id)}>{expandedResultSheet === sheet.id ? 'Hide scores' : 'Review scores'}</button>{sheet.status === 'submitted' && <><button type="button" className={secondary} disabled={resultBusy} onClick={() => void reviewResultSheet(sheet.id,'reject')}>Return for correction</button><button type="button" className={primary} disabled={resultBusy} onClick={() => void reviewResultSheet(sheet.id,'approve')}>Approve</button></>}{sheet.status === 'approved' && <button type="button" className={primary} disabled={resultBusy} onClick={() => void reviewResultSheet(sheet.id,'publish')}>Publish results</button>}{sheet.status === 'published' && <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 self-center">Published</span>}</div>
+        </div>
+        {expandedResultSheet === sheet.id && <div className="overflow-x-auto rounded-lg border border-slate-100 dark:border-slate-800"><table className="w-full text-left text-[10px]"><thead className="bg-slate-50 dark:bg-slate-800 text-slate-500"><tr><th className="p-2">Student</th><th className="p-2 text-right">CA / 100</th><th className="p-2 text-right">Exam / 100</th><th className="p-2 text-right">Final / 100</th></tr></thead><tbody>{resultEntries.map((entry: any) => <tr key={entry.student_id} className="border-t border-slate-100 dark:border-slate-800"><td className="p-2"><strong className="text-slate-800 dark:text-slate-100">{entry.full_name}</strong><span className="block text-slate-500">{entry.student_id}</span></td><td className="p-2 text-right tabular-nums">{Number(entry.ca_score).toFixed(2)}</td><td className="p-2 text-right tabular-nums">{Number(entry.exam_score).toFixed(2)}</td><td className="p-2 text-right font-bold tabular-nums">{Number(entry.final_score).toFixed(2)}</td></tr>)}</tbody></table></div>}
+      </article>)}</div>}
+    </section>}
     <section className={panel}>
       <div>
         <p className="text-[10px] uppercase tracking-wider font-black text-emerald-700 dark:text-emerald-300">{isAdmin ? 'Academic results management' : 'Lecturer-led teaching tools'}</p>
@@ -291,6 +354,11 @@ export default function AssessmentManagement({ mode = 'admin' }: { mode?: 'admin
         <div className="space-y-2">{students.map(student=>{const value=scores[student.user_id]||{score:'',feedback:''};const valid=value.score!==''&&Number(value.score)>=0&&Number(value.score)<=Number(chosen.max_score);return <div key={student.user_id} className="grid grid-cols-1 sm:grid-cols-[1.2fr_110px_1.5fr_auto] gap-2 items-center rounded-xl border border-slate-100 dark:border-slate-800 p-3"><div className="min-w-0"><strong className="block text-xs text-slate-900 dark:text-white">{student.full_name}</strong><span className="text-[10px] text-slate-500">{student.student_id} · {student.email}</span></div><label className="text-[10px] text-slate-500">Mark / {chosen.max_score}<input className={field+' mt-1'} type="number" min="0" max={chosen.max_score} step="0.01" value={value.score} disabled={isAdmin} onChange={e=>setScores(prev=>({...prev,[student.user_id]:{...value,score:e.target.value,saved:false}}))}/></label><input className={field} placeholder="Feedback (optional)" value={value.feedback} disabled={isAdmin} onChange={e=>setScores(prev=>({...prev,[student.user_id]:{...value,feedback:e.target.value,saved:false}}))}/>{!isAdmin && <button type="button" className={value.saved?secondary:primary} disabled={busy||!valid||!!value.saved} onClick={()=>void saveScore(student)}>{value.saved?'Saved':'Save mark'}</button>}</div>})}</div>}
     </section>}
 
+
+    {!isAdmin && selectedCourse && selectedTerm && <section className={panel}>
+      <div><h3 className="font-extrabold text-slate-900 dark:text-white">Submit course results</h3><p className="text-xs text-slate-500 mt-1">When all marks are complete and the CA/examination component weights are valid, submit the selected roster for administrative review. Students will not see the result until an administrator publishes it.</p></div>
+      <button type="button" className={primary} disabled={resultBusy || busy} onClick={() => void submitResults()}>{resultBusy ? 'Submitting…' : 'Submit result sheet for review'}</button>
+    </section>}
     {message&&<p role="status" className="rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 p-3 text-xs text-emerald-800 dark:text-emerald-200">{message}</p>}
     {error&&<p role="alert" className="rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900 p-3 text-xs text-rose-700 dark:text-rose-200">{error}</p>}
   </div>;
