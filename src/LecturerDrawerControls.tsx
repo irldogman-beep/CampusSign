@@ -44,7 +44,7 @@ export default function LecturerDrawerControls() {
   useEffect(() => {
     const layout = anchorRef.current?.nextElementSibling as HTMLElement | null;
     const closeOnNavigate = (event: Event) => {
-      if ((event.target as HTMLElement | null)?.closest('#lecturer-navigation-drawer nav button')) setOpen(false);
+      if ((event.target as HTMLElement | null)?.closest('#lecturer-navigation-drawer nav button, #lecturer-navigation-drawer [data-drawer-close]')) setOpen(false);
     };
     layout?.addEventListener('click', closeOnNavigate);
     return () => layout?.removeEventListener('click', closeOnNavigate);
@@ -61,6 +61,6 @@ export default function LecturerDrawerControls() {
       </button>
     </div>
     <span className="text-[10px] text-slate-500 hidden sm:block">Choose a workspace section</span>
-    <button type="button" aria-label="Close navigation drawer" className={'cs-lecturer-drawer-backdrop ' + (open ? 'is-visible' : '')} tabIndex={open ? 0 : -1} onClick={() => setOpen(false)} />
+    <button type="button" aria-label="Close navigation drawer" className={'cs-lecturer-drawer-backdrop ' + (open ? 'is-visible' : '')} tabIndex={-1} onClick={() => setOpen(false)} />
   </div>;
 }
