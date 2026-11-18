@@ -75,6 +75,9 @@ begin
   select ca_weight_percent, exam_weight_percent into v_ca_weight, v_exam_weight
   from public.course_assessment_policies
   where course_id=p_course and academic_term_id=p_term;
+  if exists (select 1 from public.course_assessment_policies where course_id=p_course and academic_term_id=p_term and attendance_enabled) then
+    raise exception 'attendance_result_component_not_yet_configured';
+  end if;
   v_ca_weight := coalesce(v_ca_weight,40);
   v_exam_weight := coalesce(v_exam_weight,60);
 
@@ -190,7 +193,7 @@ $$;
 
 create or replace function public.list_course_result_sheets()
 returns table(id uuid,course_id uuid,course_code text,course_title text,academic_term_id uuid,term_name text,
-  teaching_group_id uuid,status text,student_count bigint,submitted_at timestamptz,reviewed_at timestamptz,
+  teaching_group_id uuid,teaching_group_name text,status text,student_count bigint,submitted_at timestamptz,reviewed_at timestamptz,
   review_note text,published_at timestamptz)
 language plpgsql
 security definer
@@ -199,13 +202,14 @@ as $$
 begin
   if auth.uid() is null or not public.is_admin() then raise exception 'admin_access_required'; end if;
   return query
-  select s.id,s.course_id,c.code,c.title,s.academic_term_id,t.name,s.teaching_group_id,s.status,
+  select s.id,s.course_id,c.code,c.title,s.academic_term_id,t.name,s.teaching_group_id,g.name,s.status,
     count(e.id),s.submitted_at,s.reviewed_at,s.review_note,s.published_at
   from public.course_result_sheets s
   join public.academic_courses c on c.id=s.course_id
   join public.academic_terms t on t.id=s.academic_term_id
+  left join public.course_teaching_groups g on g.id=s.teaching_group_id
   left join public.course_result_entries e on e.result_sheet_id=s.id
-  group by s.id,c.code,c.title,t.name
+  group by s.id,c.code,c.title,t.name,g.name
   order by case s.status when 'submitted' then 0 when 'approved' then 1 else 2 end,s.submitted_at desc;
 end;
 $$;
