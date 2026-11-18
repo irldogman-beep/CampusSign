@@ -320,7 +320,7 @@ returns jsonb
 language plpgsql
 security definer
 set search_path = public, auth, pg_temp
-as $
+as $$
 declare
   v_account public.student_accounts;
   v_academic public.student_academic_profiles;
@@ -353,7 +353,9 @@ begin
   select coalesce(jsonb_agg(jsonb_build_object('id',sca.id,'course_code',ac.code,'course_title',ac.title,
       'term',at.name,'academic_period',ap.name,'attempt_number',sca.attempt_number,
       'status',sca.status,'grade',sca.grade,'final_score',sca.final_score,
-      'is_current_carryover',(sca.status='failed' and not exists (select 1 from public.student_course_attempts newer where newer.student_user_id=sca.student_user_id and newer.course_id=sca.course_id and newer.attempt_number>sca.attempt_number)),
+      'is_current_carryover',(sca.status='failed' and not exists (select 1 from public.student_course_attempts newer
+        where newer.student_user_id=sca.student_user_id and newer.course_id=sca.course_id
+          and newer.attempt_number>sca.attempt_number)),
       'result_note',sca.result_note,'created_at',sca.created_at)
       order by sca.created_at desc),'[]'::jsonb)
   into v_course_attempts from public.student_course_attempts sca
@@ -374,9 +376,7 @@ begin
     'academic_status',coalesce(v_academic.academic_status,'active'),'admission_set',v_cohort_name,'current_level',v_level_name),
     'courses',v_courses,'attendance',v_attendance,'course_attempts',coalesce(v_course_attempts,'[]'::jsonb),'unread_notifications',v_unread);
 end;
-$;
-
-
+$$;
 revoke all on function public.get_academic_grading_config() from public,anon;
 grant execute on function public.get_academic_grading_config() to authenticated;
 revoke all on function public.admin_list_course_credit_units() from public,anon;
