@@ -40,6 +40,12 @@ const MESSAGES: Record<string, string> = {
   student_account_already_reviewed: 'This student account has already been reviewed.',
   student_roster_match_required: 'This account cannot be approved yet. The student must have at least one course enrolment approved by a lecturer, with matching name and department.',
   invalid_decision: 'Choose a valid review decision.',
+  attendance_sessions_missing: 'No attendance sessions are linked to this course, term and teaching group yet. Start and record at least one linked session, or turn off attendance weighting.',
+  session_academic_scope_incomplete: 'Choose both the catalogue course and academic term for this attendance session.',
+  session_course_catalog_mismatch: 'This attendance session course does not match the selected academic catalogue course. Refresh the staff course assignment and try again.',
+  session_academic_term_not_found: 'The selected academic term could not be found. Refresh the page and try again.',
+  session_teaching_group_mismatch: 'The selected teaching group does not belong to this course and academic term.',
+  session_lecturer_mismatch: 'The attendance session must belong to the signed-in lecturer.',
 };
 
 export function friendly(e: any): string {
