@@ -71,6 +71,7 @@ function unwrap<T>(r: { data: T | null; error: any }): T {
 export interface SessionOptions {
   course: string; title: string; venue: string; locationMode: string; radius: number;
   faceRequired: boolean; threshold: number; endsAt: number | null; qrIntervalSeconds: number;
+  academicCourseId?: string | null; academicTermId?: string | null; teachingGroupId?: string | null;
 }
 
 export async function createSession(o: SessionOptions) {
@@ -79,6 +80,9 @@ export async function createSession(o: SessionOptions) {
     location_mode: o.locationMode, radius_m: o.radius, face_required: o.faceRequired,
     face_threshold: o.threshold, ends_at: o.endsAt ? new Date(o.endsAt).toISOString() : null,
     qr_interval_seconds: o.qrIntervalSeconds,
+    academic_course_id: o.academicCourseId || null,
+    academic_term_id: o.academicTermId || null,
+    teaching_group_id: o.teachingGroupId || null,
   }).select('id, secret').single());
 }
 
