@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { supabase } from './supabase';
 import * as db from './db';
+import WorkspaceUxControls from './WorkspaceUxControls';
 const StudentResults = React.lazy(() => import('./StudentResults'));
 
 type Props = {
@@ -317,6 +318,8 @@ export default function StudentAccountPortal({ onClose, onEnroll, onTakeAttendan
           </section>
 
           {profile.status==='approved' && <>
+             <div className="cs-workspace-layout-shell">
+             <WorkspaceUxControls />
              <div className="cs-workspace-layout grid grid-cols-1 lg:grid-cols-[210px_minmax(0,1fr)] gap-4 lg:gap-6 items-start">
                <aside className="cs-workspace-sidebar lg:sticky lg:top-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 sm:p-4 space-y-3">
                  <div className="px-2 pb-2 border-b border-slate-100 dark:border-slate-800">
