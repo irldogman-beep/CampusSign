@@ -1065,3 +1065,79 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .cs-workspace-layout .cs-workspace-sidebar { transition: none; }
 }
+
+
+/* Lecturer drawer polish: preserve the existing forest-green and academic-gold workspace design. */
+.cs-lecturer-menu-trigger,
+.cs-lecturer-collapse-trigger {
+  color: var(--brand-primary, #174d3b);
+  border-color: color-mix(in srgb, var(--brand-primary, #174d3b) 24%, var(--cs-line, #dbe5dd));
+  background: var(--cs-surface, #fff);
+  box-shadow: 0 3px 10px rgb(15 45 34 / 5%);
+}
+.cs-lecturer-menu-trigger:hover,
+.cs-lecturer-collapse-trigger:hover {
+  color: var(--brand-primary, #174d3b);
+  border-color: var(--brand-primary, #174d3b);
+  background: color-mix(in srgb, var(--brand-primary, #174d3b) 6%, white);
+}
+.dark .cs-lecturer-menu-trigger:hover,
+.dark .cs-lecturer-collapse-trigger:hover {
+  background: color-mix(in srgb, var(--brand-primary, #174d3b) 20%, #0b1220);
+}
+.cs-lecturer-layout .cs-workspace-sidebar nav button {
+  border: 1px solid transparent;
+  border-radius: 12px;
+  transition: background-color .18s ease, color .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+.cs-lecturer-layout .cs-workspace-sidebar nav button[aria-current="page"] {
+  color: #fff !important;
+  background: var(--brand-primary, #174d3b) !important;
+  border-color: var(--brand-primary, #174d3b) !important;
+  box-shadow: inset 3px 0 0 var(--brand-accent, #dfad48), 0 4px 12px rgb(15 45 34 / 12%);
+}
+.cs-lecturer-layout .cs-workspace-sidebar nav button:not([aria-current="page"]):hover {
+  color: var(--brand-primary, #174d3b) !important;
+  background: color-mix(in srgb, var(--brand-primary, #174d3b) 7%, white) !important;
+  border-color: color-mix(in srgb, var(--brand-primary, #174d3b) 16%, white);
+}
+.dark .cs-lecturer-layout .cs-workspace-sidebar nav button:not([aria-current="page"]):hover {
+  color: #e5f3eb !important;
+  background: color-mix(in srgb, var(--brand-primary, #174d3b) 20%, #0b1220) !important;
+}
+@media (max-width: 1023px) {
+  /* The drawer is the same sidebar card, not a newly styled generic menu. */
+  .cs-lecturer-layout .cs-workspace-sidebar,
+  .cs-workspace-layout.cs-lecturer-layout .cs-workspace-sidebar {
+    width: min(85vw, 280px) !important;
+    max-width: 280px !important;
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    border-left: 0 !important;
+    box-shadow: 18px 0 48px rgb(2 12 8 / 28%);
+  }
+  .dark .cs-lecturer-layout .cs-workspace-sidebar,
+  .dark .cs-workspace-layout.cs-lecturer-layout .cs-workspace-sidebar {
+    background: #020617 !important;
+    border-color: #1e293b !important;
+  }
+  .cs-lecturer-layout .cs-workspace-sidebar nav button {
+    min-height: 48px;
+    padding: .75rem .85rem !important;
+  }
+  .cs-lecturer-layout .cs-workspace-sidebar nav button[aria-current="page"] {
+    color: #fff !important;
+    background: var(--brand-primary, #174d3b) !important;
+    border-color: var(--brand-primary, #174d3b) !important;
+  }
+  .cs-lecturer-drawer-backdrop.is-visible {
+    background: rgb(2 8 6 / 48%);
+    backdrop-filter: blur(3px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cs-lecturer-layout .cs-workspace-sidebar,
+  .cs-lecturer-layout .cs-workspace-sidebar nav button {
+    transition: none !important;
+  }
+}
