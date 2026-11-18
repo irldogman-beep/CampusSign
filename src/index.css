@@ -956,72 +956,12 @@ body {
 }
 
 
-/* Lecturer navigation: real off-canvas drawer on tablet and mobile. */
-.cs-lecturer-controls { position: relative; min-width: 0; }
-.cs-lecturer-menu-trigger, .cs-lecturer-collapse-trigger {
-  display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
-  min-height: 40px; padding: .6rem .85rem; border: 1px solid #cbd5d1;
-  border-radius: 11px; background: #fff; color: #173f32; font-size: 11px; font-weight: 800;
-}
-.dark .cs-lecturer-menu-trigger, .dark .cs-lecturer-collapse-trigger {
-  background: #0f172a; color: #e2e8f0; border-color: #475569;
-}
-.cs-lecturer-menu-trigger { display: none; }
-.cs-lecturer-drawer-close { display: none; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 9px; color: #334155; background: #e2e8f0; }
-.dark .cs-lecturer-drawer-close { color: #e2e8f0; background: #334155; }
-.cs-lecturer-drawer-backdrop { display: none; }
-.cs-lecturer-layout .cs-workspace-sidebar { min-width: 0; max-width: 100%; }
-.cs-lecturer-layout .cs-workspace-sidebar nav { display: flex; flex-direction: column; gap: .4rem; }
-.cs-lecturer-layout .cs-workspace-sidebar nav button { min-height: 44px; justify-content: flex-start; text-align: left; }
-.cs-lecturer-layout .cs-workspace-sidebar nav button:focus-visible,
-.cs-lecturer-menu-trigger:focus-visible, .cs-lecturer-collapse-trigger:focus-visible,
-.cs-lecturer-drawer-close:focus-visible {
-  outline: 3px solid #d89b24; outline-offset: 3px;
-}
+/* Lecturer focus styling; drawer behaviour is shared with Student and Admin. */
 .cs-lecturer-layout .interactive-card:focus-visible {
-  outline: 3px solid #a66d00; outline-offset: 3px; box-shadow: 0 0 0 2px #fff;
+  outline: 3px solid #a66d00;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 2px #fff;
 }
-.cs-drawer-scroll-lock { overflow: hidden; }
-@media (min-width: 1024px) {
-  .cs-lecturer-layout.is-collapsed { grid-template-columns: 76px minmax(0, 1fr) !important; }
-  .cs-lecturer-layout.is-collapsed .cs-workspace-sidebar { padding: .65rem; }
-  .cs-lecturer-layout.is-collapsed .cs-workspace-sidebar > div,
-  .cs-lecturer-layout.is-collapsed .cs-workspace-sidebar > p,
-  .cs-lecturer-layout.is-collapsed .cs-workspace-sidebar > button { display: none; }
-  .cs-lecturer-layout.is-collapsed .cs-workspace-sidebar nav button { justify-content: center; padding-inline: .4rem !important; }
-  .cs-lecturer-layout.is-collapsed .cs-workspace-sidebar nav button span { display: none; }
-}
-@media (max-width: 1023px) {
-  .cs-lecturer-menu-trigger { display: inline-flex; }
-  .cs-lecturer-collapse-trigger { display: none; }
-  .cs-lecturer-layout { display: block !important; }
-  .cs-lecturer-layout .cs-workspace-sidebar {
-    display: block !important; position: fixed !important; left: 0; top: 0; bottom: 0;
-    z-index: 1201; width: min(86vw, 340px); max-width: 340px; height: 100dvh;
-    overflow-y: auto; overscroll-behavior: contain; border-radius: 0 18px 18px 0 !important;
-    padding: 18px !important; background: #fff !important;
-    box-shadow: 18px 0 48px rgb(2 12 8 / 28%);
-    transform: translateX(-110%); transition: transform .24s ease;
-    visibility: hidden; pointer-events: none;
-  }
-  .dark .cs-lecturer-layout .cs-workspace-sidebar { background: #0b1220 !important; }
-  .cs-lecturer-layout.is-drawer-open .cs-workspace-sidebar {
-    transform: translateX(0); visibility: visible; pointer-events: auto;
-  }
-  .cs-lecturer-layout .cs-workspace-sidebar nav { display: flex !important; flex-direction: column !important; gap: 6px; }
-  .cs-lecturer-layout .cs-workspace-sidebar nav button { width: 100%; min-height: 48px; justify-content: flex-start; white-space: normal; }
-  .cs-lecturer-drawer-close { display: inline-flex; }
-  .cs-lecturer-drawer-backdrop.is-visible {
-    display: block; position: fixed; inset: 0; z-index: 1200;
-    width: 100vw; height: 100dvh; border: 0; border-radius: 0;
-    background: rgb(2 8 6 / 58%); cursor: default;
-  }
-  .cs-lecturer-drawer-backdrop:not(.is-visible) { display: none; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .cs-lecturer-layout .cs-workspace-sidebar { transition: none; }
-}
-
 
 /* Accessible off-canvas drawers shared by Student and Admin workspaces. */
 .cs-workspace-drawer-backdrop { display: none; }
@@ -1064,4 +1004,44 @@ body {
 }
 @media (prefers-reduced-motion: reduce) {
   .cs-workspace-layout .cs-workspace-sidebar { transition: none; }
+}
+
+
+
+
+/* Lecturer navigation uses the same clean vertical workspace menu as Student and Admin. */
+.cs-lecturer-nav {
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+  min-width: 0;
+}
+.cs-lecturer-nav-button {
+  min-height: 46px;
+  padding: 10px 13px !important;
+  color: var(--cs-muted) !important;
+  background: var(--cs-surface) !important;
+  border: 1px solid transparent !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+  text-align: left;
+}
+.cs-lecturer-nav-button:hover {
+  color: var(--cs-ink) !important;
+  background: var(--cs-canvas) !important;
+  border-color: var(--cs-line) !important;
+}
+.cs-lecturer-nav-button.is-active {
+  color: #fff !important;
+  background: var(--brand-primary, #174d3b) !important;
+  border-color: var(--brand-primary, #174d3b) !important;
+  box-shadow: inset 3px 0 0 var(--brand-accent, #d89b24) !important;
+}
+.dark .cs-lecturer-nav-button.is-active {
+  background: #2b6448 !important;
+  border-color: #2b6448 !important;
+}
+.cs-lecturer-nav-button:focus-visible {
+  outline: 3px solid var(--brand-accent, #d89b24);
+  outline-offset: 2px;
 }
