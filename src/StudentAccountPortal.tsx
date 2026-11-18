@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { supabase } from './supabase';
 import * as db from './db';
+import WorkspaceUxControls from './WorkspaceUxControls';
 const StudentResults = React.lazy(() => import('./StudentResults'));
 
 type Props = {
@@ -317,6 +318,8 @@ export default function StudentAccountPortal({ onClose, onEnroll, onTakeAttendan
           </section>
 
           {profile.status==='approved' && <>
+             <div className="cs-workspace-layout-shell">
+             <WorkspaceUxControls />
              <div className="cs-workspace-layout grid grid-cols-1 lg:grid-cols-[210px_minmax(0,1fr)] gap-4 lg:gap-6 items-start">
                <aside className="cs-workspace-sidebar lg:sticky lg:top-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 sm:p-4 space-y-3">
                  <div className="px-2 pb-2 border-b border-slate-100 dark:border-slate-800">
@@ -345,6 +348,19 @@ export default function StudentAccountPortal({ onClose, onEnroll, onTakeAttendan
                </aside>
                <div className="min-w-0 space-y-4">
 
+             {activeSection==='courses' && <div className="rounded-2xl border border-emerald-200 dark:border-emerald-900 bg-emerald-50/70 dark:bg-emerald-950/20 p-4 sm:p-5 space-y-3">
+               <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-[10px] uppercase tracking-[.16em] font-black text-emerald-700 dark:text-emerald-300">Your academic journey</p><h3 className="text-base font-extrabold text-slate-900 dark:text-white mt-1">Account overview</h3><p className="text-[11px] text-slate-600 dark:text-slate-300 mt-1">{profile.department || 'Department not assigned'} · {profile.level || 'Level not set'}</p></div><span className="rounded-full px-3 py-1.5 text-[10px] font-extrabold bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">Account approved</span></div>
+               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                 <div className="rounded-xl bg-white dark:bg-slate-900 p-3"><p className="text-[10px] text-slate-500">Approved courses</p><p className="text-xl font-black text-slate-900 dark:text-white">{courses.length}</p></div>
+                 <div className="rounded-xl bg-white dark:bg-slate-900 p-3"><p className="text-[10px] text-slate-500">Pending requests</p><p className="text-xl font-black text-slate-900 dark:text-white">{enrollmentRequests.filter((r:any)=>r.status==='pending').length}</p></div>
+                 <div className="rounded-xl bg-white dark:bg-slate-900 p-3"><p className="text-[10px] text-slate-500">Face enrolment</p><p className="text-xl font-black text-slate-900 dark:text-white">{courses.filter((c:any)=>c.face_enrolled).length}/{courses.length}</p></div>
+                 <div className="rounded-xl bg-white dark:bg-slate-900 p-3"><p className="text-[10px] text-slate-500">Unread messages</p><p className="text-xl font-black text-slate-900 dark:text-white">{unreadCount}</p></div>
+               </div>
+               <div className="flex flex-wrap gap-2">
+                 <button type="button" onClick={()=>setActiveSection('requests')} className="rounded-lg border border-emerald-300 dark:border-emerald-800 bg-white dark:bg-slate-900 px-3 py-2 text-[11px] font-bold text-emerald-800 dark:text-emerald-200">Track course requests</button>
+                 <button type="button" onClick={()=>setActiveSection('inbox')} className="rounded-lg border border-emerald-300 dark:border-emerald-800 bg-white dark:bg-slate-900 px-3 py-2 text-[11px] font-bold text-emerald-800 dark:text-emerald-200">Open inbox</button>
+               </div>
+             </div>}
              {activeSection==='courses' && <section className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-sm">
                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
                  <h3 className="font-extrabold text-slate-900 dark:text-white">My courses</h3>
@@ -416,6 +432,7 @@ export default function StudentAccountPortal({ onClose, onEnroll, onTakeAttendan
                </div>
              </section>}
                </div>
+             </div>
              </div>
            </>}
  

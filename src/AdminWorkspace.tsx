@@ -6,6 +6,7 @@ import {
   ShieldCheck, UserCog, Users, Building2, GraduationCap, Plus, Pencil, BookMarked, Trash2, Activity, UserRound, LayoutDashboard, Layers
 } from 'lucide-react';
 import * as db from './db';
+import WorkspaceUxControls from './WorkspaceUxControls';
 const AcademicManagement = React.lazy(() => import('./AcademicManagement'));
 const AssessmentManagement = React.lazy(() => import('./AssessmentManagement'));
 
@@ -541,6 +542,8 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
       {message && <div role="status" className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-emerald-800 dark:text-emerald-200 text-xs font-semibold">{message}</div>}
       {error && <div role="alert" className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-200 text-xs">{error}</div>}
 
+      <div className="cs-workspace-layout-shell">
+      <WorkspaceUxControls />
       <div className="cs-workspace-layout grid grid-cols-1 lg:grid-cols-[230px_minmax(0,1fr)] gap-4 lg:gap-6 items-start">
         <aside className="cs-workspace-sidebar lg:sticky lg:top-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 sm:p-4 space-y-3">
           <div className="px-2 pb-2 border-b border-slate-100 dark:border-slate-800">
@@ -588,6 +591,14 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
       {loading ? <div className="py-16 text-center text-sm text-slate-500"><RefreshCw className="w-6 h-6 mx-auto mb-2 animate-spin" />Loading system overview…</div> : tab === 'overview' ? (
         <div className="space-y-5">
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">{statCards.map((card) => <button type="button" key={card.label} onClick={() => setTab(card.tab)} className="text-left rounded-2xl p-4 sm:p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:border-emerald-500 hover:shadow-md transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500"><div className="flex items-center justify-between gap-2"><span className="text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400">{card.label}</span><span className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 grid place-items-center"><card.icon className="w-4 h-4" /></span></div><p className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white mt-3 tabular-nums">{card.value}</p></button>)}</div>
+          <section className="rounded-2xl border border-amber-200 dark:border-amber-900 bg-amber-50/60 dark:bg-amber-950/20 p-4 sm:p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3"><div><p className="text-[10px] uppercase tracking-[.16em] font-black text-amber-800 dark:text-amber-300">Needs attention</p><h2 className="text-sm font-extrabold text-slate-900 dark:text-white mt-1">Review queue</h2></div><span className="text-[10px] text-slate-500">Open a queue to take action</span></div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <button type="button" onClick={()=>setTab('student-accounts')} className="rounded-xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900 p-3 text-left hover:border-amber-400"><span className="block text-[10px] text-slate-500">Student accounts awaiting review</span><strong className="block text-2xl font-black text-slate-900 dark:text-white mt-1">{studentAccounts.filter((item:any)=>item.status==='pending').length}</strong><span className="text-[10px] font-bold text-amber-800 dark:text-amber-300">Review student accounts →</span></button>
+              <button type="button" onClick={()=>setTab('lecturers')} className="rounded-xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900 p-3 text-left hover:border-amber-400"><span className="block text-[10px] text-slate-500">Lecturers awaiting verification</span><strong className="block text-2xl font-black text-slate-900 dark:text-white mt-1">{lecturers.filter((item:any)=>!item.is_verified).length}</strong><span className="text-[10px] font-bold text-amber-800 dark:text-amber-300">Review lecturer accounts →</span></button>
+              <button type="button" onClick={()=>setTab('enrolments')} className="rounded-xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900 p-3 text-left hover:border-amber-400"><span className="block text-[10px] text-slate-500">Course requests awaiting decision</span><strong className="block text-2xl font-black text-slate-900 dark:text-white mt-1">{studentEnrolments.filter((item:any)=>item.status==='pending').length}</strong><span className="text-[10px] font-bold text-amber-800 dark:text-amber-300">Review course requests →</span></button>
+            </div>
+          </section>
           <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div><h2 className="font-extrabold text-slate-900 dark:text-white flex items-center gap-2"><Activity className="w-5 h-5 text-emerald-600"/> Attendance analytics</h2></div>
@@ -896,6 +907,7 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
       )}
       
         </section>
+      </div>
       </div>
     </div>
   );

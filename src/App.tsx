@@ -48,6 +48,7 @@ import { Capacitor } from '@capacitor/core';
 import { QR_DISPLAY_CHANNEL } from './QRDisplayWindow';
 import AdminWorkspace, { NotificationBell } from './AdminWorkspace';
 import StudentAccountPortal from './StudentAccountPortal';
+import WorkspaceUxControls from './WorkspaceUxControls';
 const AssessmentManagement = React.lazy(() => import('./AssessmentManagement'));
 
 /* ==========================================================================
@@ -577,6 +578,7 @@ function AdminPortal({
   const [showSessionForm, setShowSessionForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [attendancePage, setAttendancePage] = useState(1);
+  const [selectedAttendanceIds, setSelectedAttendanceIds] = useState<string[]>([]);
   const [retentionDays, setRetentionDays] = useState(30);
   const [enrollmentRequests, setEnrollmentRequests] = useState([]);
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -1211,11 +1213,55 @@ The request has NOT been rejected or approved. Check the student's official univ
     );
   };
 
+  const handleBulkSetAttendanceStatus = async (status: string) => {
+    const selected = visibleLogs.filter(log => log.id && selectedAttendanceIds.includes(String(log.id)));
+    if (!selected.length || shownSessionId === '__all__') return;
+    if (!window.confirm('Set ' + selected.length + ' selected record(s) in this session to ' + status + '? This updates their attendance status only.')) return;
+    try {
+      for (const log of selected) await db.updateAttendance(log.id, { studentName: log.registeredName || '', dept: log.dept || '', status });
+      setSelectedAttendanceIds([]);
+      await refreshLogs();
+    } catch (err) {
+      alert('Some selected records could not be updated. Refresh the list and review the remaining records: ' + db.friendly(err));
+      await refreshLogs();
+    }
+  };
+  const handleBulkDeleteAttendance = async () => {
+    const selected = visibleLogs.filter(log => log.id && selectedAttendanceIds.includes(String(log.id)));
+    if (!selected.length) return;
+    if (shownSessionId === '__all__') {
+      alert('Bulk deletion is available only within one selected session. Choose a specific session first.');
+      return;
+    }
+    if (!window.confirm(`Permanently delete ${selected.length} selected attendance record(s) from this session? This cannot be undone.`)) return;
+    try {
+      for (const log of selected) await db.deleteAttendance(log.id);
+      setSelectedAttendanceIds([]);
+      await refreshLogs();
+    } catch (err) {
+      alert('Some selected records could not be deleted. Refresh the list and review the remaining records: ' + db.friendly(err));
+      await refreshLogs();
+    }
+  };
+
   const normalizedSearch = searchQuery.trim().toLowerCase();
   const filteredLogs = lecturerAttendanceLogs.filter(log =>
     [log.registeredName, log.studentId, log.dept, log.course, log.receiptNo]
       .some(value => String(value ?? '').toLowerCase().includes(normalizedSearch))
   );
+  const sessionTrend = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() - (6 - index));
+    const key = date.toISOString().slice(0, 10);
+    const count = lecturerAttendanceLogs.filter(log => {
+      const value = log.isoTime || log.createdAt || log.created_at;
+      if (!value) return false;
+      const parsed = new Date(value);
+      return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === key;
+    }).length;
+    return { key, count, label: date.toLocaleDateString(undefined, { weekday: 'short' }) };
+  });
   const attendancePageSize = 25;
   const attendancePageCount = Math.max(1, Math.ceil(filteredLogs.length / attendancePageSize));
   const safeAttendancePage = Math.min(attendancePage, attendancePageCount);
@@ -1798,7 +1844,8 @@ The request has NOT been rejected or approved. Check the student's official univ
 
       {/* ADMIN SUB-TABS: ISOLATED SESSION ATTENDANCE vs LECTURER'S OWN COURSE ROSTER */}
       <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
-        <div className="grid grid-cols-1 lg:grid-cols-[230px_minmax(0,1fr)] gap-4 lg:gap-6 items-start">
+        <WorkspaceUxControls />
+        <div className="cs-workspace-layout grid grid-cols-1 lg:grid-cols-[230px_minmax(0,1fr)] gap-4 lg:gap-6 items-start">
         
         <aside className="cs-workspace-sidebar lg:sticky lg:top-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 p-3 sm:p-4 space-y-3">
           <div className="px-2 pb-2 border-b border-slate-200 dark:border-slate-800">
@@ -1930,6 +1977,12 @@ The request has NOT been rejected or approved. Check the student's official univ
             <p className="text-[11px] text-slate-500 dark:text-slate-400">
               Delete entire list removes the selected session and all check-ins saved under it. Live sessions must be ended first.
             </p>
+            <section className="mb-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 sm:p-4">
+              <div className="flex items-center justify-between gap-2 mb-3"><div><h3 className="text-xs font-extrabold text-slate-800 dark:text-white">Session attendance trend</h3><p className="text-[10px] text-slate-500">Check-ins recorded over the last seven days</p></div><span className="text-[10px] font-bold text-slate-500">{sessionTrend.reduce((sum, day) => sum + day.count, 0)} check-ins</span></div>
+              <div className="h-24 flex items-end gap-2" role="img" aria-label={sessionTrend.map(day=>day.label+': '+day.count+' check-ins').join(', ')}>
+                {sessionTrend.map(day=><div key={day.key} className="flex-1 min-w-0 h-full flex flex-col items-center justify-end gap-1"><span className="text-[9px] tabular-nums text-slate-500">{day.count || ''}</span><div className="w-full max-w-10 rounded-t-md bg-emerald-600" style={{height:Math.max(3,day.count/Math.max(1,...sessionTrend.map(item=>item.count))*68)+'%'}}/><span className="text-[9px] text-slate-500">{day.label}</span></div>)}
+              </div>
+            </section>
             {filteredLogs.length > 0 && <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2.5">
               <p role="status" className="text-[11px] text-slate-500">Showing {(safeAttendancePage - 1) * attendancePageSize + 1}–{Math.min(safeAttendancePage * attendancePageSize, filteredLogs.length)} of {filteredLogs.length} records</p>
               <div className="flex items-center gap-2"><button type="button" onClick={() => setAttendancePage(page => Math.max(1, page - 1))} disabled={safeAttendancePage <= 1} className="rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-[11px] font-bold disabled:opacity-40">Previous</button><span className="text-[10px] text-slate-500 tabular-nums">Page {safeAttendancePage} of {attendancePageCount}</span><button type="button" onClick={() => setAttendancePage(page => Math.min(attendancePageCount, page + 1))} disabled={safeAttendancePage >= attendancePageCount} className="rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-2 text-[11px] font-bold disabled:opacity-40">Next</button></div>
@@ -1942,9 +1995,22 @@ The request has NOT been rejected or approved. Check the student's official univ
               </div>
             ) : (
               <>
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 p-3">
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                  <input type="checkbox" aria-label="Select all visible attendance records" checked={visibleLogs.length>0 && visibleLogs.every(log=>selectedAttendanceIds.includes(String(log.id)))} onChange={e=>setSelectedAttendanceIds(current=>e.target.checked?Array.from(new Set([...current,...visibleLogs.filter(log=>log.id).map(log=>String(log.id))])):current.filter(id=>!visibleLogs.some(log=>String(log.id)===id)))} />
+                  <span>{selectedAttendanceIds.length} selected on this page</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button type="button" onClick={()=>handleBulkSetAttendanceStatus('Verified')} disabled={!selectedAttendanceIds.length || shownSessionId==='__all__'} className="px-3 py-2 rounded-lg border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-xs font-bold disabled:opacity-40">Mark verified</button>
+                  <button type="button" onClick={()=>handleBulkSetAttendanceStatus('Flagged')} disabled={!selectedAttendanceIds.length || shownSessionId==='__all__'} className="px-3 py-2 rounded-lg border border-amber-300 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-xs font-bold disabled:opacity-40">Flag selected</button>
+                  <button type="button" onClick={()=>setSelectedAttendanceIds([])} disabled={!selectedAttendanceIds.length} className="px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-xs font-bold disabled:opacity-40">Clear selection</button>
+                  <button type="button" onClick={handleBulkDeleteAttendance} disabled={!selectedAttendanceIds.length || shownSessionId==='__all__'} title={shownSessionId==='__all__'?'Choose one session before deleting selected records':'Delete selected records from this session'} className="px-3 py-2 rounded-lg bg-rose-700 text-white text-xs font-bold disabled:opacity-40">Delete selected</button>
+                </div>
+              </div>
               <div className="md:hidden space-y-2.5">
                 {visibleLogs.map((log, idx) => (
                   <div key={log.id || idx} className="flex items-center gap-3 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40">
+                    <input type="checkbox" aria-label={`Select attendance for ${log.registeredName}`} checked={selectedAttendanceIds.includes(String(log.id))} onChange={e=>setSelectedAttendanceIds(current=>e.target.checked?[...current,String(log.id)]:current.filter(id=>id!==String(log.id)))} disabled={!log.id} />
                     {log.facePhoto ? (
                       <img src={log.facePhoto} alt="" className="w-11 h-11 rounded-full object-cover border-2 border-emerald-600 shrink-0" />
                     ) : (
@@ -1974,7 +2040,8 @@ The request has NOT been rejected or approved. Check the student's official univ
                 <table className="w-full text-left text-xs">
                   <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 uppercase text-[10px] tracking-wider font-bold">
                     <tr>
-                      <th className="p-3 rounded-l-xl">Face Signature</th>
+                      <th className="p-3 rounded-l-xl">Select</th>
+                      <th className="p-3">Face Signature</th>
                       <th className="p-3">Student Name & ID</th>
                       <th className="p-3">Course</th>
                       <th className="p-3">Department</th>
@@ -1987,6 +2054,7 @@ The request has NOT been rejected or approved. Check the student's official univ
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
                     {visibleLogs.map((log, idx) => (
                       <tr key={log.id || idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
+                        <td className="p-3"><input type="checkbox" aria-label={`Select attendance for ${log.registeredName}`} checked={selectedAttendanceIds.includes(String(log.id))} onChange={e=>setSelectedAttendanceIds(current=>e.target.checked?[...current,String(log.id)]:current.filter(id=>id!==String(log.id)))} disabled={!log.id} /></td>
                         <td className="p-3">
                           {log.facePhoto ? <img src={log.facePhoto} alt="Biometric Signature" className="w-10 h-10 rounded-full object-cover border-2 border-emerald-600 shadow-sm" /> : <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700" />}
                         </td>
