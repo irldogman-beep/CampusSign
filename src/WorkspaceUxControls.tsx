@@ -8,10 +8,8 @@ export default function WorkspaceUxControls() {
   const [showHelp, setShowHelp] = useState(false);
 
   useEffect(() => {
-    const layout = document.currentScript?.parentElement?.closest?.('.cs-workspace-layout') as HTMLElement | null;
-    // React's currentScript is not reliable in bundled apps; resolve from the rendered controls.
-    const resolveLayout = () => document.querySelector('.cs-workspace-layout-controls-anchor')?.closest('.cs-workspace-layout') as HTMLElement | null;
-    const root = layout || resolveLayout();
+    const anchor = document.querySelector('.cs-workspace-layout-controls-anchor') as HTMLElement | null;
+    const root = anchor?.nextElementSibling?.classList.contains('cs-workspace-layout') ? anchor.nextElementSibling as HTMLElement : null;
     if (root) {
       root.classList.toggle('is-mobile-open', mobileOpen);
       root.classList.toggle('is-collapsed', collapsed);
@@ -28,7 +26,8 @@ export default function WorkspaceUxControls() {
       if (!Number.isInteger(digit) || digit < 1 || digit > 9) return;
       const target = event.target as HTMLElement | null;
       if (target && (target.isContentEditable || /INPUT|TEXTAREA|SELECT/.test(target.tagName))) return;
-      const layout = document.querySelector('.cs-workspace-layout-controls-anchor')?.closest('.cs-workspace-layout');
+      const anchor = document.querySelector('.cs-workspace-layout-controls-anchor') as HTMLElement | null;
+      const layout = anchor?.nextElementSibling?.classList.contains('cs-workspace-layout') ? anchor.nextElementSibling : null;
       const buttons = layout?.querySelectorAll<HTMLElement>('.cs-workspace-sidebar nav button');
       const button = buttons?.[digit - 1];
       if (button) {
