@@ -301,8 +301,7 @@ begin
     'period_id',p.id,'period_name',p.name,'period_starts_on',p.starts_on,
     'published_at',rs.published_at,'created_at',a.created_at,
     'is_current_carryover',(a.status='failed' and not exists(select 1 from public.student_course_attempts newer
-      where newer.student_user_id=a.student_user_id and newer.course_id=a.course_id and newer.status='passed'
-        and newer.attempt_number>a.attempt_number))
+      where newer.student_user_id=a.student_user_id and newer.course_id=a.course_id and newer.attempt_number>a.attempt_number))
   ) order by p.starts_on nulls last,t.sequence,c.code,a.attempt_number),'[]'::jsonb)
   into v_rows
   from public.student_course_attempts a
