@@ -427,11 +427,11 @@ export async function reviewDepartmentReroll(requestId: string, decision: 'appro
 export async function loadAcademicSettings(): Promise<any> {
   const { data, error } = await supabase.from('academic_structure_settings').select('*').eq('id', 1).maybeSingle();
   if (error) throw error;
-  return data || { id: 1, education_type: 'university', level_label: 'Level', period_label: 'Academic year', term_label: 'Semester', terms_per_period: 2, progression_mode: 'manual' };
+  return data || { id: 1, education_type: 'university', secondary_mode_enabled: false, level_label: 'Level', period_label: 'Academic year', term_label: 'Semester', terms_per_period: 2, progression_mode: 'manual' };
 }
 export async function saveAcademicSettings(input: any) {
   const { error } = await supabase.from('academic_structure_settings').upsert({
-    id: 1, education_type: input.education_type, level_label: input.level_label.trim(),
+    id: 1, education_type: input.secondary_mode_enabled ? 'secondary' : 'university', secondary_mode_enabled: !!input.secondary_mode_enabled, level_label: input.level_label.trim(),
     period_label: input.period_label.trim(), term_label: input.term_label.trim(),
     terms_per_period: Number(input.terms_per_period), progression_mode: input.progression_mode,
     updated_at: new Date().toISOString(),
