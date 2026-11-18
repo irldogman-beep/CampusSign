@@ -1503,6 +1503,36 @@ The request has NOT been rejected or approved. Check the student's official univ
         </button>
       </div>
 
+      {/* ADMIN SUB-TABS: ISOLATED SESSION ATTENDANCE vs LECTURER'S OWN COURSE ROSTER */}
+      <div className="cs-workspace-layout-shell">
+        <WorkspaceUxControls drawerId="lecturer-workspace-navigation" label="Lecturer workspace navigation" />
+        <div className="cs-workspace-layout grid grid-cols-1 lg:grid-cols-[230px_minmax(0,1fr)] gap-4 lg:gap-6 items-start">
+        
+        <aside className="cs-workspace-sidebar lg:sticky lg:top-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 sm:p-4 space-y-3">
+          <div className="px-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+            <p className="text-[10px] font-black uppercase tracking-[.16em] text-emerald-700 dark:text-emerald-300">Workspace menu</p>
+            <h2 className="text-sm font-extrabold text-slate-900 dark:text-white mt-1">Teaching workspace</h2>
+            <p className="text-[10px] text-slate-500 mt-1">Choose an area to manage your course.</p>
+          </div>
+          <nav aria-label="Lecturer dashboard sections" className="cs-admin-nav">
+            {[
+              { id: 'session', label: 'Session & QR', icon: QrCode, count: null },
+              { id: 'roster', label: 'Attendance', icon: Users, count: lecturerAttendanceLogs.length },
+              { id: 'registry', label: 'Student roster', icon: Database, count: filteredRegistry.length },
+              { id: 'assessments', label: 'CA & Results', icon: FileCheck, count: null },
+              { id: 'requests', label: 'Requests', icon: ClipboardList, count: enrollmentRequests.length },
+            ].map(({ id, label, icon: Icon, count }) => (
+              <button key={id} type="button" onClick={() => setAdminTab(id)} aria-current={adminTab === id ? 'page' : undefined}
+                className={`cs-admin-nav-button inline-flex items-center gap-3 w-full text-left rounded-xl px-3 py-3 text-xs font-bold transition-colors ${adminTab === id ? 'is-active' : ''}`}>
+                <Icon className="w-4 h-4 shrink-0" />
+                <span className="min-w-0 flex-1">{label}</span>
+                {count !== null && <span className="text-[10px] font-bold tabular-nums opacity-75">{count}</span>}
+              </button>
+            ))}
+          </nav>
+        </aside>
+        <div className="min-w-0 space-y-4">
+        {adminTab === 'session' && <>
       {adminTab === 'session' && <>
       {/* QUICK STATUS OVERVIEW */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -1843,35 +1873,9 @@ The request has NOT been rejected or approved. Check the student's official univ
 
       </>}
 
-      {/* ADMIN SUB-TABS: ISOLATED SESSION ATTENDANCE vs LECTURER'S OWN COURSE ROSTER */}
-      <div className="cs-workspace-layout-shell">
-        <WorkspaceUxControls drawerId="lecturer-workspace-navigation" label="Lecturer workspace navigation" />
-        <div className="cs-workspace-layout grid grid-cols-1 lg:grid-cols-[230px_minmax(0,1fr)] gap-4 lg:gap-6 items-start">
-        
-        <aside className="cs-workspace-sidebar lg:sticky lg:top-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 sm:p-4 space-y-3">
-          <div className="px-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-            <p className="text-[10px] font-black uppercase tracking-[.16em] text-emerald-700 dark:text-emerald-300">Workspace menu</p>
-            <h2 className="text-sm font-extrabold text-slate-900 dark:text-white mt-1">Teaching workspace</h2>
-            <p className="text-[10px] text-slate-500 mt-1">Choose an area to manage your course.</p>
-          </div>
-          <nav aria-label="Lecturer dashboard sections" className="cs-admin-nav">
-            {[
-              { id: 'session', label: 'Session & QR', icon: QrCode, count: null },
-              { id: 'roster', label: 'Attendance', icon: Users, count: lecturerAttendanceLogs.length },
-              { id: 'registry', label: 'Student roster', icon: Database, count: filteredRegistry.length },
-              { id: 'assessments', label: 'CA & Results', icon: FileCheck, count: null },
-              { id: 'requests', label: 'Requests', icon: ClipboardList, count: enrollmentRequests.length },
-            ].map(({ id, label, icon: Icon, count }) => (
-              <button key={id} type="button" onClick={() => setAdminTab(id)} aria-current={adminTab === id ? 'page' : undefined}
-                className={`cs-admin-nav-button inline-flex items-center gap-3 w-full text-left rounded-xl px-3 py-3 text-xs font-bold transition-colors ${adminTab === id ? 'is-active' : ''}`}>
-                <Icon className="w-4 h-4 shrink-0" />
-                <span className="min-w-0 flex-1">{label}</span>
-                {count !== null && <span className="text-[10px] font-bold tabular-nums opacity-75">{count}</span>}
-              </button>
-            ))}
-          </nav>
-        </aside>
-        <div className="min-w-0 space-y-4">
+
+        </>}
+
         <header className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 px-4 py-3">
           <p className="text-[10px] uppercase tracking-[.15em] font-black text-emerald-700 dark:text-emerald-300">Teaching workspace · {activeStaff?.course || 'Course'}</p>
           <h2 className="text-base font-extrabold text-slate-900 dark:text-white mt-1">{adminTab === 'session' ? 'Session & QR' : adminTab === 'roster' ? 'Attendance log' : adminTab === 'registry' ? 'Student roster' : adminTab === 'assessments' ? 'CA & Results' : 'Enrolment requests'}</h2>
@@ -1895,10 +1899,7 @@ The request has NOT been rejected or approved. Check the student's official univ
             </button>
           )}
         </div>}
-        {adminTab === 'session' && <section className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 p-4 sm:p-5">
-          <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">Session & QR attendance</h3>
-          <p className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">Your session creation form and live QR display are shown above this menu. Use the other sections to review attendance lists, manage your course roster, record CA/examination marks or respond to enrolment requests.</p>
-        </section>}
+
         {adminTab !== 'session' && <>
         {/* TAB 1: ISOLATED SESSION ATTENDANCE LOG */}
         {adminTab === 'roster' && (
