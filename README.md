@@ -143,3 +143,8 @@ Lecturers manage CA and examination components for their assigned courses. They 
 Apply `supabase-step26-assessment-teaching-groups-and-mode.sql` after the existing academic structure and assessment migrations. The migration is additive and keeps existing assessments course-wide through a nullable teaching-group reference. Do not use the new assessment UI in production until the migration has been applied and verified.
 
 The full results publication workflow (submission, review, approval, publication and controlled post-publication correction) and automatic university progression eligibility engine are separate follow-on implementation work; the existing manual progression history is not a substitute for those features.
+
+
+## Assessment rollout compatibility (Step 27)
+
+Step 27 keeps the previous lecturer assessment RPC signature available as a compatibility wrapper. It forwards to the new lecturer-only course-wide assessment function, so older deployed clients continue to work during the Cloudflare frontend rollout while Admin remains read-only for assessment entry.
