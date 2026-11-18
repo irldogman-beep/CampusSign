@@ -48,7 +48,7 @@ import { Capacitor } from '@capacitor/core';
 import { QR_DISPLAY_CHANNEL } from './QRDisplayWindow';
 import AdminWorkspace, { NotificationBell } from './AdminWorkspace';
 import StudentAccountPortal from './StudentAccountPortal';
-import WorkspaceUxControls from './WorkspaceUxControls';
+import LecturerDrawerControls from './LecturerDrawerControls';
 const AssessmentManagement = React.lazy(() => import('./AssessmentManagement'));
 
 /* ==========================================================================
@@ -1844,16 +1844,12 @@ The request has NOT been rejected or approved. Check the student's official univ
 
       {/* ADMIN SUB-TABS: ISOLATED SESSION ATTENDANCE vs LECTURER'S OWN COURSE ROSTER */}
       <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-sm">
-        <WorkspaceUxControls />
-        <div className="cs-workspace-layout grid grid-cols-1 lg:grid-cols-[230px_minmax(0,1fr)] gap-4 lg:gap-6 items-start">
+        <LecturerDrawerControls />
+        <div className="cs-lecturer-layout cs-workspace-layout grid grid-cols-1 lg:grid-cols-[230px_minmax(0,1fr)] gap-4 lg:gap-6 items-start">
         
-        <aside className="cs-workspace-sidebar lg:sticky lg:top-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 p-3 sm:p-4 space-y-3">
-          <div className="px-2 pb-2 border-b border-slate-200 dark:border-slate-800">
-            <p className="text-[10px] font-black uppercase tracking-[.16em] text-emerald-700 dark:text-emerald-300">Lecturer menu</p>
-            <h2 className="text-sm font-extrabold text-slate-900 dark:text-white mt-1">Teaching workspace</h2>
-            <p className="text-[10px] text-slate-500 mt-1">Attendance, class lists and results.</p>
-          </div>
-          <p className="text-[11px] text-slate-500 sm:max-w-xs">{adminTab === 'session' ? 'Create an attendance session and display its QR code to your class.' : adminTab === 'roster' ? 'Review, search, export or remove records from a completed attendance list.' : adminTab === 'registry' ? 'Manage the students registered for your assigned course and complete face enrolment.' : adminTab === 'assessments' ? 'Create CA and exam components, then record marks for students on your course roster.' : 'Review and respond to student requests to join your course.'}</p>
+        <aside id="lecturer-navigation-drawer" role="dialog" aria-modal="true" aria-label="Lecturer navigation" tabIndex={-1} className="cs-workspace-sidebar lg:sticky lg:top-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/40 p-3 sm:p-4 space-y-3">
+          <div className="flex items-center justify-between gap-2 px-2 pb-3 border-b border-slate-200 dark:border-slate-800"><div><p className="text-[10px] font-black uppercase tracking-[.16em] text-emerald-700 dark:text-emerald-300">Lecturer menu</p><h2 className="text-sm font-extrabold text-slate-900 dark:text-white mt-1">Teaching workspace</h2></div><button type="button" data-drawer-close aria-label="Close navigation menu" className="cs-lecturer-drawer-close"><X className="w-4 h-4" /></button></div>
+          
           {/* Sub Tab Buttons */}
           <div className="grid grid-cols-2 lg:grid-cols-1 items-stretch gap-1.5 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl w-full">
             <button type="button" onClick={() => setAdminTab('session')} className={`px-3 sm:px-4 py-2.5 sm:py-2 text-xs font-bold rounded-xl transition-all flex min-w-0 justify-center items-center gap-2 ${adminTab==='session'?'bg-emerald-900 text-amber-400 shadow':'text-slate-600 dark:text-slate-400 hover:text-slate-900'}`}><QrCode className="w-4 h-4"/><span>Session & QR</span></button>
@@ -1934,7 +1930,11 @@ The request has NOT been rejected or approved. Check the student's official univ
           )}
         </aside>
         <div className="min-w-0 space-y-4">
-
+        <header className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 px-4 py-3">
+          <p className="text-[10px] uppercase tracking-[.15em] font-black text-emerald-700 dark:text-emerald-300">Teaching workspace · {activeStaff?.course || 'Course'}</p>
+          <h2 className="text-base font-extrabold text-slate-900 dark:text-white mt-1">{adminTab === 'session' ? 'Session & QR' : adminTab === 'roster' ? 'Attendance log' : adminTab === 'registry' ? 'Student roster' : adminTab === 'assessments' ? 'CA & Results' : 'Enrolment requests'}</h2>
+          <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">{adminTab === 'session' ? 'Create an attendance session and display its QR code to your class.' : adminTab === 'roster' ? 'Search, review and manage attendance records for your sessions.' : adminTab === 'registry' ? 'Find students registered for your course and manage their face-enrolment status.' : adminTab === 'assessments' ? 'Create CA and exam components, then record marks for students on your course roster.' : 'Review and respond to student requests to join your course.'}</p>
+        </header>
         {adminTab === 'session' && <section className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/40 p-4 sm:p-5">
           <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">Session & QR attendance</h3>
           <p className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">Your session creation form and live QR display are shown above this menu. Use the other sections to review attendance lists, manage your course roster, record CA/examination marks or respond to enrolment requests.</p>
