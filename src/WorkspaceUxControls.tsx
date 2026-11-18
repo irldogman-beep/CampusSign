@@ -109,6 +109,6 @@ export default function WorkspaceUxControls({ drawerId = 'workspace-navigation-d
         <p>Shortcuts are disabled while typing in a form field.</p>
       </div>}
     </div>
-    <button type="button" className={'cs-workspace-drawer-backdrop' + (mobileOpen ? ' is-visible' : '')} aria-label="Close navigation menu" tabIndex={mobileOpen ? 0 : -1} onClick={() => setMobileOpen(false)} />
+    <button type="button" className={'cs-workspace-drawer-backdrop' + (mobileOpen ? ' is-visible' : '')} aria-label="Close navigation menu" tabIndex={mobileOpen ? 0 : -1} onClick={() => { setMobileOpen(false); triggerRef.current?.focus(); }} />
   </div>;
 }
