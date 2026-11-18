@@ -315,6 +315,68 @@ begin
 end;
 $$;
 
+create or replace function public.student_get_dashboard()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, auth, pg_temp
+as $
+declare
+  v_account public.student_accounts;
+  v_academic public.student_academic_profiles;
+  v_courses jsonb;
+  v_attendance jsonb;
+  v_course_attempts jsonb;
+  v_unread integer;
+  v_cohort_name text;
+  v_level_name text;
+begin
+  if auth.uid() is null then raise exception 'authentication_required'; end if;
+  select * into v_account from public.student_accounts where user_id=auth.uid();
+  if not found then raise exception 'student_account_not_found'; end if;
+  select * into v_academic from public.student_academic_profiles where student_user_id=auth.uid();
+  if found then
+    if v_academic.academic_status in ('inactive','withdrawn','expelled','graduated') then raise exception 'student_account_inactive'; end if;
+    select name into v_cohort_name from public.student_cohorts where id=v_academic.cohort_id;
+    select name into v_level_name from public.academic_levels where id=v_academic.current_level_id;
+  end if;
+  if v_account.status <> 'approved' then
+    return jsonb_build_object('profile',jsonb_build_object('student_id',v_account.student_id,'full_name',v_account.full_name,
+      'department',v_account.department,'level',v_account.level,'status',v_account.status,
+      'academic_status',coalesce(v_academic.academic_status,'active'),'admission_set',v_cohort_name,'current_level',v_level_name),
+      'courses','[]'::jsonb,'attendance','[]'::jsonb,'course_attempts','[]'::jsonb,'unread_notifications',0);
+  end if;
+  select coalesce(jsonb_agg(jsonb_build_object('course',s.course,'lecturer',coalesce(l.name,'Lecturer'),'face_enrolled',s.face_enrolled) order by s.course),'[]'::jsonb)
+  into v_courses from public.students s left join public.lecturers l on l.id=s.lecturer_id
+  where upper(btrim(s.student_id))=upper(btrim(v_account.student_id))
+    and lower(btrim(s.name))=lower(btrim(v_account.full_name)) and lower(btrim(s.dept))=lower(btrim(v_account.department));
+  select coalesce(jsonb_agg(jsonb_build_object('id',sca.id,'course_code',ac.code,'course_title',ac.title,
+      'term',at.name,'academic_period',ap.name,'attempt_number',sca.attempt_number,
+      'status',sca.status,'grade',sca.grade,'final_score',sca.final_score,
+      'is_current_carryover',(sca.status='failed' and not exists (select 1 from public.student_course_attempts newer where newer.student_user_id=sca.student_user_id and newer.course_id=sca.course_id and newer.attempt_number>sca.attempt_number)),
+      'result_note',sca.result_note,'created_at',sca.created_at)
+      order by sca.created_at desc),'[]'::jsonb)
+  into v_course_attempts from public.student_course_attempts sca
+  join public.academic_courses ac on ac.id=sca.course_id
+  join public.academic_terms at on at.id=sca.academic_term_id
+  join public.academic_periods ap on ap.id=at.academic_period_id
+  where sca.student_user_id=auth.uid();
+  select coalesce(jsonb_agg(jsonb_build_object('id',a.id,'course',a.course,'session_id',a.session_id,
+      'status',a.status,'created_at',a.created_at,'receipt_no',a.receipt_no,'location_status',a.location_status)
+      order by a.created_at desc),'[]'::jsonb)
+  into v_attendance from public.students s join public.attendance a
+    on a.lecturer_id=s.lecturer_id and a.course=s.course and upper(btrim(a.student_id))=upper(btrim(s.student_id))
+  where upper(btrim(s.student_id))=upper(btrim(v_account.student_id))
+    and lower(btrim(s.name))=lower(btrim(v_account.full_name)) and lower(btrim(s.dept))=lower(btrim(v_account.department));
+  select count(*) into v_unread from public.app_notifications where recipient_id=auth.uid() and read_at is null;
+  return jsonb_build_object('profile',jsonb_build_object('student_id',v_account.student_id,'full_name',v_account.full_name,
+    'department',v_account.department,'level',v_account.level,'status',v_account.status,
+    'academic_status',coalesce(v_academic.academic_status,'active'),'admission_set',v_cohort_name,'current_level',v_level_name),
+    'courses',v_courses,'attendance',v_attendance,'course_attempts',coalesce(v_course_attempts,'[]'::jsonb),'unread_notifications',v_unread);
+end;
+$;
+
+
 revoke all on function public.get_academic_grading_config() from public,anon;
 grant execute on function public.get_academic_grading_config() to authenticated;
 revoke all on function public.admin_list_course_credit_units() from public,anon;
