@@ -6,6 +6,7 @@ import {
   ShieldCheck, UserCog, Users, Building2, GraduationCap, Plus, Pencil, BookMarked, Trash2, Activity, UserRound, LayoutDashboard, Layers
 } from 'lucide-react';
 import * as db from './db';
+import WorkspaceUxControls from './WorkspaceUxControls';
 const AcademicManagement = React.lazy(() => import('./AcademicManagement'));
 const AssessmentManagement = React.lazy(() => import('./AssessmentManagement'));
 
@@ -541,6 +542,8 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
       {message && <div role="status" className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-emerald-800 dark:text-emerald-200 text-xs font-semibold">{message}</div>}
       {error && <div role="alert" className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-200 text-xs">{error}</div>}
 
+      <div className="cs-workspace-layout-shell">
+      <WorkspaceUxControls />
       <div className="cs-workspace-layout grid grid-cols-1 lg:grid-cols-[230px_minmax(0,1fr)] gap-4 lg:gap-6 items-start">
         <aside className="cs-workspace-sidebar lg:sticky lg:top-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 sm:p-4 space-y-3">
           <div className="px-2 pb-2 border-b border-slate-100 dark:border-slate-800">
@@ -896,6 +899,7 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
       )}
       
         </section>
+      </div>
       </div>
     </div>
   );
