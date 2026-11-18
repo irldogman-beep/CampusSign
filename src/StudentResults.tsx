@@ -8,6 +8,7 @@ type PublishedResult = {
   term_name: string;
   teaching_group_name: string | null;
   ca_score: number;
+  attendance_score: number | null;
   exam_score: number;
   final_score: number;
   published_at: string;
@@ -56,8 +57,9 @@ export default function StudentResults() {
             <p className="text-[10px] text-slate-500">Final course score</p>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-2 mt-3 border-t border-slate-100 dark:border-slate-800 pt-3">
+        <div className={`grid ${row.attendance_score == null ? 'grid-cols-2' : 'grid-cols-3'} gap-2 mt-3 border-t border-slate-100 dark:border-slate-800 pt-3`}>
           <div><p className="text-[10px] text-slate-500">CA category</p><strong className="text-sm tabular-nums text-slate-800 dark:text-slate-100">{Number(row.ca_score).toFixed(2)} / 100</strong></div>
+          {row.attendance_score != null && <div><p className="text-[10px] text-slate-500">Attendance</p><strong className="text-sm tabular-nums text-slate-800 dark:text-slate-100">{Number(row.attendance_score).toFixed(2)}%</strong></div>}
           <div><p className="text-[10px] text-slate-500">Examination category</p><strong className="text-sm tabular-nums text-slate-800 dark:text-slate-100">{Number(row.exam_score).toFixed(2)} / 100</strong></div>
         </div>
         <p className="mt-2 text-[10px] text-slate-400">Published {new Date(row.published_at).toLocaleDateString()}</p>

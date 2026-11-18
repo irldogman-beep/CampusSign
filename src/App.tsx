@@ -614,15 +614,43 @@ function AdminPortal({
   });
   const [academicDepartments, setAcademicDepartments] = useState<any[]>([]);
   const [academicCourses, setAcademicCourses] = useState<any[]>([]);
+  const [academicTerms, setAcademicTerms] = useState<any[]>([]);
+  const [sessionTermId, setSessionTermId] = useState('');
+  const [sessionTeachingGroupId, setSessionTeachingGroupId] = useState('');
+  const [sessionTeachingGroups, setSessionTeachingGroups] = useState<any[]>([]);
   const [newStaffCourses, setNewStaffCourses] = useState<string[]>([]);
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([db.loadCatalogDepartments(), db.loadCatalogCourses(null)])
-      .then(([departments, courses]) => { if (!cancelled) { setAcademicDepartments(departments); setAcademicCourses(courses); } })
+    Promise.all([db.loadCatalogDepartments(), db.loadCatalogCourses(null), db.loadAcademicTerms()])
+      .then(([departments, courses, terms]) => {
+        if (cancelled) return;
+        setAcademicDepartments(departments); setAcademicCourses(courses); setAcademicTerms(terms);
+        const current = terms.find((term: any) => term.is_current) || terms[0];
+        if (current) setSessionTermId(prev => prev || current.id);
+      })
       .catch(() => { /* The legacy sign-in flow remains usable if catalogue is unavailable. */ });
     return () => { cancelled = true; };
   }, []);
+
+  const normalizeCourseLabel = (value: any) => String(value || '').trim().toLowerCase().replace(/\\s+/g, ' ');
+  const sessionCatalogCourse = academicCourses.find(course =>
+    [course.code, course.title, course.code + ' - ' + course.title]
+      .some(label => normalizeCourseLabel(label) === normalizeCourseLabel(activeStaff?.course))
+  );
+
+  useEffect(() => {
+    if (!sessionCatalogCourse?.id || !sessionTermId) { setSessionTeachingGroups([]); setSessionTeachingGroupId(''); return; }
+    let cancelled = false;
+    supabase.rpc('list_my_teaching_groups', { p_course: sessionCatalogCourse.id, p_term: sessionTermId })
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) { setSessionTeachingGroups([]); console.warn('Could not load session teaching groups', error); return; }
+        setSessionTeachingGroups(data || []);
+        setSessionTeachingGroupId(prev => (data || []).some((group: any) => group.id === prev) ? prev : '');
+      });
+    return () => { cancelled = true; };
+  }, [sessionCatalogCourse?.id, sessionTermId]);
 
   const [sessionForm, setSessionForm] = useState({
     title: '',
@@ -665,7 +693,9 @@ function AdminPortal({
       const row = await db.createSession({
         course: admin.course, title: f.title, venue: f.venue, locationMode: f.locationMode,
         radius: f.radius, faceRequired: f.faceRequired, threshold: f.threshold, endsAt: base.endsAt,
-        qrIntervalSeconds: f.qrIntervalSeconds
+        qrIntervalSeconds: f.qrIntervalSeconds,
+        academicCourseId: f.academicCourseId || null, academicTermId: f.academicTermId || null,
+        teachingGroupId: f.teachingGroupId || null
       });
       setActiveSession(prev => ({ ...prev, ...base, id: row.id, secret: row.secret }));
       setViewSessionId('');
@@ -921,6 +951,10 @@ function AdminPortal({
 
   const handleCreateSession = async (e) => {
     e.preventDefault();
+    if (sessionCatalogCourse && !sessionTermId) {
+      alert('Choose the academic term for this attendance session before continuing.');
+      return;
+    }
     if (!sessionForm.title.trim()) {
       alert('Give the session a name, for example "Test attendance".');
       return;
@@ -933,7 +967,10 @@ function AdminPortal({
       faceRequired: sessionForm.faceRequired,
       threshold: STRICTNESS[sessionForm.strictness] || 0.5,
       durationMin: Number(sessionForm.duration) || 0,
-      qrIntervalSeconds: Number(sessionForm.qrIntervalSeconds)
+      qrIntervalSeconds: Number(sessionForm.qrIntervalSeconds),
+      academicCourseId: sessionCatalogCourse?.id || null,
+      academicTermId: sessionCatalogCourse?.id ? sessionTermId : null,
+      teachingGroupId: sessionCatalogCourse?.id ? (sessionTeachingGroupId || null) : null
     });
     if (ok) {
       setShowSessionForm(false);
@@ -1647,6 +1684,27 @@ The request has NOT been rejected or approved. Check the student's official univ
                 </div>
 
                 <form onSubmit={handleCreateSession} className="space-y-4">
+                  {sessionCatalogCourse ? (
+                    <div className="rounded-xl border border-emerald-200 dark:border-emerald-900 bg-emerald-50/60 dark:bg-emerald-950/20 p-3 space-y-3">
+                      <p className="text-xs font-extrabold text-slate-900 dark:text-white">Academic attendance link</p>
+                      <p className="text-[10px] text-slate-600 dark:text-slate-300">{sessionCatalogCourse.code} · {sessionCatalogCourse.title}. Verified attendance from this session can contribute to the course result when the lecturer enables attendance weighting.</p>
+                      <label className={LABEL}>Academic term / semester
+                        <select className={FIELD} required value={sessionTermId} onChange={e => { setSessionTermId(e.target.value); setSessionTeachingGroupId(''); }}>
+                          <option value="">Choose academic term</option>
+                          {academicTerms.map(term => <option key={term.id} value={term.id}>{term.name}</option>)}
+                        </select>
+                      </label>
+                      {sessionTeachingGroups.length > 0 && <label className={LABEL}>Teaching group
+                        <select className={FIELD} value={sessionTeachingGroupId} onChange={e => setSessionTeachingGroupId(e.target.value)}>
+                          <option value="">Whole course / combined class</option>
+                          {sessionTeachingGroups.map(group => <option key={group.id} value={group.id}>{group.name} · {group.student_count} students</option>)}
+                        </select>
+                      </label>}
+                      <p className="text-[10px] text-slate-500">Choose a teaching group when the session is for one separately taught set. Leave it as whole course for a combined class.</p>
+                    </div>
+                  ) : (
+                    <p className="rounded-xl bg-amber-50 dark:bg-amber-950/20 p-3 text-[10px] text-amber-800 dark:text-amber-200">This staff course is not matched to the academic catalogue. The session can still run, but its attendance will not be included in academic CA calculations until the course assignment matches the catalogue.</p>
+                  )}
                   <div>
                     <label htmlFor="session-title" className={LABEL}>Session name</label>
                     <input
