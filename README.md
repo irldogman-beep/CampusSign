@@ -132,3 +132,14 @@ CampusSign now has dedicated entrypoints over one shared Supabase backend:
 The Android build workflow creates separate packages (`com.campussign.student` and `com.campussign.staff`) using the same authentication, attendance sessions, academic catalogue and records. See [the app and branding guide](CAMPUSSIGN-STUDENT-STAFF-AND-BRANDING.md).
 
 Verified administrators can configure the shared brand identity in **Admin → Branding studio**, including logo, colours, app names, welcome text and support email. The additive database setup is documented in `supabase-campus-branding.sql`.
+
+
+## University-first assessment and teaching groups (Step 26)
+
+The university/higher-institution experience is the default. Secondary-school mode is disabled by default and is available only through the explicit institution-mode control in Admin → Academic structure. Enabling the switch does not delete or convert existing records; secondary-specific workflows still require their own configuration and rollout.
+
+Lecturers manage CA and examination components for their assigned courses. They can create teaching groups for separately taught sets, select eligible students for each group, set the course/term CA-versus-examination weighting, and optionally allocate part of CA to attendance. Students from different programmes can be included in the same teaching group when they are registered for the same catalogue course. Admin's assessment area is oversight-only.
+
+Apply `supabase-step26-assessment-teaching-groups-and-mode.sql` after the existing academic structure and assessment migrations. The migration is additive and keeps existing assessments course-wide through a nullable teaching-group reference. Do not use the new assessment UI in production until the migration has been applied and verified.
+
+The full results publication workflow (submission, review, approval, publication and controlled post-publication correction) and automatic university progression eligibility engine are separate follow-on implementation work; the existing manual progression history is not a substitute for those features.
