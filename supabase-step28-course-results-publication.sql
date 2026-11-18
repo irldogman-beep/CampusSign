@@ -256,7 +256,7 @@ returns table(student_id text,full_name text,ca_score numeric,exam_score numeric
 language plpgsql
 security definer
 set search_path = public, auth, pg_temp
-as $
+as $$
 begin
   if auth.uid() is null or not public.is_admin() then raise exception 'admin_access_required'; end if;
   if not exists(select 1 from public.course_result_sheets where id=p_sheet) then
@@ -268,8 +268,7 @@ begin
   join public.student_accounts sa on sa.user_id=e.student_user_id
   where e.result_sheet_id=p_sheet
   order by sa.full_name,sa.student_id;
-end;
-$;
+end;$$;;
 
 create or replace function public.get_my_published_course_results()
 returns table(course_code text,course_title text,term_name text,teaching_group_name text,
