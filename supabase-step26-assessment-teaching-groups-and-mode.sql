@@ -103,7 +103,7 @@ as $$
 declare v_id uuid; v_name text := btrim(coalesce(p_name,'')); v_count integer;
 begin
   if auth.uid() is null then raise exception 'authentication_required'; end if;
-  if not (public.is_admin() or exists (
+  if not exists (
     select 1 from public.lecturers l join public.lecturer_course_assignments a on a.lecturer_id=l.id
     where l.id=auth.uid() and l.role='lecturer' and l.is_verified and a.course_id=p_course
   )) then raise exception 'course_access_denied'; end if;
@@ -182,7 +182,7 @@ as $$
 declare v_id uuid; v_used numeric := 0; v_title text := btrim(coalesce(p_title,''));
 begin
   if auth.uid() is null then raise exception 'authentication_required'; end if;
-  if not (public.is_admin() or exists (
+  if not exists (
     select 1 from public.lecturers l join public.lecturer_course_assignments a on a.lecturer_id=l.id
     where l.id=auth.uid() and l.role='lecturer' and l.is_verified and a.course_id=p_course
   )) then raise exception 'course_access_denied'; end if;
@@ -231,7 +231,7 @@ language plpgsql security definer set search_path = public, auth, pg_temp
 as $$
 begin
   if auth.uid() is null then raise exception 'authentication_required'; end if;
-  if not (public.is_admin() or exists (
+  if not exists (
     select 1 from public.lecturers l join public.lecturer_course_assignments a on a.lecturer_id=l.id
     where l.id=auth.uid() and l.role='lecturer' and l.is_verified and a.course_id=p_course
   )) then raise exception 'course_access_denied'; end if;
@@ -281,7 +281,7 @@ begin
   select a.course_id,a.teaching_group_id,a.max_score,c.code,c.title into v_course,v_group,v_max,v_code,v_title
   from public.course_assessments a join public.academic_courses c on c.id=a.course_id where a.id=p_assessment;
   if not found then raise exception 'assessment_not_found'; end if;
-  if not (public.is_admin() or exists (
+  if not exists (
     select 1 from public.lecturers l join public.lecturer_course_assignments a on a.lecturer_id=l.id
     where l.id=auth.uid() and l.role='lecturer' and l.is_verified and a.course_id=v_course
   )) then raise exception 'course_access_denied'; end if;
@@ -308,6 +308,7 @@ begin
 end;
 $$;
 
+revoke all on function public.save_course_assessment(uuid,uuid,uuid,text,text,numeric,numeric,date) from public,anon,authenticated;
 revoke all on function public.list_my_teaching_groups(uuid,uuid) from public,anon;
 revoke all on function public.save_teaching_group(uuid,uuid,uuid,text,uuid[]) from public,anon;
 revoke all on function public.assessment_teaching_group_students(uuid) from public,anon;
