@@ -20,6 +20,16 @@ export default function WorkspaceUxControls() {
   }, [mobileOpen, collapsed]);
 
   useEffect(() => {
+    const anchor = document.querySelector('.cs-workspace-layout-controls-anchor') as HTMLElement | null;
+    const layout = anchor?.nextElementSibling?.classList.contains('cs-workspace-layout') ? anchor.nextElementSibling : null;
+    const closeOnNavigate = (event: Event) => {
+      if ((event.target as HTMLElement | null)?.closest('.cs-workspace-sidebar nav button')) setMobileOpen(false);
+    };
+    layout?.addEventListener('click', closeOnNavigate);
+    return () => layout?.removeEventListener('click', closeOnNavigate);
+  }, []);
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (!event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
       const digit = Number(event.key);
