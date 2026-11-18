@@ -914,3 +914,43 @@ body {
 }
 .cs-skip-link:focus { transform: translateY(0); outline: 3px solid var(--brand-accent, #dfad48); outline-offset: 2px; }
 #main-content:focus { outline: none; }
+
+
+/* High-value workspace navigation: collapsible desktop rail and mobile drawer. */
+.cs-workspace-layout-shell { min-width: 0; }
+.cs-workspace-controls { margin: 0 0 .65rem; }
+.cs-workspace-menu-toggle, .cs-workspace-collapse-toggle, .cs-workspace-shortcuts-toggle {
+  display: inline-flex; align-items: center; gap: .45rem; min-height: 38px;
+  padding: .55rem .8rem; border: 1px solid var(--cs-line, #dbe5dd); border-radius: 11px;
+  color: var(--cs-ink, #24382d); background: var(--cs-surface, #fff);
+  font-size: 11px; font-weight: 750;
+}
+.cs-workspace-menu-toggle { display: none; }
+.cs-workspace-shortcuts-popover {
+  position: absolute; z-index: 60; right: 0; top: calc(100% + 8px); width: min(290px, 85vw);
+  padding: 14px; border: 1px solid var(--cs-line, #dbe5dd); border-radius: 13px;
+  color: var(--cs-ink, #24382d); background: var(--cs-surface, #fff);
+  box-shadow: 0 14px 34px rgb(15 45 30 / 14%); font-size: 11px; line-height: 1.6;
+}
+.cs-workspace-shortcuts-popover p { margin-top: 7px; color: var(--cs-muted, #64756a); }
+.cs-workspace-shortcuts-popover kbd { padding: 2px 5px; border: 1px solid var(--cs-line, #dbe5dd); border-radius: 5px; font-weight: 800; }
+@media (min-width: 1024px) {
+  .cs-workspace-layout.is-collapsed { grid-template-columns: 76px minmax(0, 1fr) !important; }
+  .cs-workspace-layout.is-collapsed .cs-workspace-sidebar { padding: .65rem; }
+  .cs-workspace-layout.is-collapsed .cs-workspace-sidebar > div:first-child,
+  .cs-workspace-layout.is-collapsed .cs-workspace-sidebar > p,
+  .cs-workspace-layout.is-collapsed .cs-workspace-sidebar > div:last-child { display: none; }
+  .cs-workspace-layout.is-collapsed .cs-workspace-sidebar nav button { justify-content: center; padding-inline: .4rem !important; }
+  .cs-workspace-layout.is-collapsed .cs-workspace-sidebar nav button span { display: none; }
+}
+@media (max-width: 1023px) {
+  .cs-workspace-menu-toggle { display: inline-flex; }
+  .cs-workspace-collapse-toggle { display: none; }
+  .cs-workspace-layout .cs-workspace-sidebar { display: none; }
+  .cs-workspace-layout.is-mobile-open .cs-workspace-sidebar { display: block; }
+  .cs-workspace-layout .cs-workspace-sidebar nav { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+@media (max-width: 420px) {
+  .cs-workspace-controls { align-items: stretch; }
+  .cs-workspace-menu-toggle, .cs-workspace-shortcuts-toggle { min-height: 36px; padding: .48rem .65rem; font-size: 10px; }
+}
