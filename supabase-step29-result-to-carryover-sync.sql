@@ -125,7 +125,7 @@ returns jsonb
 language plpgsql
 security definer
 set search_path = public, auth, pg_temp
-as $
+as $$
 declare
   v_account public.student_accounts;
   v_academic public.student_academic_profiles;
@@ -179,7 +179,7 @@ begin
     'academic_status',coalesce(v_academic.academic_status,'active'),'admission_set',v_cohort_name,'current_level',v_level_name),
     'courses',v_courses,'attendance',v_attendance,'course_attempts',coalesce(v_course_attempts,'[]'::jsonb),'unread_notifications',v_unread);
 end;
-$;
+$$;
 
 revoke all on function public.sync_published_result_to_course_attempts(uuid) from public,anon,authenticated;
 grant execute on function public.review_course_result_sheet(uuid,text,text) to authenticated;
