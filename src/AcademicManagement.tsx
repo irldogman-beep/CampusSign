@@ -6,7 +6,7 @@ const field = 'w-full rounded-xl border border-slate-200 dark:border-slate-700 b
 const primary = 'rounded-xl bg-emerald-900 hover:bg-emerald-800 text-white px-4 py-2.5 text-xs font-bold disabled:opacity-50';
 const secondary = 'rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200';
 
-const emptySettings = { id: 1, education_type: 'university', level_label: 'Level', period_label: 'Academic year', term_label: 'Semester', terms_per_period: 2, progression_mode: 'manual' };
+const emptySettings = { id: 1, education_type: 'university', secondary_mode_enabled: false, level_label: 'Level', period_label: 'Academic year', term_label: 'Semester', terms_per_period: 2, progression_mode: 'manual' };
 
 export default function AcademicManagement() {
   const [settings, setSettings] = useState<any>(emptySettings);
@@ -131,7 +131,7 @@ export default function AcademicManagement() {
     <section className={panel}>
       <div><p className="text-[10px] uppercase tracking-wider font-black text-emerald-700 dark:text-emerald-300">Institution setup</p><h2 className="text-lg font-extrabold text-slate-900 dark:text-white mt-1">Academic structure</h2><p className="text-xs text-slate-500 mt-1">Configure the education system once. Levels, periods and terms then follow this institution's model.</p></div>
       <form onSubmit={saveSettings} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        <label className="text-[10px] font-bold text-slate-500">Education type<select className={field+' mt-1'} value={settings.education_type} onChange={e=>setSettings({...settings,education_type:e.target.value})}><option value="secondary">Secondary school</option><option value="college">College / Polytechnic</option><option value="university">University</option><option value="custom">Custom institution</option></select></label>
+        <div className="rounded-xl border border-emerald-200 dark:border-emerald-900 bg-emerald-50/60 dark:bg-emerald-950/20 p-3 sm:col-span-2 lg:col-span-3"><div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><p className="text-xs font-extrabold text-slate-900 dark:text-white">Institution academic mode</p><p className="text-[10px] text-slate-600 dark:text-slate-300 mt-1">CampusSign is university-first. Secondary-school workflows stay locked unless an authorised administrator deliberately enables them.</p></div><label className="inline-flex items-center gap-2 text-xs font-bold text-slate-800 dark:text-slate-100"><input type="checkbox" checked={!!settings.secondary_mode_enabled} onChange={e=>{const enabled=e.target.checked;if(!window.confirm(enabled?'Enable secondary-school mode for this institution? This changes the academic mode but does not delete existing university records. Secondary-specific workflows must be configured separately.':'Return this institution to university mode? Existing academic records will be preserved.'))return;setSettings({...settings,secondary_mode_enabled:enabled,education_type:enabled?'secondary':'university'});}}/> Enable secondary-school mode</label></div><p className="text-[10px] text-slate-500 mt-2">{settings.secondary_mode_enabled?'Secondary-school mode selected. Save settings to apply the mode.':'University / higher-institution mode active. Secondary-only features remain unavailable.'}</p></div>
         <label className="text-[10px] font-bold text-slate-500">Level label<input className={field+' mt-1'} value={settings.level_label} onChange={e=>setSettings({...settings,level_label:e.target.value})} placeholder="e.g. Class or Level" required/></label>
         <label className="text-[10px] font-bold text-slate-500">Academic period label<input className={field+' mt-1'} value={settings.period_label} onChange={e=>setSettings({...settings,period_label:e.target.value})} placeholder="e.g. Academic year" required/></label>
         <label className="text-[10px] font-bold text-slate-500">Term label<input className={field+' mt-1'} value={settings.term_label} onChange={e=>setSettings({...settings,term_label:e.target.value})} placeholder="e.g. Semester or Term" required/></label>
@@ -139,7 +139,7 @@ export default function AcademicManagement() {
         <label className="text-[10px] font-bold text-slate-500">Progression approval<select className={field+' mt-1'} value={settings.progression_mode} onChange={e=>setSettings({...settings,progression_mode:e.target.value})}><option value="manual">Manual administrator approval</option></select></label>
         <div className="sm:col-span-2 lg:col-span-3 flex justify-end"><button className={primary} disabled={busy}>Save academic settings</button></div>
       </form>
-      <p className="text-[10px] text-slate-500">Changing these labels does not rename existing records or automatically promote students. Progression remains an explicit, reviewable action.</p>
+      <p className="text-[10px] text-slate-500">Changing the institution mode or labels does not delete, rename or automatically migrate existing academic records. Promotion remains an explicit, reviewable action.</p>
     </section>
 
     <section className={panel}>
