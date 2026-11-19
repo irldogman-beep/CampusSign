@@ -290,7 +290,7 @@ export default function AcademicManagement() {
         <label className="text-[10px] font-bold text-slate-500">Maximum outstanding carryovers
           <input className={field+' mt-1'} type="number" min="0" max="50" step="1" value={progressionPolicy.maximum_carryovers} onChange={e=>setProgressionPolicy({...progressionPolicy,maximum_carryovers:e.target.value})} placeholder="Not used"/>
         </label>
-        <label className="text-[10px] font-bold text-slate-500">Minimum earned credits
+        <label className="text-[10px] font-bold text-slate-500">Minimum cumulative earned credits
           <input className={field+' mt-1'} type="number" min="0" max="10000" step="0.5" value={progressionPolicy.minimum_earned_credits} onChange={e=>setProgressionPolicy({...progressionPolicy,minimum_earned_credits:e.target.value})} placeholder="Not used"/>
         </label>
         <div className="sm:col-span-2 lg:col-span-3 border-t border-slate-100 dark:border-slate-800 pt-3">
