@@ -342,7 +342,7 @@ export default function AcademicManagement() {
           return <article key={review.id} className="rounded-xl border border-slate-200 dark:border-slate-700 p-3 sm:p-4 space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
               <div className="min-w-0"><p className="text-sm font-extrabold text-slate-900 dark:text-white">{review.student_name}</p><p className="text-[10px] text-slate-500">{review.student_id} · {review.from_level||'Level not assigned'} {review.proposed_level? '→ '+review.proposed_level : ''}</p></div>
-              <div className="flex flex-wrap gap-1.5"><span className={'rounded-full px-2.5 py-1 text-[9px] font-bold '+badge}>{review.eligibility_status.replace('_',' ')}</span><span className="rounded-full px-2.5 py-1 text-[9px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">{review.decision_status.replaceAll('_',' ')}</span></div>
+              <div className="flex flex-wrap gap-1.5"><span className={'rounded-full px-2.5 py-1 text-[9px] font-bold '+badge}>{review.eligibility_status.replace('_',' ')}</span><span className="rounded-full px-2.5 py-1 text-[9px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">{review.decision_status.replace(/_/g,' ')}</span></div>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <div className="rounded-lg bg-slate-50 dark:bg-slate-800 p-2"><p className="text-[9px] text-slate-500">CGPA</p><p className="text-sm font-extrabold">{metrics.cgpa==null?'—':Number(metrics.cgpa).toFixed(2)} <span className="text-[9px] font-normal text-slate-500">/ {metrics.maximum_grade_point??'—'}</span></p></div>
