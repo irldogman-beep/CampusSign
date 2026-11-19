@@ -265,7 +265,7 @@ export default function AssessmentManagement({ mode = 'admin' }: { mode?: 'admin
   return <div className="space-y-4">
 
     {isAdmin && <section className={panel}>
-      <div><h2 className="text-base font-extrabold text-slate-900 dark:text-white">Result review & publication</h2><p className="text-xs text-slate-500 mt-1">Open a result sheet to inspect student scores before approving it. Publication is a separate final step.</p></div>
+      <div><h2 className="text-base font-extrabold text-slate-900 dark:text-white">Result review & publication</h2><p className="text-xs text-slate-500 mt-1">Review submitted marks, approve the result sheet, then publish results for students.</p></div>
       {!resultSheets.length ? <p className="py-4 text-xs text-slate-500">No result sheets have been submitted for review yet.</p> : <div className="space-y-2">{resultSheets.map((sheet: any) => <article key={sheet.id} className="rounded-xl border border-slate-200 dark:border-slate-700 p-3 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0"><strong className="block text-xs text-slate-900 dark:text-white">{sheet.course_code} · {sheet.course_title}</strong><p className="text-[10px] text-slate-500 mt-1">{sheet.term_name}{sheet.teaching_group_name ? ' · ' + sheet.teaching_group_name : ' · Course-wide roster'} · {sheet.student_count} students</p><p className="text-[10px] text-slate-500">Status: <strong className="capitalize">{sheet.status}</strong>{sheet.review_note ? ' · ' + sheet.review_note : ''}</p></div>
@@ -278,7 +278,7 @@ export default function AssessmentManagement({ mode = 'admin' }: { mode?: 'admin
       <div>
         <p className="text-[10px] uppercase tracking-wider font-black text-emerald-700 dark:text-emerald-300">{isAdmin ? 'Academic results management' : 'Lecturer-led teaching tools'}</p>
         <h2 className="text-lg font-extrabold text-slate-900 dark:text-white mt-1">Continuous Assessment & Examinations</h2>
-        <p className="text-xs leading-relaxed text-slate-500 mt-1">Choose a course, academic term and (where needed) a teaching group. Students from different programmes can share one group when they attend the same class. Separate groups keep separate rosters and marks.</p>
+        <p className="text-xs leading-relaxed text-slate-500 mt-1">Select a course and term. Use a teaching group only when the course has separate class sets; each group has its own roster and marks.</p>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <label className="text-[10px] font-bold text-slate-500">Course / subject
@@ -301,7 +301,7 @@ export default function AssessmentManagement({ mode = 'admin' }: { mode?: 'admin
         </label>
       </div>
       <div className="flex flex-wrap gap-2 justify-between items-center">
-        <p className="text-[10px] text-slate-500">Use a teaching group when one course has separately taught sets. Leave the group unselected when everyone takes the course together.</p>
+        <p className="text-[10px] text-slate-500">Choose a group for a separate class set. Leave it blank for the full course.</p>
         {!isAdmin && <button type="button" className={secondary} disabled={!selectedCourse || !selectedTerm} onClick={() => void openGroupBuilder()}>Create teaching group</button>}
       </div>
       {!isAdmin && showGroupBuilder && <form onSubmit={saveGroup} className="rounded-xl border border-emerald-200 dark:border-emerald-900 p-3 space-y-3">
@@ -319,7 +319,7 @@ export default function AssessmentManagement({ mode = 'admin' }: { mode?: 'admin
     </section>
 
     {selectedCourse && selectedTerm && <section className={panel}>
-      <div><h3 className="font-extrabold text-slate-900 dark:text-white">Assessment policy</h3><p className="text-xs text-slate-500 mt-1">Lecturers control the split for their course within the institution's approved grading framework. The default is 40% CA and 60% examination; change it where your course requires a different balance.</p></div>
+      <div><h3 className="font-extrabold text-slate-900 dark:text-white">Assessment policy</h3><p className="text-xs text-slate-500 mt-1">Set the percentage split between CA and exams for this course. The default is 40% CA and 60% exam.</p></div>
       <form onSubmit={savePolicy} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 items-end">
         <label className="text-[10px] font-bold text-slate-500">CA contribution (%)<input className={field+' mt-1'} type="number" min="0" max="100" step="0.01" required value={policy.ca_weight_percent} disabled={isAdmin} onChange={e=>setPolicy({...policy,ca_weight_percent:e.target.value})}/></label>
         <label className="text-[10px] font-bold text-slate-500">Exam contribution (%)<input className={field+' mt-1'} type="number" min="0" max="100" step="0.01" required value={policy.exam_weight_percent} disabled={isAdmin} onChange={e=>setPolicy({...policy,exam_weight_percent:e.target.value})}/></label>
@@ -330,7 +330,7 @@ export default function AssessmentManagement({ mode = 'admin' }: { mode?: 'admin
     </section>}
 
     {!isAdmin && <section className={panel}>
-      <div><h3 className="font-extrabold text-slate-900 dark:text-white">Assessment components</h3><p className="text-xs text-slate-500 mt-1">Lecturers create and manage their own tests, assignments, quizzes, practicals and exam components. Each component's percentage is calculated within its CA or examination category.</p></div>
+      <div><h3 className="font-extrabold text-slate-900 dark:text-white">Assessment components</h3><p className="text-xs text-slate-500 mt-1">Add tests, assignments, quizzes, practicals and exams. Each component contributes to its CA or exam category.</p></div>
       <form onSubmit={saveAssessment} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
         <input className={field+' sm:col-span-2'} required maxLength={120} placeholder="Assessment name e.g. Test 1 / Assignment 2" value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/>
         <select className={field} value={form.assessment_type} onChange={e=>setForm({...form,assessment_type:e.target.value})}><option value="ca">Continuous assessment (CA)</option><option value="exam">Examination</option></select>
@@ -344,19 +344,19 @@ export default function AssessmentManagement({ mode = 'admin' }: { mode?: 'admin
 
     <section className={panel}>
       <div><h3 className="font-extrabold text-slate-900 dark:text-white">Assessment list</h3><p className="text-xs text-slate-500 mt-1">{selectedGroup ? 'Only assessments for the selected teaching group are shown.' : 'Showing course-wide assessments for all registered students.'}</p></div>
-      {!selectedCourse||!selectedTerm ? <p className="text-xs text-slate-500 py-3">Choose a course and academic term above.</p> : assessments.length===0 ? <p className="text-xs text-slate-500 py-3">No assessments have been created for this selection.</p> :
+      {!selectedCourse||!selectedTerm ? <p className="text-xs text-slate-500 py-3">Select a course and term to view assessments.</p> : assessments.length===0 ? <p className="text-xs text-slate-500 py-3">There are no assessments for this course and term yet.</p> :
         <div className="space-y-2">{assessments.map(a=><div key={a.id} className="rounded-xl border border-slate-200 dark:border-slate-800 p-3 flex flex-wrap items-center justify-between gap-3"><button type="button" className="text-left min-w-0 flex-1" onClick={()=>void loadScores(a.id).catch(e=>setError(db.friendly(e)))}><strong className="block text-xs text-slate-900 dark:text-white">{a.title}</strong><span className="text-[10px] text-slate-500">{a.assessment_type==='ca'?'Continuous assessment':'Examination'} · {a.max_score} marks · {a.weight_percent}% contribution {a.due_on?' · Due '+a.due_on:''}</span></button><div className="flex gap-2">{!isAdmin && <button type="button" className={secondary} onClick={()=>editAssessment(a)}>Edit</button>}<button type="button" className={a.id===selectedAssessment?primary:secondary} onClick={()=>void loadScores(a.id).catch(e=>setError(db.friendly(e)))}>{a.id===selectedAssessment?'Selected':isAdmin?'View marks':'Enter marks'}</button></div></div>)}</div>}
     </section>
 
     {chosen && <section className={panel}>
       <div><h3 className="font-extrabold text-slate-900 dark:text-white">Record marks — {chosen.title}</h3><p className="text-xs text-slate-500 mt-1">Enter a score from 0 to {chosen.max_score}. The roster is limited to the selected teaching group where one is assigned.</p></div>
-      {students.length===0 ? <p className="text-xs text-slate-500 py-4">No approved students were found in this roster.</p> :
+      {students.length===0 ? <p className="text-xs text-slate-500 py-4">No approved students are in this class list yet.</p> :
         <div className="space-y-2">{students.map(student=>{const value=scores[student.user_id]||{score:'',feedback:''};const valid=value.score!==''&&Number(value.score)>=0&&Number(value.score)<=Number(chosen.max_score);return <div key={student.user_id} className="grid grid-cols-1 sm:grid-cols-[1.2fr_110px_1.5fr_auto] gap-2 items-center rounded-xl border border-slate-100 dark:border-slate-800 p-3"><div className="min-w-0"><strong className="block text-xs text-slate-900 dark:text-white">{student.full_name}</strong><span className="text-[10px] text-slate-500">{student.student_id} · {student.email}</span></div><label className="text-[10px] text-slate-500">Mark / {chosen.max_score}<input className={field+' mt-1'} type="number" min="0" max={chosen.max_score} step="0.01" value={value.score} disabled={isAdmin} onChange={e=>setScores(prev=>({...prev,[student.user_id]:{...value,score:e.target.value,saved:false}}))}/></label><input className={field} placeholder="Feedback (optional)" value={value.feedback} disabled={isAdmin} onChange={e=>setScores(prev=>({...prev,[student.user_id]:{...value,feedback:e.target.value,saved:false}}))}/>{!isAdmin && <button type="button" className={value.saved?secondary:primary} disabled={busy||!valid||!!value.saved} onClick={()=>void saveScore(student)}>{value.saved?'Saved':'Save mark'}</button>}</div>})}</div>}
     </section>}
 
 
     {!isAdmin && selectedCourse && selectedTerm && <section className={panel}>
-      <div><h3 className="font-extrabold text-slate-900 dark:text-white">Submit course results</h3><p className="text-xs text-slate-500 mt-1">When all marks are complete and the CA/examination component weights are valid, submit the selected roster for administrative review. Students will not see the result until an administrator publishes it.</p></div>
+      <div><h3 className="font-extrabold text-slate-900 dark:text-white">Submit course results</h3><p className="text-xs text-slate-500 mt-1">When marks are complete, submit this course result for review. Students can see it only after an administrator publishes it.</p></div>
       <button type="button" className={primary} disabled={resultBusy || busy} onClick={() => void submitResults()}>{resultBusy ? 'Submitting…' : 'Submit result sheet for review'}</button>
     </section>}
     {message&&<p role="status" className="rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 p-3 text-xs text-emerald-800 dark:text-emerald-200">{message}</p>}
