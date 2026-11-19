@@ -495,17 +495,17 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
     [item.code, item.title, item.department_name, item.level].some((value) => String(value || '').toLowerCase().includes(catalogSearch.toLowerCase().trim()))
   );
   const sectionGuidance: Record<string, string> = {
-    overview: 'A live summary of staff, student enrolments, attendance activity and the most active courses.',
-    academic: 'Set up the institution hierarchy: create faculties, place departments under faculties, then maintain the course or subject catalogue.',
-    'academic-setup': 'Configure the education model, class or level names, academic periods, terms, admission sets and individual student progression.',
-    assessments: 'Monitor lecturer-managed CA and examination activity, review assessment policies and inspect recorded marks.',
-    lecturers: 'Review lecturer registrations, verify staff accounts and assign the courses or subjects each lecturer is allowed to manage.',
-    enrolments: 'Review course-registration requests submitted by students and route decisions through the responsible lecturer.',
-    'student-accounts': 'Review new student accounts, search the student register and manage approved student access.',
-    monitoring: 'Review attendance sessions and saved attendance records. Deleting a session also deletes the attendance rows inside that list.',
-    announcements: 'Compose notices and target all students, staff, a department, a course or an individual student.',
-    audit: 'Review a trace of sensitive administrative actions, including changes to academic records and account access.',
-    branding: 'Customise the institution identity and independently configure the Student and Staff workspace appearance.'
+    overview: 'See key figures for staff, students, courses and attendance.',
+    academic: 'Manage faculties, departments and the course catalogue.',
+    'academic-setup': 'Set academic levels, sessions, terms, admission groups and progression settings.',
+    assessments: 'Review assessments, grading policies and submitted marks.',
+    lecturers: 'Verify lecturer accounts and manage their course assignments.',
+    enrolments: 'Track student course requests and their approval status.',
+    'student-accounts': 'Review student accounts, search the register and manage access.',
+    monitoring: 'View attendance sessions and records. Deleting a session also deletes its attendance list.',
+    announcements: 'Send notices to the whole institution or a selected group.',
+    audit: 'See who changed important records or account access, and when.',
+    branding: 'Set the institution branding and customise the Student and Staff workspaces.'
   };
 
   const normalizedAuditSearch = auditSearch.trim().toLowerCase();
@@ -523,11 +523,11 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
 
   const statCards = [
     { label: 'Lecturers', value: overview?.lecturers_total ?? '—', detail: `${overview?.lecturers_verified ?? 0} verified · Manage accounts`, icon: UserCog, tab: 'lecturers' },
-    { label: 'Awaiting verification', value: overview?.lecturers_pending ?? '—', detail: 'Review pending accounts', icon: ShieldAlert, tab: 'lecturers' },
-    { label: 'Student-course enrolments', value: overview?.student_course_enrolments ?? '—', detail: 'Manage student records', icon: Users, tab: 'enrolments' },
+    { label: 'Awaiting verification', value: overview?.lecturers_pending ?? '—', detail: 'Review accounts', icon: ShieldAlert, tab: 'lecturers' },
+    { label: 'Course enrolments', value: overview?.student_course_enrolments ?? '—', detail: 'Manage student records', icon: Users, tab: 'enrolments' },
     { label: 'Attendance records', value: overview?.attendance_total ?? '—', detail: `${overview?.attendance_today ?? 0} today · Review records`, icon: ClipboardList, tab: 'monitoring' },
     { label: 'Sessions', value: overview?.sessions_total ?? '—', detail: `${overview?.sessions_active ?? 0} active · Manage sessions`, icon: QrCode, tab: 'monitoring' },
-    { label: 'Courses', value: catalogCourses.length, detail: 'Edit academic catalogue', icon: BookOpen, tab: 'academic' },
+    { label: 'Courses', value: catalogCourses.length, detail: 'Manage courses', icon: BookOpen, tab: 'academic' },
   ];
 
   return (
@@ -547,13 +547,13 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
       <div className="cs-workspace-layout grid grid-cols-1 lg:grid-cols-[230px_minmax(0,1fr)] gap-4 lg:gap-6 items-start">
         <aside className="cs-workspace-sidebar lg:sticky lg:top-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 sm:p-4 space-y-3">
           <div className="px-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-            <p className="text-[10px] font-black uppercase tracking-[.16em] text-emerald-700 dark:text-emerald-300">Workspace menu</p>
+            <p className="text-[10px] font-black uppercase tracking-[.16em] text-emerald-700 dark:text-emerald-300">Menu</p>
             <h2 className="text-sm font-extrabold text-slate-900 dark:text-white mt-1">Administration</h2>
             <p className="text-[10px] text-slate-500 mt-1">Choose an area to manage.</p>
           </div>
       <nav id="admin-workspace-navigation" aria-label="Admin dashboard sections" className="cs-admin-nav">
         {[
-          { title: 'Overview & monitoring', items: [
+          { title: 'Overview', items: [
             { id: 'overview', label: 'Overview', icon: BarChart3 },
             { id: 'monitoring', label: 'Attendance & sessions', icon: LayoutDashboard },
           ]},
@@ -591,7 +591,7 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
         ))}
       </nav>
           <div className="hidden lg:block rounded-xl bg-slate-50 dark:bg-slate-800/70 p-3 text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">
-            Your menu stays available while you work. Select a section to switch the main workspace.
+            Choose a section to manage that part of CampusSign.
           </div>
         </aside>
         <section className="min-w-0 space-y-4">
