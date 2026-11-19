@@ -315,6 +315,7 @@ export default function StudentAccountPortal({ onClose, onEnroll, onTakeAttendan
             </div>
             {profile.status==='pending' && <div className="mt-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 p-4"><p className="text-xs text-amber-900 dark:text-amber-200 font-semibold">Your details are being checked by an administrator. Course selection and face enrolment will be available after your account is approved.</p><button type="button" onClick={refresh} className="mt-3 rounded-xl border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 px-4 py-2.5 text-xs font-bold">Check approval status</button></div>}
             {profile.status==='rejected' && <p className="mt-4 text-xs text-rose-700 dark:text-rose-300">Your account was not approved. Contact your department office to confirm or correct your details.</p>}
+            {profile.status==='approved' && profile.academic_status==='probation' && <div className="mt-4 rounded-2xl border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 p-4"><p className="text-xs font-bold text-amber-900 dark:text-amber-200">You are currently on academic probation.</p><p className="mt-1 text-[11px] text-amber-800 dark:text-amber-300">Your student account remains active. Contact your department for the conditions you need to meet to return to good academic standing.</p></div>}
           </section>
 
           {profile.status==='approved' && <>
