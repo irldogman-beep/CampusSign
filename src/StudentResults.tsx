@@ -165,7 +165,7 @@ export default function StudentResults() {
     </section>
 
     <section className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-sm space-y-3">
-      <div><h3 className="font-extrabold text-slate-900 dark:text-white">Term GPA</h3><p className="text-[11px] text-slate-500 mt-1">Each term uses the latest graded attempt for each course within that term. CGPA follows the institution's repeated-course rule.</p></div>
+      <div><h3 className="font-extrabold text-slate-900 dark:text-white">Term GPA</h3><p className="text-[11px] text-slate-500 mt-1">Term GPA uses the latest graded attempt per course. CGPA follows the institution's repeated-course rule.</p></div>
       {!terms.length ? <p className="py-4 text-center text-xs text-slate-500">No graded course attempts are available yet.</p> :
         <div className="overflow-x-auto"><table className="w-full min-w-[420px] text-left"><thead><tr className="text-[10px] uppercase text-slate-500 border-b border-slate-100 dark:border-slate-800"><th className="p-2">Academic term</th><th className="p-2 text-right">Credits</th><th className="p-2 text-right">GPA</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{terms.map(term=><tr key={term.termId}><td className="p-2 text-xs">{term.label}</td><td className="p-2 text-xs text-right tabular-nums">{term.credits.toFixed(1)}</td><td className="p-2 text-xs text-right font-bold tabular-nums">{term.gpa == null ? '—' : term.gpa.toFixed(2)}</td></tr>)}</tbody></table></div>}
     </section>
@@ -179,7 +179,7 @@ export default function StudentResults() {
     <section className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-5 shadow-sm space-y-3">
       <div>
         <h3 className="font-extrabold text-slate-900 dark:text-white">Published course results</h3>
-        <p className="text-[11px] text-slate-500 mt-1">Detailed CA, attendance and examination breakdowns appear here after administrative publication.</p>
+        <p className="text-[11px] text-slate-500 mt-1">See each published course's CA, attendance and exam scores here.</p>
       </div>
       {!rows.length ? <p className="py-8 text-center text-xs text-slate-500">No course results have been published for your account yet. Marks still being entered or reviewed will not appear here.</p> :
         <div className="space-y-2">{rows.map((row, index) => <article key={row.course_code + row.term_name + row.published_at + index} className="rounded-xl border border-slate-200 dark:border-slate-700 p-3">

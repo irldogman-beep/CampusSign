@@ -107,7 +107,7 @@ export default function AcademicGradingManagement() {
       <div>
         <p className="text-[10px] uppercase tracking-wider font-black text-emerald-700 dark:text-emerald-300">Institution grading</p>
         <h2 className="text-base font-extrabold text-slate-900 dark:text-white mt-1">Grading scale and GPA rules</h2>
-        <p className="text-xs text-slate-500 mt-1">Set the institution's own score boundaries and grade-point maximum. CampusSign does not assume every university uses the same scale.</p>
+        <p className="text-xs text-slate-500 mt-1">Set the grading scale your institution uses, including its maximum grade point.</p>
       </div>
       <form onSubmit={saveSettings} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <label className="text-[10px] font-bold text-slate-500">Scale name
@@ -124,7 +124,7 @@ export default function AcademicGradingManagement() {
           </select>
         </label>
         <div className="sm:col-span-3 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-[10px] text-slate-500">Latest attempt is the default. Choose the rule that matches your institution's academic regulations.</p>
+          <p className="text-[10px] text-slate-500">Choose how repeated courses affect CGPA. The latest attempt is the default.</p>
           <button className={primary} disabled={busy}>Save grading rules</button>
         </div>
       </form>
@@ -132,7 +132,7 @@ export default function AcademicGradingManagement() {
 
     <section className={panel}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div><h3 className="font-extrabold text-slate-900 dark:text-white">Grade boundaries</h3><p className="text-xs text-slate-500 mt-1">Define inclusive score ranges. Active ranges must not overlap. A result can only receive a grade when its score falls inside one active range.</p></div>
+        <div><h3 className="font-extrabold text-slate-900 dark:text-white">Grade boundaries</h3><p className="text-xs text-slate-500 mt-1">Set score ranges for each grade. Active ranges cannot overlap, and every published score must fit an active range.</p></div>
         <span className="text-[10px] text-slate-500">{bands.filter(b=>b.is_active).length} active bands</span>
       </div>
       <form onSubmit={saveBand} className="grid grid-cols-2 sm:grid-cols-4 gap-2">
