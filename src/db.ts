@@ -60,6 +60,25 @@ const MESSAGES: Record<string, string> = {
   course_credit_units_invalid: 'Course credit units must be between 0 and 30.',
   grade_band_missing_for_published_score: 'At least one published score does not fit an active grade band. Complete the grade boundaries before applying the scale.',
   grade_scale_not_configured: 'Configure active grade boundaries before applying a grading scale to published results.',
+  progression_rule_required: 'Set at least one progression requirement before saving.',
+  invalid_minimum_cgpa: 'Minimum CGPA cannot be negative.',
+  invalid_maximum_carryovers: 'Maximum carryovers must be between 0 and 50.',
+  invalid_minimum_credits: 'Minimum earned credits must be between 0 and 10,000.',
+  invalid_probation_cgpa: 'Probation CGPA must be zero or higher and cannot exceed the normal CGPA requirement.',
+  invalid_probation_carryovers: 'Probation carryover limit must be between 0 and 50 and cannot be lower than the normal limit.',
+  minimum_cgpa_exceeds_scale: 'Minimum CGPA cannot exceed the institution maximum grade point.',
+  probation_cgpa_exceeds_scale: 'Probation CGPA cannot exceed the institution maximum grade point.',
+  progression_rules_not_configured: 'Save at least one progression requirement before generating a review.',
+  academic_period_not_found: 'The selected academic period could not be found. Refresh the page and try again.',
+  academic_period_has_no_terms: 'Add at least one term to this academic period before generating a progression review.',
+  student_not_eligible_for_promotion: 'This student does not meet the configured promotion requirements.',
+  student_academic_profile_required: 'Assign the student an academic profile and current level first.',
+  student_cannot_repeat_level: 'This student cannot be marked as repeating from their current academic status.',
+  student_not_ready_for_completion_review: 'Only students at the highest configured level can be marked as graduated.',
+  progression_review_not_found: 'This progression review could not be found. Refresh the list and try again.',
+  progression_review_already_decided: 'This progression review already has a recorded decision.',
+  invalid_progression_decision: 'Choose a valid progression decision.',
+  decision_note_required: 'Add a decision note of at least 5 characters.',
 };
 
 export function friendly(e: any): string {
@@ -540,6 +559,41 @@ export async function loadStudentProgressionEvents(): Promise<any[]> {
 export async function loadStudentCourseAttempts(): Promise<any[]> {
   const { data, error } = await supabase.from('student_course_attempts').select('*').order('created_at', { ascending: false }).limit(250);
   if (error) throw error; return data || [];
+}
+
+export async function loadAcademicProgressionPolicy(): Promise<any> {
+  const { data, error } = await supabase.rpc('admin_get_progression_policy');
+  if (error) throw error;
+  return data || { id: 1 };
+}
+export async function saveAcademicProgressionPolicy(input: any): Promise<any> {
+  const { data, error } = await supabase.rpc('admin_save_progression_policy', {
+    p_minimum_cgpa: input.minimum_cgpa === '' || input.minimum_cgpa == null ? null : Number(input.minimum_cgpa),
+    p_maximum_carryovers: input.maximum_carryovers === '' || input.maximum_carryovers == null ? null : Number(input.maximum_carryovers),
+    p_minimum_earned_credits: input.minimum_earned_credits === '' || input.minimum_earned_credits == null ? null : Number(input.minimum_earned_credits),
+    p_probation_minimum_cgpa: input.probation_minimum_cgpa === '' || input.probation_minimum_cgpa == null ? null : Number(input.probation_minimum_cgpa),
+    p_probation_maximum_carryovers: input.probation_maximum_carryovers === '' || input.probation_maximum_carryovers == null ? null : Number(input.probation_maximum_carryovers),
+  });
+  if (error) throw error;
+  return data;
+}
+export async function generateAcademicProgressionReviews(periodId: string): Promise<any> {
+  const { data, error } = await supabase.rpc('admin_generate_progression_reviews', { p_academic_period_id: periodId });
+  if (error) throw error;
+  return data;
+}
+export async function loadAcademicProgressionReviews(periodId: string): Promise<any[]> {
+  if (!periodId) return [];
+  const { data, error } = await supabase.rpc('admin_list_progression_reviews', { p_academic_period_id: periodId });
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}
+export async function decideAcademicProgressionReview(reviewId: string, decision: string, note = ''): Promise<any> {
+  const { data, error } = await supabase.rpc('admin_decide_progression_review', {
+    p_review_id: reviewId, p_decision: decision, p_note: note.trim() || null,
+  });
+  if (error) throw error;
+  return data;
 }
 export async function saveStudentCourseAttempt(input: any) {
   const payload: any = { student_user_id: input.student_user_id, course_id: input.course_id, academic_term_id: input.academic_term_id, attempt_number: Number(input.attempt_number), status: input.status, grade: input.grade?.trim() || null, result_note: input.result_note?.trim() || null, updated_at: new Date().toISOString() };
