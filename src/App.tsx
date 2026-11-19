@@ -1549,7 +1549,7 @@ The request has NOT been rejected or approved. Check the student's official univ
           <div className="px-2 pb-2 border-b border-slate-100 dark:border-slate-800">
             <p className="text-[10px] font-black uppercase tracking-[.16em] text-emerald-700 dark:text-emerald-300">Workspace menu</p>
             <h2 className="text-sm font-extrabold text-slate-900 dark:text-white mt-1">Teaching workspace</h2>
-            <p className="text-[10px] text-slate-500 mt-1">Choose an area to manage your course.</p>
+            <p className="text-[10px] text-slate-500 mt-1">Manage your classes, students and results.</p>
           </div>
           <nav aria-label="Lecturer dashboard sections" className="cs-admin-nav">
             {[
@@ -1935,9 +1935,9 @@ The request has NOT been rejected or approved. Check the student's official univ
         </>}
 
         <header className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 px-4 py-3">
-          <p className="text-[10px] uppercase tracking-[.15em] font-black text-emerald-700 dark:text-emerald-300">Teaching workspace · {activeStaff?.course || 'Course'}</p>
+          <p className="text-[10px] uppercase tracking-[.15em] font-black text-emerald-700 dark:text-emerald-300">Teaching · {activeStaff?.course || 'Course'}</p>
           <h2 className="text-base font-extrabold text-slate-900 dark:text-white mt-1">{adminTab === 'session' ? 'Session & QR' : adminTab === 'roster' ? 'Attendance log' : adminTab === 'registry' ? 'Student roster' : adminTab === 'assessments' ? 'CA & Results' : 'Enrolment requests'}</h2>
-          <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">{adminTab === 'session' ? 'Create an attendance session and display its QR code to your class.' : adminTab === 'roster' ? 'Search, review and manage attendance records for your sessions.' : adminTab === 'registry' ? 'Find students registered for your course and manage their face-enrolment status.' : adminTab === 'assessments' ? 'Create CA and exam components, then record marks for students on your course roster.' : 'Review and respond to student requests to join your course.'}</p>
+          <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">{adminTab === 'session' ? 'Set up a class attendance session and display its QR code.' : adminTab === 'roster' ? 'Search, correct or remove attendance records from your sessions.' : adminTab === 'registry' ? 'View your course roster, search for a student, and check or complete face enrolment.' : adminTab === 'assessments' ? 'Set up tests, assignments and exams, then enter students’ marks.' : 'Approve or decline requests to join your course.'}</p>
         </header>
         {adminTab !== 'session' && adminTab !== 'assessments' && <div className="flex justify-end">
           {adminTab === 'roster' ? (
@@ -2873,10 +2873,10 @@ function StudentPortal({
     return (
       <div className="max-w-3xl mx-auto space-y-5 page-enter">
         <section className="rounded-3xl bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-950 text-white p-6 sm:p-8 border border-emerald-800 shadow-xl">
-          <div className="flex items-center gap-3"><CampusSignLogo logoUrl={branding.student_logo_url || branding.logo_url} className="w-12 h-12"/><div><p className="text-[10px] uppercase tracking-[.2em] text-emerald-200 font-black">CampusSign · Student services</p><h1 className="text-2xl sm:text-3xl font-black mt-1">Welcome, student</h1></div></div>
-          <p className="text-sm text-emerald-100/80 mt-4 max-w-xl">Sign in to your student dashboard to manage your courses, take attendance and view your attendance history.</p>
+          <div className="flex items-center gap-3"><CampusSignLogo logoUrl={branding.student_logo_url || branding.logo_url} className="w-12 h-12"/><div><p className="text-[10px] uppercase tracking-[.2em] text-emerald-200 font-black">CampusSign · Student services</p><h1 className="text-2xl sm:text-3xl font-black mt-1">Student workspace</h1></div></div>
+          <p className="text-sm text-emerald-100/80 mt-4 max-w-xl">Sign in to manage your courses, check your results and record class attendance.</p>
         </section>
-        <button onClick={() => setShowAccountPortal(true)} className="w-full text-left rounded-3xl p-6 sm:p-7 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 shadow-sm transition-all"><div className="w-11 h-11 rounded-2xl bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 grid place-items-center"><GraduationCap className="w-5 h-5"/></div><h2 className="text-lg font-black mt-4">My student dashboard</h2><p className="text-xs text-slate-500 mt-2 leading-relaxed">Sign in or create your student account to manage courses, take attendance, view attendance history, announcements and profile.</p><span className="inline-flex items-center gap-2 text-emerald-800 dark:text-emerald-300 font-extrabold text-xs mt-5">Open dashboard <ArrowRight className="w-4 h-4"/></span></button>
+        <button onClick={() => setShowAccountPortal(true)} className="w-full text-left rounded-3xl p-6 sm:p-7 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 shadow-sm transition-all"><div className="w-11 h-11 rounded-2xl bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 grid place-items-center"><GraduationCap className="w-5 h-5"/></div><h2 className="text-lg font-black mt-4">My student dashboard</h2><p className="text-xs text-slate-500 mt-2 leading-relaxed">Access your courses, results, attendance, messages and student details.</p><span className="inline-flex items-center gap-2 text-emerald-800 dark:text-emerald-300 font-extrabold text-xs mt-5">Open dashboard <ArrowRight className="w-4 h-4"/></span></button>
         {showHubBack && <button onClick={onHome} className="w-full text-xs font-bold text-slate-500 hover:text-emerald-700 py-2">Back to CampusSign home</button>}
       </div>
     );
@@ -3042,7 +3042,7 @@ function StudentPortal({
               <ArrowRight className="w-4 h-4" />
             </button>
             <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
-              <p className="text-[11px] text-slate-500 text-center">Need to manage your courses or student profile? Open Student account. Course registration is separate from attendance check-in.</p>
+              <p className="text-[11px] text-slate-500 text-center">Need your courses or profile? Open Student account. Attendance check-in is a separate step.</p>
             </div>
           </div>
         </div>
@@ -3053,8 +3053,8 @@ function StudentPortal({
         <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-lg space-y-6">
           <div className="text-center">
             <UserCheck className="w-12 h-12 text-emerald-700 dark:text-amber-400 mx-auto mb-2" />
-            <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">Enter Student Identification</h2>
-            <p className="text-xs text-slate-500">System will cross-reference your ID against the academic registry.</p>
+            <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">Confirm your student ID</h2>
+            <p className="text-xs text-slate-500">We’ll check your ID against the course register.</p>
           </div>
 
           {lookupError && (
@@ -3081,7 +3081,7 @@ function StudentPortal({
               type="submit"
               className="w-full py-3.5 bg-emerald-900 hover:bg-emerald-800 text-amber-400 font-extrabold rounded-2xl text-sm transition-colors shadow-lg border border-emerald-700"
             >
-              Verify Record Matches Roster
+              Find my student record
             </button>
           </form>
           <button type="button" onClick={() => { setStep(1); setStudentIdInput(''); setMatchedStudent(null); setLookupError(''); }} className="w-full rounded-xl border border-slate-200 dark:border-slate-700 py-3 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">
