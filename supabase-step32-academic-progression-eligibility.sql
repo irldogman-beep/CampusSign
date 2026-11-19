@@ -263,9 +263,9 @@ begin
       status_reason=case when v_review.eligibility_status='probation' then coalesce(nullif(btrim(p_note),''),'Promoted on academic probation.') else null end,
       updated_at=now() where student_user_id=v_review.student_user_id;
   elsif p_decision='repeat' then
-    if v_review.from_level_id is null or v_review.metrics->>'academic_status' not in ('active','probation') then raise exception 'student_cannot_repeat_level'; end if;
+    if v_review.from_level_id is null or v_review.metrics->>'academic_status' not in ('active','probation','graduating') then raise exception 'student_cannot_repeat_level'; end if;
     v_next_status:='repeated'; v_event_type:='repeated'; v_to_level:=v_review.from_level_id;
-    update public.student_academic_profiles set academic_status='active',status_reason=nullif(btrim(p_note),''),updated_at=now()
+    update public.student_academic_profiles set academic_status='active',status_reason=null,updated_at=now()
       where student_user_id=v_review.student_user_id;
   elsif p_decision='graduate' then
     if v_review.eligibility_status<>'completion_review' then raise exception 'student_not_ready_for_completion_review'; end if;
