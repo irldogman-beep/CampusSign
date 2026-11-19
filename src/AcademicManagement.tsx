@@ -356,7 +356,7 @@ export default function AcademicManagement() {
               <input className={field} value={note} onChange={e=>setProgressionNotes(current=>({...current,[review.id]:e.target.value}))} placeholder="Decision note (required for repeat, hold, decline or graduation)"/>
               <div className="flex flex-wrap gap-2">
                 <button type="button" className={primary} disabled={!!progressionBusyId||!canPromote} onClick={()=>void decideProgression(review,'promote')}>{progressionBusyId===review.id?'Saving…':review.eligibility_status==='probation'?'Promote on probation':'Approve promotion'}</button>
-                <button type="button" className={secondary} disabled={!!progressionBusyId||!review.from_level_id||!['active','probation'].includes(metrics.academic_status)} onClick={()=>void decideProgression(review,'repeat')}>Repeat level</button>
+                <button type="button" className={secondary} disabled={!!progressionBusyId||!review.from_level_id||!['active','probation','graduating'].includes(metrics.academic_status)} onClick={()=>void decideProgression(review,'repeat')}>Repeat level</button>
                 {review.eligibility_status==='completion_review' && <button type="button" className={secondary} disabled={!!progressionBusyId} onClick={()=>void decideProgression(review,'graduate')}>Mark graduated</button>}
                 <button type="button" className={secondary} disabled={!!progressionBusyId} onClick={()=>void decideProgression(review,'hold')}>Hold</button>
                 <button type="button" className="rounded-xl border border-rose-200 dark:border-rose-900 px-3 py-2.5 text-xs font-bold text-rose-700 dark:text-rose-300" disabled={!!progressionBusyId} onClick={()=>void decideProgression(review,'deny')}>Decline</button>
