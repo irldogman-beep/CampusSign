@@ -37,6 +37,9 @@ create table if not exists public.academic_progression_reviews (
 );
 create index if not exists academic_progression_reviews_period_status_idx on public.academic_progression_reviews (academic_period_id, decision_status, eligibility_status);
 create index if not exists academic_progression_reviews_student_idx on public.academic_progression_reviews (student_user_id, created_at desc);
+create index if not exists academic_progression_reviews_from_level_idx on public.academic_progression_reviews (from_level_id);
+create index if not exists academic_progression_reviews_proposed_level_idx on public.academic_progression_reviews (proposed_level_id);
+create index if not exists academic_progression_reviews_decided_by_idx on public.academic_progression_reviews (decided_by);
 create index if not exists academic_progression_policies_updated_by_idx on public.academic_progression_policies (updated_by);
 create index if not exists academic_grading_settings_updated_by_idx on public.academic_grading_settings (updated_by);
 
@@ -171,8 +174,10 @@ begin
     v_eligibility:='eligible'; v_reasons:='[]'::jsonb; v_failed:=false; v_probation_ok:=true; v_has_probation_rule:=false;
     if v_row.current_level_id is null then
       v_eligibility:='needs_data'; v_reasons:=v_reasons||jsonb_build_array('Assign the student a current academic level first.');
-    elsif v_row.academic_status not in ('active','probation') then
+    elsif v_row.academic_status not in ('active','probation','graduating') then
       v_eligibility:='ineligible'; v_reasons:=v_reasons||jsonb_build_array('The student is not currently active.');
+    elsif v_row.academic_status='graduating' and v_row.next_level_id is not null then
+      v_eligibility:='ineligible'; v_reasons:=v_reasons||jsonb_build_array('A student marked as graduating must be at the highest configured level.');
     elsif v_row.period_attempts=0 or v_row.cgpa is null then
       v_eligibility:='needs_data';
       if v_row.period_attempts=0 then v_reasons:=v_reasons||jsonb_build_array('No course attempts are recorded for this academic period.'); end if;
