@@ -190,6 +190,7 @@ export default function AcademicManagement() {
     needsData: progressionReviews.filter(r => r.eligibility_status === 'needs_data').length,
     completed: progressionReviews.filter(r => r.decision_status !== 'pending').length,
   };
+  const hasProgressionRules = !!(progressionPolicy.minimum_cgpa || progressionPolicy.maximum_carryovers || progressionPolicy.minimum_earned_credits);
 
   const chooseStudent = (userId: string) => {
     const profile = profiles.find(p => p.student_user_id === userId);
@@ -318,7 +319,7 @@ export default function AcademicManagement() {
           <option value="">Choose academic period</option>
           {periods.map(period=><option key={period.id} value={period.id}>{period.name}</option>)}
         </select>
-        <button type="button" className={primary} disabled={busy || !progressionPeriodId} onClick={()=>void generateProgressionReviews()}>
+        <button type="button" className={primary} disabled={busy || !progressionPeriodId || !hasProgressionRules} onClick={()=>void generateProgressionReviews()}>
           {busy?'Preparing review…':'Generate / refresh eligibility'}
         </button>
       </div>
