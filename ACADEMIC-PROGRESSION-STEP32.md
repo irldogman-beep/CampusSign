@@ -7,7 +7,7 @@ Step 32 builds on the existing academic levels, admission cohorts, student acade
 Administrators can configure progression rules using the institution's own policy:
 - Minimum CGPA (optional)
 - Maximum outstanding carryovers (optional)
-- Minimum earned credits (optional)
+- Minimum cumulative earned credits (optional)
 - Optional probation CGPA and carryover limits for conditional promotion
 
 At least one normal eligibility rule must be configured before a review can be generated. No institutional thresholds are seeded or assumed.
@@ -38,7 +38,7 @@ Refreshing a review recalculates pending decisions only. Decisions already made 
 ## Eligibility calculations
 
 - CGPA follows the existing grading scale and repeat policy (`latest_attempt`, `highest_grade` or `all_attempts`).
-- Earned credits are counted once per passed course.
+- Cumulative earned credits are counted once per passed course.
 - Outstanding carryovers count the latest failed attempt per course.
 - A student needs at least one recorded attempt in the selected period and a calculable CGPA before eligibility can be assessed.
 - Students without a current academic level need their academic profile completed first.
