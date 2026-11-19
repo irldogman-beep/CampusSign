@@ -30,18 +30,33 @@ export default function AcademicManagement() {
   const [cohortForm, setCohortForm] = useState({ id: '', name: '', admission_year: '', description: '' });
   const [profileForm, setProfileForm] = useState({ student_user_id: '', cohort_id: '', current_level_id: '', academic_status: 'active', status_reason: '', event_type: 'initial_assignment', effective_on: new Date().toISOString().slice(0,10), note: '' });
   const [attemptForm, setAttemptForm] = useState({ student_user_id: '', course_id: '', academic_term_id: '', attempt_number: '1', status: 'registered', grade: '', result_note: '' });
+  const [progressionPolicy, setProgressionPolicy] = useState<any>({ minimum_cgpa: '', maximum_carryovers: '', minimum_earned_credits: '', probation_minimum_cgpa: '', probation_maximum_carryovers: '' });
+  const [progressionPeriodId, setProgressionPeriodId] = useState('');
+  const [progressionReviews, setProgressionReviews] = useState<any[]>([]);
+  const [progressionSearch, setProgressionSearch] = useState('');
+  const [progressionNotes, setProgressionNotes] = useState<Record<string, string>>({});
+  const [progressionBusyId, setProgressionBusyId] = useState('');
 
   const refresh = async () => {
     setLoading(true); setError('');
     try {
-      const [settingRows, levelRows, periodRows, termRows, cohortRows, profileRows, eventRows, attemptRows, studentRows, courseRows] = await Promise.all([
+      const [settingRows, levelRows, periodRows, termRows, cohortRows, profileRows, eventRows, attemptRows, studentRows, courseRows, policyRow] = await Promise.all([
         db.loadAcademicSettings(), db.loadAcademicLevels(), db.loadAcademicPeriods(), db.loadAcademicTerms(),
         db.loadAcademicCohorts(), db.loadStudentAcademicProfiles(), db.loadStudentProgressionEvents(),
-        db.loadStudentCourseAttempts(), db.loadAdminStudentAccounts(), db.loadCatalogCourses(null)
+        db.loadStudentCourseAttempts(), db.loadAdminStudentAccounts(), db.loadCatalogCourses(null),
+        db.loadAcademicProgressionPolicy()
       ]);
       setSettings(settingRows || emptySettings);
       setLevels(levelRows); setPeriods(periodRows); setTerms(termRows); setCohorts(cohortRows);
       setProfiles(profileRows); setEvents(eventRows); setAttempts(attemptRows); setStudents(studentRows); setCourses(courseRows);
+      setProgressionPolicy({
+        minimum_cgpa: policyRow?.minimum_cgpa == null ? '' : String(policyRow.minimum_cgpa),
+        maximum_carryovers: policyRow?.maximum_carryovers == null ? '' : String(policyRow.maximum_carryovers),
+        minimum_earned_credits: policyRow?.minimum_earned_credits == null ? '' : String(policyRow.minimum_earned_credits),
+        probation_minimum_cgpa: policyRow?.probation_minimum_cgpa == null ? '' : String(policyRow.probation_minimum_cgpa),
+        probation_maximum_carryovers: policyRow?.probation_maximum_carryovers == null ? '' : String(policyRow.probation_maximum_carryovers),
+      });
+      setProgressionPeriodId(current => current || periodRows.find(p => p.is_current)?.id || periodRows[0]?.id || '');
     } catch (e) { setError(db.friendly(e)); }
     finally { setLoading(false); }
   };
@@ -115,6 +130,65 @@ export default function AcademicManagement() {
       await db.saveStudentCourseAttempt({ ...attemptForm, attempt_number: Number(attemptForm.attempt_number) });
       setAttemptForm(prev => ({ ...prev, course_id: '', attempt_number: String(Number(prev.attempt_number) + 1), status: 'registered', grade: '', result_note: '' }));
     }, 'Course attempt recorded.');
+  };
+
+  const saveProgressionPolicy = (event: React.FormEvent) => {
+    event.preventDefault();
+    void run(() => db.saveAcademicProgressionPolicy(progressionPolicy), 'Progression rules saved. They will be used for the next eligibility review.');
+  };
+
+  const refreshProgressionReviews = async () => {
+    if (!progressionPeriodId) { setProgressionReviews([]); return; }
+    try {
+      const rows = await db.loadAcademicProgressionReviews(progressionPeriodId);
+      setProgressionReviews(rows);
+    } catch (e) { setError(db.friendly(e)); }
+  };
+
+  useEffect(() => { void refreshProgressionReviews(); }, [progressionPeriodId]);
+
+  const generateProgressionReviews = async () => {
+    if (!progressionPeriodId) return;
+    setBusy(true); setError(''); setMessage('');
+    try {
+      const result = await db.generateAcademicProgressionReviews(progressionPeriodId);
+      const rows = await db.loadAcademicProgressionReviews(progressionPeriodId);
+      setProgressionReviews(rows);
+      setMessage(`Eligibility review refreshed. ${result?.refreshed ?? rows.length} pending record(s) updated; completed decisions were preserved.`);
+    } catch (e) { setError(db.friendly(e)); }
+    finally { setBusy(false); }
+  };
+
+  const decideProgression = async (review: any, decision: 'promote' | 'repeat' | 'hold' | 'deny' | 'graduate') => {
+    const note = progressionNotes[review.id] || '';
+    if (['repeat','hold','deny','graduate'].includes(decision) && note.trim().length < 5) {
+      setError('Add a short note of at least 5 characters before recording this decision.');
+      return;
+    }
+    const actionLabel = decision === 'promote' ? (review.eligibility_status === 'probation' ? 'promote on probation' : 'promote') :
+      decision === 'repeat' ? 'keep at the current level' : decision === 'graduate' ? 'mark as graduated' :
+      decision === 'hold' ? 'put on hold' : 'decline progression';
+    if (!window.confirm(`Confirm: ${actionLabel} for ${review.student_name}? This decision will be saved to the student's progression history.`)) return;
+    setProgressionBusyId(review.id); setError(''); setMessage('');
+    try {
+      await db.decideAcademicProgressionReview(review.id, decision, note);
+      setProgressionReviews(await db.loadAcademicProgressionReviews(progressionPeriodId));
+      setMessage(`Decision recorded for ${review.student_name}.`);
+      setProgressionNotes(current => ({ ...current, [review.id]: '' }));
+    } catch (e) { setError(db.friendly(e)); }
+    finally { setProgressionBusyId(''); }
+  };
+
+  const filteredProgressionReviews = progressionReviews.filter(review =>
+    [review.student_name, review.student_id, review.from_level, review.proposed_level, review.eligibility_status, review.decision_status]
+      .some(value => String(value || '').toLowerCase().includes(progressionSearch.trim().toLowerCase()))
+  );
+  const progressionCounts = {
+    eligible: progressionReviews.filter(r => r.eligibility_status === 'eligible').length,
+    probation: progressionReviews.filter(r => r.eligibility_status === 'probation').length,
+    ineligible: progressionReviews.filter(r => r.eligibility_status === 'ineligible').length,
+    needsData: progressionReviews.filter(r => r.eligibility_status === 'needs_data').length,
+    completed: progressionReviews.filter(r => r.decision_status !== 'pending').length,
   };
 
   const chooseStudent = (userId: string) => {
@@ -202,6 +276,95 @@ export default function AcademicManagement() {
       </form>
       <div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left"><thead><tr className="text-[10px] uppercase text-slate-500 border-b border-slate-100 dark:border-slate-800"><th className="p-2">Student</th><th className="p-2">Admission set</th><th className="p-2">Current level</th><th className="p-2">Last update</th></tr></thead><tbody className="divide-y divide-slate-100 dark:divide-slate-800">{profiles.map(p=><tr key={p.student_user_id}><td className="p-2 text-xs font-semibold">{studentById[p.student_user_id]?.full_name||studentById[p.student_user_id]?.student_id||p.student_user_id}</td><td className="p-2 text-xs">{cohorts.find(c=>c.id===p.cohort_id)?.name||'Not assigned'}</td><td className="p-2 text-xs">{levelById[p.current_level_id]?.name||'Not assigned'}</td><td className="p-2 text-[10px] text-slate-500">{new Date(p.updated_at).toLocaleDateString()}</td></tr>)}</tbody></table>{!profiles.length&&<p className="py-4 text-xs text-slate-500 text-center">No progression profiles have been assigned yet.</p>}</div>
       <div className="border-t border-slate-100 dark:border-slate-800 pt-3"><h3 className="text-xs font-extrabold mb-2">Progression history</h3><div className="space-y-2">{events.slice(0,12).map(event=><div key={event.id} className="flex flex-wrap items-center justify-between gap-2 text-[10px] border-b border-slate-50 dark:border-slate-800 pb-2"><span className="font-semibold">{studentById[event.student_user_id]?.full_name||event.student_user_id}</span><span>{levelById[event.from_level_id]?.name||'—'} → {levelById[event.to_level_id]?.name||'—'}</span><span className="text-slate-500">{event.event_type.replace('_',' ')} · {event.effective_on}</span></div>)}{!events.length&&<p className="text-[10px] text-slate-500">No progression events yet.</p>}</div></div>
+    </section>
+
+    <section className={panel}>
+      <div>
+        <h2 className="font-extrabold text-slate-900 dark:text-white">Progression eligibility rules</h2>
+        <p className="text-xs text-slate-500 mt-1">Set the institution's own requirements. These rules calculate recommendations only; students are never promoted automatically.</p>
+      </div>
+      <form onSubmit={saveProgressionPolicy} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <label className="text-[10px] font-bold text-slate-500">Minimum CGPA
+          <input className={field+' mt-1'} type="number" min="0" step="0.01" value={progressionPolicy.minimum_cgpa} onChange={e=>setProgressionPolicy({...progressionPolicy,minimum_cgpa:e.target.value})} placeholder="Not used"/>
+        </label>
+        <label className="text-[10px] font-bold text-slate-500">Maximum outstanding carryovers
+          <input className={field+' mt-1'} type="number" min="0" max="50" step="1" value={progressionPolicy.maximum_carryovers} onChange={e=>setProgressionPolicy({...progressionPolicy,maximum_carryovers:e.target.value})} placeholder="Not used"/>
+        </label>
+        <label className="text-[10px] font-bold text-slate-500">Minimum earned credits
+          <input className={field+' mt-1'} type="number" min="0" max="10000" step="0.5" value={progressionPolicy.minimum_earned_credits} onChange={e=>setProgressionPolicy({...progressionPolicy,minimum_earned_credits:e.target.value})} placeholder="Not used"/>
+        </label>
+        <div className="sm:col-span-2 lg:col-span-3 border-t border-slate-100 dark:border-slate-800 pt-3">
+          <p className="text-xs font-bold text-slate-800 dark:text-slate-100">Optional probation range</p>
+          <p className="text-[10px] text-slate-500 mt-1">Students who narrowly miss the normal CGPA or carryover limit can be recommended for promotion on probation if they meet these limits. Credit requirements remain mandatory.</p>
+        </div>
+        <label className="text-[10px] font-bold text-slate-500">Probation minimum CGPA
+          <input className={field+' mt-1'} type="number" min="0" step="0.01" value={progressionPolicy.probation_minimum_cgpa} onChange={e=>setProgressionPolicy({...progressionPolicy,probation_minimum_cgpa:e.target.value})} placeholder="Not used"/>
+        </label>
+        <label className="text-[10px] font-bold text-slate-500">Probation carryover limit
+          <input className={field+' mt-1'} type="number" min="0" max="50" step="1" value={progressionPolicy.probation_maximum_carryovers} onChange={e=>setProgressionPolicy({...progressionPolicy,probation_maximum_carryovers:e.target.value})} placeholder="Not used"/>
+        </label>
+        <div className="flex items-end justify-end"><button className={primary} disabled={busy || (!progressionPolicy.minimum_cgpa && !progressionPolicy.maximum_carryovers && !progressionPolicy.minimum_earned_credits)}>Save progression rules</button></div>
+      </form>
+      <p className="text-[10px] text-slate-500">At least one normal rule is required. CGPA uses the institution's grading scale and repeat policy; carryovers count the latest failed attempt per course. Configure grade bands and course credit units before running a review.</p>
+    </section>
+
+    <section className={panel}>
+      <div>
+        <h2 className="font-extrabold text-slate-900 dark:text-white">Progression review</h2>
+        <p className="text-xs text-slate-500 mt-1">Review students at the end of an academic period. Promote, repeat, hold or graduate only after an administrator makes an explicit decision.</p>
+      </div>
+      <div className="flex flex-col sm:flex-row gap-2">
+        <select className={field+' flex-1'} value={progressionPeriodId} onChange={e=>setProgressionPeriodId(e.target.value)}>
+          <option value="">Choose academic period</option>
+          {periods.map(period=><option key={period.id} value={period.id}>{period.name}</option>)}
+        </select>
+        <button type="button" className={primary} disabled={busy || !progressionPeriodId} onClick={()=>void generateProgressionReviews()}>
+          {busy?'Preparing review…':'Generate / refresh eligibility'}
+        </button>
+      </div>
+      {!!progressionReviews.length && <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+        <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/30 p-3"><p className="text-[10px] text-emerald-800 dark:text-emerald-200">Eligible</p><p className="text-xl font-black">{progressionCounts.eligible}</p></div>
+        <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 p-3"><p className="text-[10px] text-amber-800 dark:text-amber-200">Probation</p><p className="text-xl font-black">{progressionCounts.probation}</p></div>
+        <div className="rounded-xl bg-rose-50 dark:bg-rose-950/30 p-3"><p className="text-[10px] text-rose-800 dark:text-rose-200">Not eligible</p><p className="text-xl font-black">{progressionCounts.ineligible}</p></div>
+        <div className="rounded-xl bg-slate-100 dark:bg-slate-800 p-3"><p className="text-[10px] text-slate-600 dark:text-slate-300">Needs data</p><p className="text-xl font-black">{progressionCounts.needsData}</p></div>
+        <div className="rounded-xl bg-slate-100 dark:bg-slate-800 p-3"><p className="text-[10px] text-slate-600 dark:text-slate-300">Decisions made</p><p className="text-xl font-black">{progressionCounts.completed}</p></div>
+      </div>}
+      {progressionReviews.length>0 && <input className={field} value={progressionSearch} onChange={e=>setProgressionSearch(e.target.value)} placeholder="Search by student name, ID or level"/>}
+      {!progressionPeriodId ? <p className="py-4 text-xs text-slate-500">Choose an academic period to review progression.</p> :
+        progressionReviews.length===0 ? <p className="py-4 text-xs text-slate-500">No review has been generated for this period yet. Save the institution's rules, publish graded results, then generate the review.</p> :
+        filteredProgressionReviews.length===0 ? <p className="py-4 text-xs text-slate-500">No students match this search.</p> :
+        <div className="space-y-3">{filteredProgressionReviews.map(review=>{
+          const metrics=review.metrics||{};
+          const pending=review.decision_status==='pending';
+          const canPromote=['eligible','probation'].includes(review.eligibility_status)&&!!review.proposed_level_id;
+          const note=progressionNotes[review.id]||'';
+          const badge=review.eligibility_status==='eligible'?'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200':review.eligibility_status==='probation'?'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200':review.eligibility_status==='ineligible'?'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-200':'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300';
+          return <article key={review.id} className="rounded-xl border border-slate-200 dark:border-slate-700 p-3 sm:p-4 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+              <div className="min-w-0"><p className="text-sm font-extrabold text-slate-900 dark:text-white">{review.student_name}</p><p className="text-[10px] text-slate-500">{review.student_id} · {review.from_level||'Level not assigned'} {review.proposed_level? '→ '+review.proposed_level : ''}</p></div>
+              <div className="flex flex-wrap gap-1.5"><span className={'rounded-full px-2.5 py-1 text-[9px] font-bold '+badge}>{review.eligibility_status.replace('_',' ')}</span><span className="rounded-full px-2.5 py-1 text-[9px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">{review.decision_status.replaceAll('_',' ')}</span></div>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="rounded-lg bg-slate-50 dark:bg-slate-800 p-2"><p className="text-[9px] text-slate-500">CGPA</p><p className="text-sm font-extrabold">{metrics.cgpa==null?'—':Number(metrics.cgpa).toFixed(2)} <span className="text-[9px] font-normal text-slate-500">/ {metrics.maximum_grade_point??'—'}</span></p></div>
+              <div className="rounded-lg bg-slate-50 dark:bg-slate-800 p-2"><p className="text-[9px] text-slate-500">Earned credits</p><p className="text-sm font-extrabold">{Number(metrics.earned_credits||0).toFixed(2)}</p></div>
+              <div className="rounded-lg bg-slate-50 dark:bg-slate-800 p-2"><p className="text-[9px] text-slate-500">Carryovers</p><p className="text-sm font-extrabold">{metrics.outstanding_carryovers??0}</p></div>
+              <div className="rounded-lg bg-slate-50 dark:bg-slate-800 p-2"><p className="text-[9px] text-slate-500">Attempts this period</p><p className="text-sm font-extrabold">{metrics.period_attempts??0}</p></div>
+            </div>
+            {!!(review.reasons||[]).length && <ul className="list-disc pl-5 space-y-1 text-[10px] text-slate-600 dark:text-slate-300">{review.reasons.map((reason:string,index:number)=><li key={index}>{reason}</li>)}</ul>}
+            {review.decision_note && <p className="text-[10px] text-slate-500">Decision note: {review.decision_note}</p>}
+            {pending && <div className="space-y-2 border-t border-slate-100 dark:border-slate-800 pt-3">
+              <input className={field} value={note} onChange={e=>setProgressionNotes(current=>({...current,[review.id]:e.target.value}))} placeholder="Decision note (required for repeat, hold, decline or graduation)"/>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" className={primary} disabled={!!progressionBusyId||!canPromote} onClick={()=>void decideProgression(review,'promote')}>{progressionBusyId===review.id?'Saving…':review.eligibility_status==='probation'?'Promote on probation':'Approve promotion'}</button>
+                <button type="button" className={secondary} disabled={!!progressionBusyId||!review.from_level_id||!['active','probation'].includes(metrics.academic_status)} onClick={()=>void decideProgression(review,'repeat')}>Repeat level</button>
+                {review.eligibility_status==='completion_review' && <button type="button" className={secondary} disabled={!!progressionBusyId} onClick={()=>void decideProgression(review,'graduate')}>Mark graduated</button>}
+                <button type="button" className={secondary} disabled={!!progressionBusyId} onClick={()=>void decideProgression(review,'hold')}>Hold</button>
+                <button type="button" className="rounded-xl border border-rose-200 dark:border-rose-900 px-3 py-2.5 text-xs font-bold text-rose-700 dark:text-rose-300" disabled={!!progressionBusyId} onClick={()=>void decideProgression(review,'deny')}>Decline</button>
+              </div>
+            </div>}
+          </article>;
+        })}</div>}
+      <p className="text-[10px] text-slate-500">Refreshing recalculates pending reviews only. Completed decisions and their audit history are preserved. Promotion, repetition and graduation are always administrator decisions.</p>
     </section>
 
     <section className={panel}>
