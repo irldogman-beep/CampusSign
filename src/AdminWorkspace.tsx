@@ -549,7 +549,7 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
           <div className="px-2 pb-2 border-b border-slate-100 dark:border-slate-800">
             <p className="text-[10px] font-black uppercase tracking-[.16em] text-emerald-700 dark:text-emerald-300">Menu</p>
             <h2 className="text-sm font-extrabold text-slate-900 dark:text-white mt-1">Administration</h2>
-            <p className="text-[10px] text-slate-500 mt-1">Choose an area to manage.</p>
+            <p className="text-[10px] text-slate-500 mt-1">Select a section to open its tools.</p>
           </div>
       <nav id="admin-workspace-navigation" aria-label="Admin dashboard sections" className="cs-admin-nav">
         {[
@@ -603,7 +603,7 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
         <div className="space-y-5">
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">{statCards.map((card) => <button type="button" key={card.label} onClick={() => setTab(card.tab)} className="text-left rounded-2xl p-4 sm:p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:border-emerald-500 hover:shadow-md transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500"><div className="flex items-center justify-between gap-2"><span className="text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400">{card.label}</span><span className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 grid place-items-center"><card.icon className="w-4 h-4" /></span></div><p className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white mt-3 tabular-nums">{card.value}</p></button>)}</div>
           <section className="rounded-2xl border border-amber-200 dark:border-amber-900 bg-amber-50/60 dark:bg-amber-950/20 p-4 sm:p-5">
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-3"><div><p className="text-[10px] uppercase tracking-[.16em] font-black text-amber-800 dark:text-amber-300">Needs attention</p><h2 className="text-sm font-extrabold text-slate-900 dark:text-white mt-1">Review queue</h2></div><span className="text-[10px] text-slate-500">Open a queue to take action</span></div>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3"><div><p className="text-[10px] uppercase tracking-[.16em] font-black text-amber-800 dark:text-amber-300">Needs attention</p><h2 className="text-sm font-extrabold text-slate-900 dark:text-white mt-1">Review queue</h2></div><span className="text-[10px] text-slate-500">Select an item below to review it</span></div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <button type="button" onClick={()=>setTab('student-accounts')} className="rounded-xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900 p-3 text-left hover:border-amber-400"><span className="block text-[10px] text-slate-500">Student accounts awaiting review</span><strong className="block text-2xl font-black text-slate-900 dark:text-white mt-1">{studentAccounts.filter((item:any)=>item.status==='pending').length}</strong><span className="text-[10px] font-bold text-amber-800 dark:text-amber-300">Review student accounts →</span></button>
               <button type="button" onClick={()=>setTab('lecturers')} className="rounded-xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900 p-3 text-left hover:border-amber-400"><span className="block text-[10px] text-slate-500">Lecturers awaiting verification</span><strong className="block text-2xl font-black text-slate-900 dark:text-white mt-1">{lecturers.filter((item:any)=>!item.is_verified).length}</strong><span className="text-[10px] font-bold text-amber-800 dark:text-amber-300">Review lecturer accounts →</span></button>
@@ -912,7 +912,7 @@ export default function AdminWorkspace({ activeStaff, onLogout }: any) {
       ) : (
         <section className="rounded-3xl p-4 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
           <h2 className="font-extrabold text-slate-900 dark:text-white">Section unavailable</h2>
-          <p className="mt-2 text-xs text-slate-500">The selected admin section could not be recognised. Return to Overview and choose the section again.</p>
+          <p className="mt-2 text-xs text-slate-500">This section isn't available. Return to Overview and choose another section.</p>
           <button type="button" onClick={() => setTab('overview')} className="mt-4 rounded-xl bg-emerald-900 px-4 py-2 text-xs font-bold text-white">Back to Overview</button>
         </section>
       )}
