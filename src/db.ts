@@ -541,6 +541,41 @@ export async function loadStudentCourseAttempts(): Promise<any[]> {
   const { data, error } = await supabase.from('student_course_attempts').select('*').order('created_at', { ascending: false }).limit(250);
   if (error) throw error; return data || [];
 }
+
+export async function loadAcademicProgressionPolicy(): Promise<any> {
+  const { data, error } = await supabase.rpc('admin_get_progression_policy');
+  if (error) throw error;
+  return data || { id: 1 };
+}
+export async function saveAcademicProgressionPolicy(input: any): Promise<any> {
+  const { data, error } = await supabase.rpc('admin_save_progression_policy', {
+    p_minimum_cgpa: input.minimum_cgpa === '' || input.minimum_cgpa == null ? null : Number(input.minimum_cgpa),
+    p_maximum_carryovers: input.maximum_carryovers === '' || input.maximum_carryovers == null ? null : Number(input.maximum_carryovers),
+    p_minimum_earned_credits: input.minimum_earned_credits === '' || input.minimum_earned_credits == null ? null : Number(input.minimum_earned_credits),
+    p_probation_minimum_cgpa: input.probation_minimum_cgpa === '' || input.probation_minimum_cgpa == null ? null : Number(input.probation_minimum_cgpa),
+    p_probation_maximum_carryovers: input.probation_maximum_carryovers === '' || input.probation_maximum_carryovers == null ? null : Number(input.probation_maximum_carryovers),
+  });
+  if (error) throw error;
+  return data;
+}
+export async function generateAcademicProgressionReviews(periodId: string): Promise<any> {
+  const { data, error } = await supabase.rpc('admin_generate_progression_reviews', { p_academic_period_id: periodId });
+  if (error) throw error;
+  return data;
+}
+export async function loadAcademicProgressionReviews(periodId: string): Promise<any[]> {
+  if (!periodId) return [];
+  const { data, error } = await supabase.rpc('admin_list_progression_reviews', { p_academic_period_id: periodId });
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}
+export async function decideAcademicProgressionReview(reviewId: string, decision: string, note = ''): Promise<any> {
+  const { data, error } = await supabase.rpc('admin_decide_progression_review', {
+    p_review_id: reviewId, p_decision: decision, p_note: note.trim() || null,
+  });
+  if (error) throw error;
+  return data;
+}
 export async function saveStudentCourseAttempt(input: any) {
   const payload: any = { student_user_id: input.student_user_id, course_id: input.course_id, academic_term_id: input.academic_term_id, attempt_number: Number(input.attempt_number), status: input.status, grade: input.grade?.trim() || null, result_note: input.result_note?.trim() || null, updated_at: new Date().toISOString() };
   const { data: authData } = await supabase.auth.getUser();
