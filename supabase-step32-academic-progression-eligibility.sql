@@ -179,7 +179,7 @@ begin
       if v_row.cgpa is null then v_reasons:=v_reasons||jsonb_build_array('Published graded results and course credit units are needed to calculate CGPA.'); end if;
     else
       if v_policy.minimum_cgpa is not null and v_row.cgpa<v_policy.minimum_cgpa then
-        v_failed:=true; v_reasons:=v_reasons||jsonb_build_array(format('CGPA %.2f is below the required %.2f.',v_row.cgpa,v_policy.minimum_cgpa));
+        v_failed:=true; v_reasons:=v_reasons||jsonb_build_array('CGPA '||round(v_row.cgpa,2)::text||' is below the required '||round(v_policy.minimum_cgpa,2)::text||'.');
         if v_policy.probation_minimum_cgpa is not null then v_has_probation_rule:=true; if v_row.cgpa<v_policy.probation_minimum_cgpa then v_probation_ok:=false; end if;
         else v_probation_ok:=false; end if;
       end if;
@@ -189,7 +189,7 @@ begin
         else v_probation_ok:=false; end if;
       end if;
       if v_policy.minimum_earned_credits is not null and v_row.earned_credits<v_policy.minimum_earned_credits then
-        v_failed:=true; v_probation_ok:=false; v_reasons:=v_reasons||jsonb_build_array(format('%.2f earned credits are below the required %.2f.',v_row.earned_credits,v_policy.minimum_earned_credits));
+        v_failed:=true; v_probation_ok:=false; v_reasons:=v_reasons||jsonb_build_array(round(v_row.earned_credits,2)::text||' earned credits are below the required '||round(v_policy.minimum_earned_credits,2)::text||'.');
       end if;
       if v_failed then v_eligibility:=case when v_probation_ok and v_has_probation_rule then 'probation' else 'ineligible' end;
       elsif v_row.next_level_id is null then
@@ -241,7 +241,7 @@ declare
   v_to_level uuid;
 begin
   if auth.uid() is null or not public.is_admin() then raise exception 'admin_required'; end if;
-  if p_decision not in ('promote','repeat','hold','deny','graduate') then raise exception 'invalid_progression_decision'; end if;
+  if p_decision is null or p_decision not in ('promote','repeat','hold','deny','graduate') then raise exception 'invalid_progression_decision'; end if;
   if p_decision in ('repeat','hold','deny','graduate') and length(btrim(coalesce(p_note,'')))<5 then raise exception 'decision_note_required'; end if;
   select * into v_review from public.academic_progression_reviews where id=p_review_id for update;
   if not found then raise exception 'progression_review_not_found'; end if;
